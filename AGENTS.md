@@ -4,6 +4,14 @@ Lies vor der Arbeit `.specify/memory/constitution.md` und die Artefakte des
 aktiven Features. Die Constitution regelt Qualität, Prüfung und Ausnahmen;
 diese Datei regelt Zuständigkeiten und Übergaben.
 
+## Schreibstil
+
+Schreibe kurz, dicht und konkret: eine Aussage pro Regel, jede Regel nur an
+einer Stelle. Verweise auf bestehende Vorgaben statt sie zu wiederholen.
+Streiche Einleitungen, Füllsätze und Erklärungen ohne Entscheidungsnutzen.
+Erhalte beim Kürzen Verbindlichkeit, Bedingungen, Ausnahmen und Nachweise;
+Lesbarkeit geht vor Telegrammstil.
+
 ## Rollen
 
 - **Maintainer:** entscheidet Scope, Stack, Daten- und Zugriffsmodell, neue
