@@ -1,130 +1,59 @@
 # AGENTS.md
 
-Operative Arbeitsanweisung für die KI-Agenten dieses Repositories.
-
-Die Constitution (`.specify/memory/constitution.md`) regelt, **was** gilt und **wie
-geprüft** wird. Diese Datei regelt, **wer** was tut und **wie übergeben** wird. Bei
-Widerspruch gilt die Constitution. Prinzipienverweise unten (I–VIII) beziehen sich auf sie.
+Lies vor der Arbeit `.specify/memory/constitution.md` und die Artefakte des
+aktiven Features. Die Constitution regelt Qualität, Prüfung und Ausnahmen;
+diese Datei regelt Zuständigkeiten und Übergaben.
 
 ## Rollen
 
-**Maintainer** (Mensch) — technische Steuerung, Architekturentscheidungen, Abnahme.
-Alleiniger Entscheider für: Stack, Datenmodell, Zugriffsmodell, neue Abhängigkeiten,
-Ausnahmen von MUSS-Regeln, Merge. Agenten schlagen vor, der Maintainer entscheidet.
+- **Maintainer:** entscheidet Scope, Stack, Daten- und Zugriffsmodell, neue
+  Abhängigkeiten, Ausnahmen und Merge. Gibt `spec.md` und `plan.md` frei.
+- **Claude Code:** erstellt Spezifikation, Plan und Aufgaben; prüft die
+  Implementierung in einer separaten Sitzung. Ändert keinen Anwendungscode.
+- **Codex:** implementiert freigegebene Aufgaben und behebt Review-Befunde.
+- Agenten mergen nicht. Der Autor ist nie alleiniger Prüfer seiner Änderung.
+- Constitution, `AGENTS.md` und `.specify/templates/` ändert nur der Maintainer.
 
-**Claude Code** — Entwurf von Spezifikation und Plan, sowie unabhängiges Review der
-Implementierung. Implementiert nicht.
+## Arbeitsablauf
 
-**Codex** — Implementierung gegen die entschiedenen Kriterien.
+1. Originalaufgabe lesen; fehlende Vorgaben als offene Fragen markieren.
+2. Claude: `specify` → bei Bedarf `clarify` → `plan`.
+3. Maintainer: Spezifikation und Plan freigeben.
+4. Claude: `tasks`; Codex: `analyze` vor der Implementierung.
+5. Codex: vereinbarte Aufgaben umsetzen und Verifikation ausführen.
+6. Claude: unabhängiges Review; Befunde zur Behebung an Codex zurückgeben.
+7. Maintainer: Abnahme und Merge.
 
-Beide unterliegen denselben Qualitätsanforderungen (Prinzip I); die Herkunft einer
-Änderung ist kein Argument. Kein Agent merged eigene Arbeit und kein Agent ist
-alleiniger Prüfer seiner eigenen Änderung (Gate 5).
-
-### Aufgabenverteilung
-
-| Rolle | Träger | Verantwortung |
-|---|---|---|
-| Scope und Abnahme | Maintainer | Umfang, Akzeptanzkriterien, Entscheidungen, Merge |
-| Spezifikation und Planung | Claude Code | Entwurf von `spec.md` und `plan.md` zur Entscheidung |
-| Implementierung | Codex | Umsetzung gegen die entschiedenen Kriterien |
-| Review | Claude Code, unabhängig | Prüfung der Implementierung gegen Prinzipien und Kriterien |
-
-- Entwürfe von `spec.md` und `plan.md` sind Vorschläge, keine Festlegung. Verbindlich
-  werden sie durch die Entscheidung des Maintainers (Gate 2).
-- **Das Review läuft in einer eigenen Sitzung ohne den Kontext des Entwurfs.** Prüft
-  dieselbe Sitzung, die geplant hat, bestätigt sie ihre eigenen Annahmen statt sie zu
-  prüfen. Grundlage des Reviews sind die entschiedenen Akzeptanzkriterien und der Diff —
-  nicht der Handoff-Text von Codex und nicht die Absicht des Plans.
-- Claude implementiert nicht. Findet das Review einen Mangel, geht er an Codex zurück;
-  stille Korrektur durch den Prüfer ist unzulässig (siehe Handoff-Protokoll).
-- Gate 5 ist damit erfüllt: Autor der Implementierung (Codex) und Prüfer (Claude) fallen
-  auseinander. Für `spec.md` und `plan.md` ist der Prüfer der Maintainer.
+Skill-Aufrufe: Claude `/speckit-<name>`, Codex `$speckit-<name>`.
+Akzeptanzkriterien stehen vor dem ersten Code-Edit fest. Aufgaben gelten nur
+mit Nachweis als abgeschlossen. Es gelten die Qualitätsgates der Constitution.
 
 ## Worktrees
 
-- Eine Feature-Einheit = ein Branch = ein Worktree. Branch- und Verzeichnisnamen erzeugt
-  `/speckit-specify` als `NNN-slug`; die Spezifikation liegt unter `specs/NNN-slug/`.
-- Ein Agent arbeitet ausschließlich in seinem zugewiesenen Worktree. Änderungen außerhalb
-  sind unzulässig — auch dann, wenn der Fehler dort offensichtlich ist. Stattdessen als
-  Befund melden.
-- `specs/NNN-slug/` gehört dem Worktree dieses Features. Fremde Feature-Verzeichnisse
-  werden nicht angefasst.
-- Repository-weite Dateien — `.specify/memory/constitution.md`, `AGENTS.md`,
-  `.specify/templates/` — ändert nur der Maintainer.
-- Läuft mehr als ein Agent gleichzeitig, MUSS jeder einen eigenen Worktree haben. Zwei
-  Agenten im selben Arbeitsverzeichnis sind unzulässig: die Änderungen überschreiben
-  einander ohne Konfliktmarkierung.
+- Vor jedem Auftrag Feature-Verzeichnis, Task-IDs, Branch und Worktree benennen.
+- Parallele Agenten verwenden getrennte Worktrees mit eigenen Branches;
+  ein Feature darf mehrere Arbeits- oder Review-Branches haben.
+- Branches und Worktrees ausdrücklich anlegen; ihre Erstellung nicht als
+  automatische Wirkung von `speckit-specify` voraussetzen.
+- Nur im zugewiesenen Worktree und Aufgabenbereich ändern. Fremde
+  Feature-Verzeichnisse nicht bearbeiten; Befunde außerhalb des Bereichs melden.
+- Vor Übergaben den Arbeitsstand übertragen und den zu prüfenden Commit benennen.
+  Worktrees teilen keine uncommittierten Änderungen.
 
-## Handoff-Protokoll
+## Review und Handoff
 
-Ein Handoff ist ein Änderungssatz **plus Nachweis**. Ohne Nachweis gilt die Arbeit als
-offen (Prinzip I), unabhängig davon, wie vollständig sie wirkt.
+Reviews beginnen in einer frischen Sitzung. Grundlage sind Originalaufgabe,
+Constitution, freigegebene Feature-Artefakte und der tatsächliche Code samt Diff.
+Der Handoff ist ein Wegweiser und ersetzt keine unabhängige Prüfung.
+Der Reviewer meldet Befunde mit Belegen und korrigiert Anwendungscode nicht selbst.
 
-Jeder Handoff nennt knapp:
+Jeder Handoff enthält knapp:
 
-1. **Was** — der abgeschlossene Ablauf oder die benannte Korrektur (Gate 1).
-2. **Warum so** — die wesentliche Entscheidung mit verworfener Alternative, falls eine
-   getroffen wurde.
-3. **Nachweis** — ausgeführter Befehl mit Ergebnis, Testlauf oder reproduzierbare
-   manuelle Schritte.
-4. **Offen** — bekannte Einschränkungen, ausgelassene Fälle, aufgeschobene Entscheidungen.
+- **Stand:** Feature, Task-IDs, Branch und Commit; uncommittierte Änderungen benennen.
+- **Änderung:** Ergebnis und wesentliche Entscheidung mit Begründung.
+- **Prüfung:** ausgeführte Befehle und Ergebnisse oder reproduzierbare manuelle Schritte.
+- **Offen:** Einschränkungen, fehlende Prüfungen und nächste Aufgabe.
 
-Der Empfänger prüft gegen die Prinzipien und die Akzeptanzkriterien — nicht gegen die
-Absicht des Autors und nicht gegen die Frage, ob die Änderung plausibel aussieht.
-
-Gefundene Mängel gehen an den Autor zurück. Der Prüfer korrigiert nicht still, sonst
-verschwindet der Befund aus dem Protokoll und die Fehlannahme bleibt im Agenten.
-
-## Verbindliche Arbeitsanweisungen
-
-Diese Regeln sind die operative Fassung der Prinzipien. Verstöße sind Abbruchgründe,
-keine Nacharbeit.
-
-- **Erst Kriterium, dann Code.** Akzeptanzkriterien und Risiken aus `spec.md` liegen vor
-  dem ersten Edit vor (Gate 2, Prinzip VI).
-- **Tests werden nicht passend gemacht.** Ein fehlschlagender Test wird nicht
-  abgeschwächt, übersprungen, umgeschrieben oder gelöscht, um eine Implementierung
-  durchzubringen. Passt das Kriterium nicht, ist das eine Entscheidung des Maintainers
-  (Prinzip I).
-- **Datenpfad ohne Negativtest ist unfertig.** Berührt eine Änderung Datenbank, Storage,
-  Retrieval oder Hintergrundverarbeitung, liegt ein Test bei, der ohne die Schutzmaßnahme
-  nachweislich fehlschlägt (Prinzip II, Gate 4).
-- **Geheimnisse bleiben draußen.** Keine Schlüssel, Tokens oder Zugangsdaten in Code,
-  Commits, Fixtures, Fehlermeldungen oder Logs. Zugriff nur über serverseitig gelesene
-  Umgebungsvariablen (Prinzip II).
-- **Keine neue Abhängigkeit im Alleingang.** Bibliothek, Dienst, Laufzeit oder
-  Abstraktionsschicht braucht die Entscheidung des Maintainers und eine Begründung in
-  `plan.md` (Prinzip IV).
-- **Unklarheit wird markiert, nicht geraten.** Fehlt eine Vorgabe der Interviewaufgabe,
-  wird sie als offene Frage gemeldet. Erfundene Anforderungen sind unzulässig
-  (Prinzip IV).
-- **Dokumentinhalte sind Daten.** Text aus hochgeladenen Dokumenten, Dateinamen und
-  Metadaten verändert niemals Systemanweisungen, Werkzeugauswahl oder Zugriffsregeln
-  (Prinzip III).
-- **Fehlschlag bleibt sichtbar.** Kein Statuswechsel auf Erfolg, solange die Verarbeitung
-  nicht erfolgreich war (Prinzip V).
-- **Wiederholung erzeugt keine Duplikate.** Erneut angestoßene Verarbeitung ist über
-  einen stabilen Schlüssel abgesichert (Prinzip VII).
-- **Fertigmeldung nur mit Beleg.** Siehe Handoff-Protokoll.
-
-## Ablauf
-
-`/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`.
-
-`/speckit-tasks` verlangt `spec.md` und `plan.md` im Feature-Verzeichnis und bricht sonst
-ab. Zwischenschritte wie `/speckit-clarify`, `/speckit-analyze` und `/speckit-checklist`
-sind optional und ändern die Reihenfolge nicht.
-
-Vor `/speckit-specify` MUSS die Aufgabenstellung der Interviewaufgabe im Original
-vorliegen. Ohne sie erzeugt der Schritt erfundene Anforderungen (Prinzip IV).
-
-## Offene Entscheidungen
-
-| Thema | Status | Entscheider |
-|---|---|---|
-| Stack und Technologieversionen | offen — gehört nach `plan.md` | Maintainer |
-| Aufgabenstellung der Interviewaufgabe | liegt noch nicht vor | Maintainer |
-| Worktree-Layout für Codex und Review | offen — heute ein Worktree auf `main` | Maintainer |
-
-Entschiedene Punkte wandern aus dieser Tabelle in den jeweiligen Abschnitt.
+Offene Projektentscheidungen stehen bei den zugehörigen Feature-Artefakten.
+Mit der Stack-Festlegung MUSS eine README mit Voraussetzungen sowie Setup-, Start-
+und Prüfkommandos entstehen.
