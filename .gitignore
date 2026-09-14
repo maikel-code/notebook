@@ -1,0 +1,54 @@
+# --- Geheimnisse (Constitution Prinzip II) -----------------------------------
+# Reihenfolge beachten: erst alle .env-Varianten ignorieren, dann die
+# Beispieldatei wieder zulassen. Nur ".env" zu ignorieren lässt .env.local
+# und .env.production durchrutschen.
+.env
+.env.*
+!.env.example
+
+# Schlüssel, Zertifikate, Dienstkonten
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+credentials*.json
+
+# --- Benutzerdaten ------------------------------------------------------------
+# Hochgeladene Dokumente gehören nicht ins Repository.
+# ACHTUNG: hier KEINE pauschalen Endungen (*.pdf, *.docx) eintragen — der
+# Referenzdatensatz aus Prinzip VI MUSS versioniert bleiben. Sobald plan.md das
+# Upload-Verzeichnis benennt, wird es hier namentlich eingetragen.
+# uploads/
+# storage/
+
+# --- Laufzeit und Werkzeuge ---------------------------------------------------
+*.log
+logs/
+tmp/
+.cache/
+coverage/
+.DS_Store
+
+# --- Editor -------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+
+# --- Agenten- und Werkzeugzustand ---------------------------------------------
+# Absichtlich GETRACKT, nicht ignorieren:
+#   .claude/skills/, .agents/skills/  — geteiltes Werkzeug für beide Agenten
+#   .specify/scripts/, .specify/templates/, .specify/memory/
+#     Ohne sie schlägt ein frischer Clone fehl (setup-plan.sh / setup-tasks.sh
+#     verlangen dann 'specify init'). Prinzip VII: keine undokumentierten
+#     Handgriffe. .specify/.gitignore regelt den maschinenlokalen Teil selbst.
+#
+# Core-Templates in .specify/templates/ NICHT direkt editieren — ein CLI-Refresh
+# überschreibt sie. Projektanpassungen gehören nach
+# .specify/templates/overrides/<name>.md (Priorität 1 im Auflösungsstack,
+# siehe .specify/scripts/bash/common.sh:497).
+.claude/settings.local.json
+
+# --- Stackabhängig ------------------------------------------------------------
+# Wird nach der Stack-Entscheidung ergänzt (plan.md). Für Node wären das
+# node_modules/, Build-Ausgaben und Framework-Caches.
