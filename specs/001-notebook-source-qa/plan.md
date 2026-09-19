@@ -14,7 +14,7 @@ Die Belegprüfung ist der tragende Teil: Sie prüft Herkunft, Auswahl, Wortlaut 
 
 **Primary Dependencies**: Next.js App Router, React, Tailwind CSS v4, Komponenten von neobrutalism.com (D-13), Supabase JS, Vercel AI SDK, pdf.js, Zod
 
-**Storage**: Supabase Postgres mit `pgvector`, privater Storage-Bucket. Cloud-Projekt für Entwicklung und Vorführung, eigene lokale Instanz für Prüfläufe (D-14)
+**Storage**: Supabase Postgres mit `pgvector`, privater Storage-Bucket. Lokale Instanz für Entwicklung und Prüfläufe, Cloud-Projekt als Veröffentlichungsziel (D-14)
 
 **Testing**: Vitest, Playwright, Integrationslauf für Zugriffsgrenzen, getrennter Bewertungslauf (D-16)
 
@@ -43,7 +43,7 @@ Die Belegprüfung ist der tragende Teil: Sie prüft Herkunft, Auswahl, Wortlaut 
 | VII Reproduzierbarkeit | Node gepinnt, Migrationen versioniert, Grenzwerte zentral, Abrufkonfiguration mit Fingerprints versioniert, Aufnahme und Quellenersatz idempotent (D-06, D-17, D-18) |
 | VIII Zusammenarbeit | Entscheidungen in research.md, Verträge in contracts/, Prüfweg in quickstart.md |
 
-**Nach Phase 1 erneut geprüft**: Der Entwurf ergänzt keine Abhängigkeit und keinen öffentlichen Endpunkt. Retry nutzt `/api/chat`, Quellenersatz bestehende Server Actions; beide laufen über denselben zentralen Autorisierungsweg. Die neue `cleanup`-Phase nutzt den vorhandenen Auftrags- und Wiederholungsmechanismus. Kalibrierung bleibt ausdrücklich außerhalb des Gates, ihr freigegebenes Ergebnis wird zur festen, deterministisch geprüften Laufzeitkonfiguration. Die Abweichungen Node v25 statt 22 LTS und zwei getrennte Supabase-Instanzen sind in quickstart.md benannt.
+**Nach Phase 1 erneut geprüft**: Der Entwurf ergänzt keine Abhängigkeit und keinen öffentlichen Endpunkt. Retry nutzt `/api/chat`, Quellenersatz bestehende Server Actions; beide laufen über denselben zentralen Autorisierungsweg. Die neue `cleanup`-Phase nutzt den vorhandenen Auftrags- und Wiederholungsmechanismus. Kalibrierung bleibt ausdrücklich außerhalb des Gates, ihr freigegebenes Ergebnis wird zur festen, deterministisch geprüften Laufzeitkonfiguration. Die Abweichung Node v25 statt 22 LTS ist in quickstart.md benannt.
 
 ## Verification Commands
 

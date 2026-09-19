@@ -53,6 +53,8 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 **Rationale**: FR-011, FR-012, FR-014 und FR-037 verlangen zusammen sichtbaren Fortschritt, manuelle Wiederholung, begrenzte automatische Wiederholung und Idempotenz. Die Datenbank als Zustandshalter erfüllt alle vier; `SKIP LOCKED` verhindert Doppelverarbeitung.
 
+**Auslösung**: Der wiederholende Aufruf wird ausdrücklich angestoßen — lokal über `pnpm worker:sweep`, nach einer Veröffentlichung über einen Zeitplan dort. **Kein Zeitplan auf Datenbankseite**, obwohl eine lokale Datenbank die lokale Anwendung erreichen könnte: ein Mechanismus, der nur lokal funktioniert und nach der Veröffentlichung durch einen anderen ersetzt werden müsste, ist zwei Mechanismen statt einem (Prinzip IV).
+
 **Alternatives**: Verarbeitung im Upload-Aufruf — stirbt mit der Zeitgrenze, kein Wiederanlauf. Edge Functions — zweite Sprache und zweite Umgebung für dieselbe PDF-Bibliothek.
 
 ## D-06 Idempotenz
@@ -121,15 +123,15 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 **Alternatives**: Selbst schreiben — Aufwand in Barrierefreiheitsdetails statt Fachlichkeit. Paketabhängigkeit — weniger Kontrolle, und das Briefing nennt diese Quelle.
 
-## D-14 Betriebsumgebung
+## D-14 Betriebsumgebung — gedreht 2026-09-19
 
-**Decision**: Supabase als gehostetes Cloud-Projekt, Anwendung vorerst lokal, Prüfläufe gegen eine eigene lokale Instanz.
+**Decision**: Entwicklung und Prüfläufe laufen gegen **eine lokale** Supabase-Instanz. Das gehostete Cloud-Projekt ist ausschließlich Veröffentlichungs- und Vorführziel; Schemaänderungen gelangen über `supabase db push` dorthin.
 
-**Rationale**: Die Cloud hält Daten für die Vorführung. Prüfläufe legen Konten an und setzen das Schema zurück — gegen die Vorführinstanz gerichtet zerstören sie deren Inhalt. Die Sicherheitsregel dazu steht in quickstart.md, Abschnitt „Zwei Supabase-Instanzen".
+**Rationale**: Drei Gründe, alle gegen die zuvor geplante Cloud-Entwicklung. Erstens verlangt Gate 3 `pnpm db:reset`, also Migrationen auf leerer Datenbank — lokal ist das Teil der normalen Arbeit, bei Cloud-Entwicklung erst im Testkontext, und ein Schemafehler zeigt sich entsprechend spät. Zweitens liegt der Befehl, der eine Datenbank leert, bei Cloud-Entwicklung täglich in Reichweite des Vorführprojekts; ist die Cloud reines Veröffentlichungsziel, wird sie nur bewusst angefasst. Drittens entfällt die Drift zwischen zwei Datenbanken: Entwicklung und Prüfung teilen sich dieselbe Instanz.
 
-**Folge**: Eine Cloud-Datenbank erreicht die lokale Anwendung nicht, ein Zeitplan auf Datenbankseite scheidet aus. Der wiederholende Aufruf wird lokal ausgelöst. Das **entfernt** einen Mechanismus aus dem Entwurf.
+**Folge**: Eine statt zwei lokaler Konfigurationen. Prüfläufe setzen die Instanz zurück und leeren dabei den Entwicklungsstand — das ist der Preis und mit erneutem Befüllen billig bezahlt.
 
-**Alternatives**: Alles lokal — keine dauerhafte Vorführumgebung. Prüfläufe gegen die Cloud — zerstört Vorführdaten. Zweite Cloud-Instanz für Tests — die lokale leistet dasselbe ohne Kosten.
+**Alternatives**: Entwicklung gegen die Cloud — die zuvor gewählte Fassung, verworfen aus den drei Gründen oben. Getrennte lokale Instanz nur für Tests — zweite Konfiguration ohne Gegenwert, da lokale Entwicklungsdaten ohnehin entbehrlich sind.
 
 ## D-15 Fortschrittsanzeige
 

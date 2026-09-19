@@ -45,7 +45,7 @@ Der Arbeitsschritt arbeitet mit erhöhten Rechten und umgeht damit die Zugriffsr
 | Auslöser | Wann | Zweck |
 |---|---|---|
 | nach `confirmUpload` | sofort | schnelle Rückmeldung im üblichen Fall |
-| `POST /api/jobs/sweep` | wiederkehrend, lokal über `pnpm worker:sweep` ausgelöst | hängengebliebene und zur Wiederholung vorgemerkte Aufträge. Kein Zeitplan auf Datenbankseite: die Cloud-Instanz erreicht die lokale Anwendung nicht (D-14). |
+| `POST /api/jobs/sweep` | wiederkehrend, lokal über `pnpm worker:sweep`, nach einer Veröffentlichung über einen Zeitplan dort | hängengebliebene und zur Wiederholung vorgemerkte Aufträge. Kein Zeitplan auf Datenbankseite: er funktionierte nur lokal und müsste nach der Veröffentlichung ersetzt werden (D-05). |
 | `retryIngestion` | Benutzeraktion | nach endgültigem Fehlschlag (FR-012) |
 
 ## Was der Auftrag nicht tut

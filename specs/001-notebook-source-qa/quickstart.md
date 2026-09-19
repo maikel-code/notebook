@@ -15,16 +15,18 @@ Wie das Projekt von null aufgesetzt und wie nachgewiesen wird, dass es tut, was 
 
 Offen bleibt allein die Node-Version: auf 22 LTS bringen, bevor es losgeht.
 
-## Zwei Supabase-Instanzen
+## Supabase lokal, Cloud als Ziel
 
-Der Entwurf arbeitet bewusst mit zwei getrennten Instanzen (D-14):
+Entwicklung und Prüfläufe teilen sich **eine lokale** Instanz (D-14). Das Cloud-Projekt ist Veröffentlichungs- und Vorführziel.
 
-| Instanz | Wofür | Womit angesprochen |
+| Umgebung | Wofür | Womit angesprochen |
 |---|---|---|
-| **Cloud-Projekt** | Entwicklung und Vorführung, Daten bleiben erhalten | `.env.local` |
-| **Lokale Instanz** | automatisierte Prüfläufe, wird geleert und neu aufgebaut | `.env.test.local` |
+| **Lokale Instanz** | Entwicklung und Prüfläufe | `.env.local` |
+| **Cloud-Projekt** | Veröffentlichung und Vorführung | Umgebungsvariablen der Veröffentlichungsplattform |
 
-> **Achtung, unwiderruflich.** `supabase db reset` leert eine Datenbank vollständig und spielt die Migrationen neu ein. Ohne weitere Angabe trifft der Befehl die **lokale** Instanz — das ist gewollt. Mit dem Zusatz für die verknüpfte Instanz würde er das **Cloud-Projekt leeren**. Dieser Zusatz darf in keinem Skript und in keinem `package.json`-Eintrag dieses Projekts vorkommen. Schemaänderungen gelangen ausschließlich über `supabase db push` in die Cloud.
+Prüfläufe setzen die lokale Instanz zurück und leeren dabei den Entwicklungsstand. Das ist gewollt; neu befüllen kostet einen Befehl.
+
+> **Achtung, unwiderruflich.** `supabase db reset` leert eine Datenbank vollständig und spielt die Migrationen neu ein. Ohne weitere Angabe trifft der Befehl die lokale Instanz — das ist gewollt. Mit dem Zusatz für die verknüpfte Instanz würde er das **Cloud-Projekt leeren**. Dieser Zusatz darf in keinem Skript und in keinem `package.json`-Eintrag dieses Projekts vorkommen.
 
 ## Umgebungsvariablen
 
@@ -44,31 +46,27 @@ Die als „nur Server" markierten Werte dürfen weder im Browser-Bündel noch in
 
 ## Erstes Aufsetzen
 
-**Cloud-Projekt für die Entwicklung:**
-
 ```bash
 pnpm install
-supabase link --project-ref <projekt-kennung>
-supabase db push                    # Migrationen in die Cloud
+supabase start                      # lokale Datenbank, Authentifizierung, Dateiablage
+pnpm db:reset                       # Migrationen auf leerer Datenbank — zugleich Nachweis für Gate 3
 cp .env.example .env.local
-# Adresse und Schlüssel aus den Projekteinstellungen eintragen, Modellschlüssel ergänzen
+# Adresse und Schlüssel aus der Ausgabe von `supabase start` eintragen, Modellschlüssel ergänzen
 pnpm dev
 ```
 
-**Lokale Instanz für die Prüfläufe:**
-
-```bash
-supabase start                      # startet Datenbank, Authentifizierung, Dateiablage
-pnpm db:reset                       # Migrationen auf leerer Datenbank — zugleich Nachweis für Gate 3
-cp .env.example .env.test.local
-# Adresse und Schlüssel aus der Ausgabe von `supabase start` eintragen
-```
-
-**Wiederaufnahme hängender Aufträge:** Die Cloud-Datenbank kann die lokal laufende Anwendung nicht erreichen, deshalb gibt es keinen Zeitplan auf Datenbankseite (D-14). Ausgelöst wird lokal:
+**Wiederaufnahme hängender Aufträge** — ausdrücklich angestoßen, kein Zeitplan auf Datenbankseite (D-05):
 
 ```bash
 pnpm worker:sweep                   # einmalig
 pnpm worker:sweep --watch           # wiederkehrend während der Entwicklung
+```
+
+**Schema in die Cloud bringen**, wenn vorgeführt werden soll:
+
+```bash
+supabase link --project-ref <projekt-kennung>
+supabase db push                    # nur vorwärts; niemals db reset gegen die verknüpfte Instanz
 ```
 
 ## Prüfkommandos
