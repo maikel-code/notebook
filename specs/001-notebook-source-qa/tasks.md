@@ -9,271 +9,373 @@ description: "Task list for 001-notebook-source-qa"
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/, quickstart.md
 
-**Tests**: Testaufgaben sind enthalten. Die Spezifikation verlangt sie ausdrücklich (Abschnitt Verification Approach), und die Constitution macht positive **und** negative Zugriffsprüfungen zur Pflicht (Prinzip II) sowie aus Anforderungen abgeleitete Tests (Prinzip VI).
+**Tests**: Testaufgaben sind Pflicht. Spezifikation und Constitution verlangen anforderungsbezogene Nachweise, die feste Zugriffsmatrix sowie die Trennung deterministischer Tests von probabilistischer Bewertung.
 
-**Organization**: Gruppiert nach User Story, damit jede unabhängig gebaut, geprüft und vorgeführt werden kann.
+**Organization**: Setup und Fundament sind gemeinsam; danach folgt je eine unabhängig prüfbare Phase pro User Story.
 
 ## Format: `[ID] [P?] [Story] Description`
 
-- **[P]**: parallel ausführbar (andere Dateien, keine offene Abhängigkeit)
-- **[Story]**: zugehörige User Story (US1–US6)
-- Dateipfade sind Teil der Aufgabe
+- **[P]**: parallel ausführbar, weil andere Dateien betroffen sind und keine offene Aufgabe vorausgesetzt wird
+- **[Story]**: User Story US1–US6; Setup, Fundament und Abschluss tragen kein Story-Label
+- Jeder Task nennt einen konkreten Dateipfad
 
 ## Path Conventions
 
-Ein Next.js-Projekt im Wurzelverzeichnis (plan.md, Structure Decision): `app/`, `components/`, `lib/`, `supabase/`, `tests/`, `eval/`.
+Ein Next.js-Projekt im Wurzelverzeichnis: `app/`, `components/`, `lib/`, `supabase/`, `tests/`, `eval/`.
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Projektgerüst, Werkzeuge, Prüfkommandos
+**Purpose**: Projektgerüst, Abhängigkeiten und verbindliche Prüfkommandos
 
-- [ ] T001 Next.js-Projekt mit TypeScript und App Router im Wurzelverzeichnis anlegen, Verzeichnisse `app/`, `components/`, `lib/`, `supabase/`, `tests/`, `eval/` gemäß plan.md
-- [ ] T002 Node 22 LTS festschreiben in `.nvmrc` und im Feld `engines` von `package.json` (D-12; lokal läuft v25.4.0, das ist die Abweichung)
-- [ ] T003 [P] TypeScript im strengen Modus konfigurieren in `tsconfig.json`
-- [ ] T004 [P] Linting und Formatierung einrichten in `biome.json` oder `eslint.config.mjs`
-- [ ] T005 [P] Tailwind CSS v4 einrichten in `app/globals.css` und der Tailwind-Konfiguration (D-13)
-- [ ] T006 Komponenten von neobrutalism.com über die shadcn-kompatible Befehlszeile nach `components/ui/` holen; **vor der Verwendung die Lizenzbezeichnung prüfen und in `research.md` unter D-13 eintragen** (offener Punkt aus D-13)
-- [ ] T007 Skripte in `package.json` anlegen: `typecheck`, `lint`, `test`, `test:integration`, `test:e2e`, `db:reset`, `eval`, `perf`, `worker:sweep` — Wortlaut und Torzuordnung nach plan.md, Abschnitt Verification Commands
-- [ ] T008 [P] `.env.example` anlegen mit allen Variablen aus quickstart.md; Werte für Dienstrolle, Modellschlüssel und `JOB_TRIGGER_SECRET` ohne Präfix `NEXT_PUBLIC_`, damit sie den Browser nicht erreichen
-- [ ] T009 [P] Umgebungsvariablen beim Start prüfen in `lib/env.ts` (Zod-Schema, Abbruch mit klarer Meldung bei fehlendem Wert)
-- [ ] T010 [P] Vitest einrichten in `vitest.config.ts` mit Testpfad `tests/unit/`
-- [ ] T011 [P] Playwright einrichten in `playwright.config.ts` mit Testpfad `tests/e2e/`
+- [ ] T001 Next.js-App-Router-Projekt mit TypeScript im Wurzelverzeichnis und den Strukturen `app/`, `components/`, `lib/`, `supabase/`, `tests/` und `eval/` gemäß `specs/001-notebook-source-qa/plan.md` anlegen
+- [ ] T002 Node 22 LTS in `.nvmrc` und im Feld `engines` von `package.json` festschreiben
+- [ ] T003 [P] TypeScript im strengen Modus in `tsconfig.json` konfigurieren
+- [ ] T004 [P] Linting und Formatierung in `eslint.config.mjs` konfigurieren
+- [ ] T005 [P] Tailwind CSS v4 und die globalen Grundstile in `app/globals.css` einrichten
+- [ ] T006 Komponenten von neobrutalism.com über die shadcn-kompatible CLI nach `components/ui/` übernehmen, vorher Lizenz und Herkunft prüfen und das Ergebnis unter D-13 in `specs/001-notebook-source-qa/research.md` dokumentieren
+- [ ] T007 Laufzeitabhängigkeiten Next.js, React, Supabase JS, Vercel AI SDK, pdf.js und Zod sowie Entwicklungsabhängigkeiten Vitest und Playwright in `package.json` festlegen
+- [ ] T008 Skripte `typecheck`, `lint`, `test`, `test:integration`, `test:e2e`, `db:reset`, `eval`, `calibrate:retrieval`, `perf` und `worker:sweep` mit der Torzuordnung aus `specs/001-notebook-source-qa/plan.md` in `package.json` anlegen
+- [ ] T009 [P] `.env.example` mit Supabase-URL, Anon-Key, Dienstrollen-Key, getrennten Modellanbieter-Schlüsseln und `JOB_TRIGGER_SECRET` anlegen; nur URL und Anon-Key dürfen `NEXT_PUBLIC_` tragen
+- [ ] T010 [P] Umgebungsvariablen mit Zod in `lib/env.ts` prüfen und serverseitige Werte so exportieren, dass sie nicht in Client-Bundles importiert werden können
+- [ ] T011 [P] Vitest mit Unit-Testpfad `tests/unit/` in `vitest.config.ts` konfigurieren
+- [ ] T012 [P] Playwright mit E2E-Testpfad `tests/e2e/` und lokalem Webserver in `playwright.config.ts` konfigurieren
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Schema, Zugriffsregeln und Verbindungen. Ohne diese Phase kann keine User Story beginnen.
+**Purpose**: Persistenz, Zugriffsgrenzen, zentrale Limits und Testumgebung
 
-**⚠️ CRITICAL**: Erst nach Abschluss dieser Phase darf Arbeit an einer User Story starten.
+**⚠️ CRITICAL**: Keine User Story beginnt vor Abschluss dieser Phase.
 
-- [ ] T012 Supabase-Cloud-Projekt verknüpfen und lokale Instanz starten, beides dokumentiert in `README.md`; **`supabase db reset` niemals mit dem Zusatz für die verknüpfte Instanz versehen — das würde das Cloud-Projekt leeren** (D-14)
-- [ ] T013 Migration `notebooks` in `supabase/migrations/`: `name` 1–200 Zeichen und nach Trimmen nicht leer, `user_id` als Fremdschlüssel auf `auth.users` mit Kaskade beim Löschen
-- [ ] T014 Migration `sources` in `supabase/migrations/`: `storage_path` im Muster `{user_id}/{notebook_id}/{source_id}.pdf`, `byte_size` höchstens 10 MB, `page_count` höchstens 50, `status` aus `uploading` · `processing` · `ready` · `failed` · `unusable`, `is_selected` persistent, **Index auf `(notebook_id, content_hash)` bewusst nicht eindeutig**, weil FR-010a die zusätzliche Aufnahme einer inhaltsgleichen Datei erlaubt
-- [ ] T015 Migration `ingestion_jobs` in `supabase/migrations/`: `status` aus `queued` · `running` · `succeeded` · `failed`, `phase` aus `extract` · `chunk` · `embed` · `finalize`, `attempt` beginnt bei 0 mit Höchstwert 3, dazu `correlation_id` und `locked_at`
-- [ ] T016 `pgvector` aktivieren und Migration `chunks` anlegen in `supabase/migrations/`: eindeutig über `(source_id, ordinal)`, Spalten `page_start`, `page_end`, `content`, `char_count`, `embedding` in der Dimension des Einbettungsmodells aus D-04
-- [ ] T017 [P] Migration `messages` in `supabase/migrations/`: `role` aus `user` · `assistant`, `status` aus `streaming` · `complete` · `aborted` · `failed`, `content` höchstens 2.000 Zeichen bei Rolle `user`, `selected_sources_snapshot` als JSON-Kopie
-- [ ] T018 Migration `citations` in `supabase/migrations/`: `chunk_id` und `source_id` **mit `ON DELETE SET NULL`, nicht kaskadierend**, dazu `source_name`, `quote`, `page_start`, `page_end`, `ordinal` als eigene Spalten, damit der Beleg die Löschung der Quelle überdauert (FR-028a, FR-031)
-- [ ] T019 Row-Level-Security auf allen sechs Tabellen einschalten und je Tabelle für Lesen, Einfügen, Ändern und Löschen die Bedingung `user_id = auth.uid()` setzen in `supabase/migrations/`
-- [ ] T020 Privaten Storage-Bucket anlegen und Zugriffsregel auf den ersten Pfadabschnitt binden, sodass `{user_id}/…` nur vom Eigentümer gelesen wird; keine öffentlichen Adressen (FR-003)
-- [ ] T021 [P] Grenzwerte an einer Stelle festhalten in `lib/limits.ts`: `MAX_FILE_BYTES` 10 MB, `MAX_PAGES` 50, `MAX_SOURCES_PER_NOTEBOOK` 30, `MAX_SELECTED_SOURCES` 10, `MAX_QUESTION_CHARS` 2.000, `MAX_CONTEXT_CHARS` 60.000, `MAX_JOB_ATTEMPTS` 3, `JOB_TIMEOUT_MS` 5 Minuten
-- [ ] T022 Supabase-Verbindungen anlegen in `lib/supabase/server.ts`, `lib/supabase/browser.ts` und `lib/supabase/service.ts`; **die Dienstrolle wird ausschließlich in `service.ts` erzeugt und nirgends sonst importiert** (D-10)
-- [ ] T023 [P] Fehlerdiagnose ohne Inhaltspreisgabe in `lib/diagnostics.ts`: Korrelationsmerkmal, Phase und Ursache; Dokumentinhalte, personenbezogene Daten und Geheimnisse werden nie protokolliert (FR-038, SC-013)
-- [ ] T024 Prüfgerüst für Integrationsläufe in `tests/integration/setup.ts`: zwei echte Benutzerkonten, ein anonymer Zugriff sowie gültiges und ungültiges `JOB_TRIGGER_SECRET` gegen die **lokale** Instanz, Aufräumen zwischen den Läufen
+- [ ] T013 Cloud- und lokale Supabase-Instanz getrennt einrichten und sichere Befehle in `README.md` dokumentieren; `supabase db reset` darf nie gegen das verknüpfte Cloud-Projekt laufen
+- [ ] T014 Migration `notebooks` in `supabase/migrations/202609190001_notebooks.sql` anlegen: `user_id` FK auf `auth.users` mit Kaskade, `name` „1–200 Zeichen, nicht leer nach Trimmen“, `created_at` und `updated_at`
+- [ ] T015 Migration `sources` in `supabase/migrations/202609190002_sources.sql` anlegen: Pfad `{user_id}/{notebook_id}/{source_id}.pdf`, Inhalts-Hash, `byte_size ≤ 10 MB`, `page_count ≤ 50`, Status `uploading · processing · ready · failed · unusable`, nullable `error_reason`, persistentes `is_selected`, `replaces_source_id` nullable mit `ON DELETE SET NULL` nur für Ersatz-Entwürfe, `cleanup_storage_path` nullable und nicht browserlesbar sowie bewusst nicht eindeutiger Index `(notebook_id, content_hash)`
+- [ ] T016 Migration `ingestion_jobs` in `supabase/migrations/202609190003_ingestion_jobs.sql` anlegen: Status `queued · running · succeeded · failed`, nullable Phase `cleanup · extract · chunk · embed · finalize`, `attempt` Start 0 und Höchstwert 3, nullable `last_error`, `correlation_id`, nullable `locked_at`, `started_at`, `finished_at` und Laufzeitgrenze 5 Minuten
+- [ ] T017 `pgvector` und Migration `chunks` in `supabase/migrations/202609190004_chunks.sql` anlegen: `source_id` kaskadiert, `ordinal`, `page_start`, `page_end`, `content`, `char_count`, Embedding-Dimension für `text-embedding-3-small`, Ähnlichkeitsindex und Eindeutigkeit `(source_id, ordinal)`
+- [ ] T018 Migration `messages` in `supabase/migrations/202609190005_messages.sql` anlegen: Rolle `user · assistant`, User-`content ≤ 2.000 Zeichen`, Status `streaming · complete · aborted · failed`, nullable `unsupported_reason` aus `no_selection · no_ready_source · below_similarity_threshold · invalid_citations`, `selected_sources_snapshot` nur bei User-Nachrichten, `question_message_id` bei Assistant-Nachrichten mit `ON DELETE CASCADE`, `attempt_no ≥ 1`, Eindeutigkeit `(question_message_id, attempt_no)` und partieller eindeutiger Index für höchstens eine streamende Assistant-Nachricht je Notebook
+- [ ] T019 Migration `citations` in `supabase/migrations/202609190006_citations.sql` anlegen: `message_id` kaskadiert, nullable `chunk_id` und `source_id` jeweils `ON DELETE SET NULL`, persistente Kopien `source_name`, geprüfter `quote`, `page_start`, `page_end` und `ordinal`
+- [ ] T020 RLS für alle sechs Tabellen mit `user_id = auth.uid()` für Lesen, Einfügen, Ändern und Löschen in `supabase/migrations/202609190007_rls.sql` aktivieren
+- [ ] T021 Privaten Storage-Bucket und Pfadregel auf den ersten Abschnitt `{user_id}/…` ohne öffentliche URLs in `supabase/migrations/202609190008_storage.sql` anlegen
+- [ ] T022 Alle Limits zentral in `lib/limits.ts` definieren: `MAX_FILE_BYTES = 10 MB`, `MAX_PAGES = 50`, `MAX_SOURCES_PER_NOTEBOOK = 30`, `MAX_SELECTED_SOURCES = 10`, `MAX_QUESTION_CHARS = 2.000`, `MAX_CONTEXT_CHARS = 60.000`, `MAX_JOB_ATTEMPTS = 3`, `JOB_TIMEOUT_MS = 5 Minuten`
+- [ ] T023 Supabase-Verbindungen in `lib/supabase/server.ts`, `lib/supabase/browser.ts` und `lib/supabase/service.ts` anlegen; die Dienstrolle darf ausschließlich in `lib/supabase/service.ts` erzeugt werden
+- [ ] T024 [P] Zentrale Sitzungs- und Eigentümerprüfungen mit identischer `404`-Antwort für fremde und fehlende Objekte in `lib/auth/authorize.ts` implementieren
+- [ ] T025 [P] Fehlerdiagnose mit Korrelationsmerkmal, Phase und Ursache ohne Dokumentinhalt, personenbezogene Daten oder Geheimnisse in `lib/diagnostics.ts` implementieren
+- [ ] T026 [P] Gemeinsame HTTP-Fehler `401`, `404`, `409`, `422`, `502` ohne Existenzauskunft oder Inhaltsfragment in `lib/http/errors.ts` definieren
+- [ ] T027 Integrations-Testgerüst mit zwei echten Benutzerkonten, anonymem Zugriff, lokalem Schema-Reset und gültigem, fehlendem sowie ungültigem `JOB_TRIGGER_SECRET` in `tests/integration/setup.ts` anlegen
 
-**Checkpoint**: Schema, Zugriffsregeln und Verbindungen stehen — User Stories können beginnen.
+**Checkpoint**: Schema, RLS, Storage, Limits und Testumgebung stehen.
 
 ---
 
 ## Phase 3: User Story 1 — Privater Arbeitsbereich (Priority: P1) 🎯 MVP
 
-**Goal**: Registrieren, anmelden, abmelden; eigene Notebooks anlegen, umbenennen, löschen. Fremde Notebooks bleiben unzugänglich, auch über bekannte Kennungen.
+**Goal**: Registrieren, anmelden, abmelden und eigene Notebooks verwalten, ohne fremde Inhalte offenzulegen.
 
-**Independent Test**: Zwei Konten anlegen, je ein Notebook, und mit Konto B das Notebook von A über dessen Kennung aufrufen. Ohne weitere Funktionen ist damit bereits ein privater Ablageort belegt.
+**Independent Test**: Zwei Konten und je ein Notebook anlegen; Konto B und ein anonymer Client erhalten über die bekannte Notebook-ID von A keine Inhalte oder Existenzauskunft.
 
 ### Tests for User Story 1
 
-- [ ] T025 [P] [US1] Notebook-Teil der Demo-Zugriffsmatrix in `tests/integration/access-notebooks.test.ts`: Notebook-Seite und `renameNotebook` funktionieren für Konto A; Konto B erhält für A jeweils `404` ohne Inhalt; anonymer Zugriff erhält jeweils `401` ohne Inhalt
-- [ ] T026 [P] [US1] Negativtest anonym in `tests/integration/rls-anonymous.test.ts`: Zugriff ohne Sitzung auf Notebook und dessen geschützte Seite liefert keine Inhalte und führt zur Anmeldung
-- [ ] T027 [P] [US1] Test gegen Existenzauskunft in `tests/integration/no-existence-disclosure.test.ts`: fremde und nicht vorhandene Kennung liefern denselben Statuscode und dieselbe Meldung (FR-004)
-- [ ] T028 [P] [US1] Ablauftest in `tests/e2e/auth-and-notebooks.spec.ts`: registrieren, anmelden, Notebook anlegen, umbenennen, löschen mit Bestätigung, abmelden
+- [ ] T028 [P] [US1] Notebook-Seite der Zugriffsmatrix für Eigentümer, fremdes Konto und anonymen Zugriff in `tests/integration/access-notebook-page.test.ts` zuerst fehlschlagend abbilden
+- [ ] T029 [P] [US1] `renameNotebook` der Zugriffsmatrix für Eigentümer, fremdes Konto und anonymen Zugriff in `tests/integration/access-rename-notebook.test.ts` zuerst fehlschlagend abbilden
+- [ ] T030 [P] [US1] Gleiche Antwort für fremde und nicht vorhandene Notebook-ID ohne Inhaltsfragment in `tests/integration/no-existence-disclosure.test.ts` zuerst fehlschlagend abbilden
+- [ ] T031 [P] [US1] Registrierung, Anmeldung, Leerzustand, Anlegen, Umbenennen, bestätigtes Löschen und Abmelden in `tests/e2e/auth-and-notebooks.spec.ts` zuerst fehlschlagend abbilden
 
 ### Implementation for User Story 1
 
-- [ ] T029 [P] [US1] Anmeldeseite in `app/(auth)/sign-in/page.tsx` mit Fehlermeldungen, die ihrem Eingabefeld zugeordnet sind
-- [ ] T030 [P] [US1] Registrierungsseite in `app/(auth)/sign-up/page.tsx`, ohne E-Mail-Bestätigung (A-01)
-- [ ] T031 [US1] Sitzungsprüfung und Abmelden in `lib/auth.ts` und `app/(auth)/actions.ts`
-- [ ] T032 [US1] Weiterleitung nicht angemeldeter Zugriffe auf geschützte Pfade in `middleware.ts` — ohne Preisgabe von Inhalten (FR-005)
-- [ ] T033 [US1] Server Actions `createNotebook`, `renameNotebook`, `deleteNotebook` in `app/notebooks/actions.ts` nach contracts/http-api.md; Name 1–200 Zeichen, nach Trimmen nicht leer; `deleteNotebook` lehnt während einer laufenden Antwort mit `409` ab
-- [ ] T034 [US1] Notebook-Übersicht in `app/notebooks/page.tsx` mit erklärendem Leerzustand und Aktion zum Anlegen (FR-008)
-- [ ] T035 [P] [US1] Bestätigungsdialog für löschende Aktionen in `components/notebook/confirm-delete-dialog.tsx`, benennt was entfernt wird (FR-035)
-- [ ] T036 [US1] Notebook-Detailseite als Gerüst in `app/notebooks/[notebookId]/page.tsx`, lädt serverseitig und liefert bei fremder Kennung `404`
+- [ ] T032 [P] [US1] Registrierungsseite mit E-Mail und Passwort ohne E-Mail-Bestätigung in `app/(auth)/sign-up/page.tsx` implementieren
+- [ ] T033 [P] [US1] Anmeldeseite mit feldbezogenen Fehlermeldungen in `app/(auth)/sign-in/page.tsx` implementieren
+- [ ] T034 [US1] Registrierung, Anmeldung und Abmeldung als Server Actions in `app/(auth)/actions.ts` implementieren
+- [ ] T035 [US1] Geschützte Routen ohne Sitzung zur Anmeldung umleiten, ohne Inhalte zu rendern, in `middleware.ts` implementieren
+- [ ] T036 [US1] `createNotebook`, `renameNotebook` und `deleteNotebook` mit zentraler Eigentümerprüfung in `app/notebooks/actions.ts` implementieren; Name „1–200 Zeichen, nicht leer nach Trimmen“, Löschung nur nach Bestätigung und während `streaming` mit `409`
+- [ ] T037 [US1] Notebook-Übersicht mit erklärendem Leerzustand und Anlegeaktion in `app/notebooks/page.tsx` implementieren
+- [ ] T038 [P] [US1] Bedienbaren Bestätigungsdialog für Löschungen in `components/notebook/confirm-delete-dialog.tsx` implementieren
+- [ ] T039 [US1] Notebook-Detailseite mit serverseitigem Eigentümer-Lookup und `404` für fremd oder nicht vorhanden in `app/notebooks/[notebookId]/page.tsx` implementieren
+- [ ] T040 [US1] US1-Tests aus `tests/integration/access-notebook-page.test.ts`, `tests/integration/access-rename-notebook.test.ts`, `tests/integration/no-existence-disclosure.test.ts` und `tests/e2e/auth-and-notebooks.spec.ts` ausführen und das Story-Checkpoint-Ergebnis in `specs/001-notebook-source-qa/verification.md` festhalten
 
-**Checkpoint**: US1 ist eigenständig vorführbar und geprüft.
+**Checkpoint**: US1 ist unabhängig vorführbar und bildet den MVP.
 
 ---
 
-## Phase 4: User Story 2 — Quellen aufnehmen (Priority: P1)
+## Phase 4: User Story 2 — Quellen aufnehmen und Zustand verstehen (Priority: P1)
 
-**Goal**: Textbasierte PDFs hochladen, Verarbeitungszustand verstehen, Fehler nachvollziehen und Wiederholung auslösen.
+**Goal**: PDFs sicher aufnehmen, verarbeiten, ersetzen und wiederholen; alle Zustände bleiben verständlich.
 
-**Independent Test**: Ein gültiges PDF, eine beschädigte Datei und eine Bilddatei hochladen und die angezeigten Zustände beobachten.
+**Independent Test**: Gültiges PDF, beschädigtes PDF und Bilddatei hochladen; zusätzlich einen erfolgreichen und einen abgebrochenen Dubletten-Ersatz prüfen.
 
 ### Tests for User Story 2
 
-- [ ] T037 [P] [US2] Test Dateiannahme in `tests/integration/ingestion-rejects.test.ts`: beschädigtes PDF, leeres PDF, Bilddatei, passwortgeschütztes PDF, Datei über 10 MB, Dokument über 50 Seiten und 31. Quelle im Notebook — jede landet sichtbar in Ablehnung oder Fehler, keine wird `ready` (SC-007, FR-036)
-- [ ] T038 [P] [US2] Test reiner Scan in `tests/integration/ingestion-scan.test.ts`: PDF ohne extrahierbaren Text endet auf `unusable` mit Hinweis auf fehlende Texterkennung (FR-013)
-- [ ] T039 [P] [US2] Test Idempotenz in `tests/integration/ingestion-idempotent.test.ts`: zweiter Lauf über dieselbe Quelle verändert die Anzahl der Abschnitte nicht (FR-014, SC-008)
-- [ ] T040 [P] [US2] Test Wiederholungsgrenze in `tests/integration/ingestion-retries.test.ts`: nach drei gescheiterten Versuchen steht der Auftrag auf `failed` und die Quelle zeigt eine lesbare Ursache (FR-037)
-- [ ] T041 [P] [US2] Test Wiederaufnahme und interner Zugang in `tests/integration/ingestion-jobs.test.ts`: ein Auftrag mit `running` und überschrittener Laufzeitgrenze wird eingesammelt; `/api/jobs/run` und `/api/jobs/sweep` akzeptieren das gültige `JOB_TRIGGER_SECRET`, fehlendes und ungültiges Geheimnis liefern `401`; ein Cross-User-Auftrag zeigt, dass der Dienstrollenlauf ausschließlich Daten des Auftragseigentümers liest und schreibt
-- [ ] T042 [P] [US2] Test Dublettenerkennung in `tests/integration/upload-duplicate.test.ts`: inhaltsgleiche Datei unter anderem Namen liefert `duplicate`; nach `replace` existiert genau eine Quelle dieses Inhalts (FR-010a)
-- [ ] T043 [P] [US2] Storage-Teil der Demo-Zugriffsmatrix in `tests/integration/rls-storage.test.ts`: Konto A lädt die eigene Datei; Konto B und anonymer Zugriff erhalten über denselben bekannten Pfad keinen Inhalt
+- [ ] T041 [P] [US2] Ablehnung für beschädigtes, leeres, passwortgeschütztes oder Nicht-PDF, über 10 MB, über 50 Seiten und 31. zusätzliche Quelle in `tests/integration/ingestion-rejects.test.ts` zuerst fehlschlagend abbilden
+- [ ] T042 [P] [US2] Scan ohne extrahierbaren Text endet `unusable` und nie `ready` in `tests/integration/ingestion-scan.test.ts` zuerst fehlschlagend abbilden
+- [ ] T043 [P] [US2] Wiederholte Verarbeitung ersetzt Chunks atomar und erzeugt weder doppelte Chunks noch Quellen in `tests/integration/ingestion-idempotent.test.ts` zuerst fehlschlagend abbilden
+- [ ] T044 [P] [US2] Drei automatische Versuche, sichtbarer Endzustand `failed` und manueller Neustart bei Versuch 0 in `tests/integration/ingestion-retries.test.ts` zuerst fehlschlagend abbilden
+- [ ] T045 [P] [US2] `/api/jobs/run` und `/api/jobs/sweep` mit gültigem, fehlendem und ungültigem Geheimnis sowie Cross-User-Dienstrollenlauf in `tests/integration/ingestion-job-access.test.ts` zuerst fehlschlagend abbilden
+- [ ] T046 [P] [US2] `GET /api/jobs/status` für Eigentümer, fremdes Konto und anonymen Zugriff in `tests/integration/access-job-status.test.ts` zuerst fehlschlagend abbilden
+- [ ] T047 [P] [US2] Storage-Download für Eigentümer, fremdes Konto und anonymen Zugriff über denselben bekannten Pfad in `tests/integration/access-storage.test.ts` zuerst fehlschlagend abbilden
+- [ ] T048 [P] [US2] Dublettenoptionen `replace · add · cancel`, fremde `replaceSourceId`, Ersatz bei 30 Quellen und unveränderte Altquelle bei Upload-Abbruch in `tests/integration/upload-replacement.test.ts` zuerst fehlschlagend abbilden
+- [ ] T049 [P] [US2] `confirmUpload` prüft Existenz, Größe und Hash, wechselt Quelle und Auftrag atomar und erzeugt bei Wiederholung keinen zweiten Auftrag in `tests/integration/upload-confirmation.test.ts` zuerst fehlschlagend abbilden
+- [ ] T050 [P] [US2] Upload, Statuswechsel ohne Reload, verständliche Fehlerursache und Retry in `tests/e2e/source-ingestion.spec.ts` zuerst fehlschlagend abbilden
 
 ### Implementation for User Story 2
 
-- [ ] T044 [P] [US2] Textextraktion seitenweise in `lib/ingestion/extract.ts` mit pdf.js; liefert Seitenzahl und Text je Seite, erkennt beschädigte und passwortgeschützte Dateien (D-11)
-- [ ] T045 [P] [US2] Zerlegung in Abschnitte in `lib/ingestion/chunk.ts` mit Seitenbezug; `page_start` und `page_end` weichen nur bei Abschnitten über einem Seitenumbruch voneinander ab
-- [ ] T046 [P] [US2] Einbettungen in `lib/ingestion/embed.ts` über OpenAI `text-embedding-3-small` (D-04)
-- [ ] T047 [US2] Server Action `prepareUpload` in `app/notebooks/[notebookId]/actions.ts`: höchstens 30 Quellen je Notebook erzwingen, Prüfsumme des Inhalts abgleichen, `ok` · `duplicate` · `rejected` nach contracts/http-api.md, bei `intent: replace` die bisherige Quelle nach FR-031 entfernen
-- [ ] T048 [US2] Prüfsumme des Dateiinhalts im Browser berechnen in `lib/hash.ts`, Grundlage der Dublettenerkennung — **nicht der Dateiname** (FR-010a)
-- [ ] T049 [US2] Server Action `confirmUpload` in `app/notebooks/[notebookId]/actions.ts`: legt den Verarbeitungsauftrag an und stößt den Arbeitsschritt an
-- [ ] T050 [US2] Arbeitsschritt in `app/api/jobs/run/route.ts`: Auftrag atomar beanspruchen mit Sperre und Überspringen gesperrter Zeilen, Phasen `extract` → `chunk` → `embed` → `finalize` durchlaufen, Zugang nur mit `JOB_TRIGGER_SECRET`
-- [ ] T051 [US2] Wiederaufnahme in `app/api/jobs/sweep/route.ts`: Aufträge mit `running` und Zeitstempel älter als 5 Minuten wie einen Fehlschlag behandeln; **jede Abfrage zusätzlich auf `user_id` des Auftrags einschränken**, weil die Dienstrolle die Zugriffsregeln umgeht (D-10)
-- [ ] T052 [US2] Idempotentes Schreiben in `lib/ingestion/persist.ts`: vor dem Schreiben alle Abschnitte der Quelle in derselben Transaktion löschen und neu anlegen (FR-014)
-- [ ] T053 [US2] Kommando `worker:sweep` in `scripts/sweep.ts`, einmalig und mit wiederkehrender Ausführung; kein Zeitplan auf Datenbankseite, weil die Cloud die lokale Anwendung nicht erreicht (D-14)
-- [ ] T054 [US2] Zustandsabfrage in `app/api/jobs/status/route.ts`: je Quelle Zustand, Phase und Fehlerursache
-- [ ] T055 [US2] Quellenliste in `components/notebook/source-list.tsx` mit den Zuständen `wird verarbeitet`, `bereit`, `fehlgeschlagen`, `nicht nutzbar` und lesbarer Fehlerursache; `uploading` und `processing` erscheinen beide als `wird verarbeitet` (FR-011, FR-012)
-- [ ] T056 [US2] Abfrage in kurzen Abständen in `components/notebook/use-job-status.ts`, solange ein Auftrag offen ist, danach Ende (D-15)
-- [ ] T057 [P] [US2] Hochladefeld in `components/notebook/source-upload.tsx` mit Lade-, Erfolgs- und Fehlerzustand sowie der Rückfrage bei erkannter Dublette; ein Verbindungsabbruch zeigt einen Fehler, legt keinen Verarbeitungsauftrag an und bietet den vollständigen erneuten Upload an
-- [ ] T058 [US2] Server Action `retryIngestion` in `app/notebooks/[notebookId]/actions.ts`: neuer Auftrag, Versuchszähler zurückgesetzt (FR-012)
+- [ ] T051 [P] [US2] SHA-256-Prüfsumme des Dateiinhalts statt des Dateinamens in `lib/upload/hash.ts` implementieren
+- [ ] T052 [P] [US2] PDF serverseitig nach Dateisignatur, Passwortschutz, Beschädigung, 10-MB-Grenze und 50-Seiten-Grenze in `lib/ingestion/validate-pdf.ts` prüfen
+- [ ] T053 [P] [US2] Seitenweisen Text mit pdf.js und Seitenzahl in `lib/ingestion/extract.ts` extrahieren
+- [ ] T054 [P] [US2] Chunks mit `ordinal`, `page_start`, `page_end`, `content` und `char_count` in `lib/ingestion/chunk.ts` erzeugen; Seitenwerte unterscheiden sich nur beim Seitenumbruch
+- [ ] T055 [P] [US2] Einbettungen über OpenAI `text-embedding-3-small` in `lib/ingestion/embed.ts` erzeugen
+- [ ] T056 [US2] `prepareUpload` mit `ok · duplicate · rejected`, Limit 30, `intent: add | replace`, Eigentümer-/Hash-Prüfung und Ersatz-Entwurf mit `replaces_source_id` in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [ ] T057 [US2] `cancelUpload` nur für eigene `uploading`-Entwürfe ohne Auftrag und ohne Änderung der Altquelle in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [ ] T058 [US2] `confirmUpload` idempotent mit serverseitiger Existenz-, Größen- und Hash-Prüfung sowie gesperrter Transaktion für Quellenwechsel und genau einen Auftrag in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [ ] T059 [US2] Alten Storage-Pfad aus `cleanup_storage_path` idempotent löschen und „nicht vorhanden“ als Erfolg behandeln in `lib/ingestion/cleanup.ts`
+- [ ] T060 [US2] Chunks einer Quelle in derselben Transaktion löschen und neu schreiben in `lib/ingestion/persist.ts`
+- [ ] T061 [US2] Auftrag mit `FOR UPDATE SKIP LOCKED` im Eigentümerkontext beanspruchen und Phasen `cleanup → extract → chunk → embed → finalize` in `lib/ingestion/run-job.ts` implementieren
+- [ ] T062 [US2] Internen, nur mit `JOB_TRIGGER_SECRET` erreichbaren Aufruf in `app/api/jobs/run/route.ts` implementieren
+- [ ] T063 [US2] Hängende Jobs über 5 Minuten sowie vorgemerkte Wiederholungen im Eigentümerkontext in `app/api/jobs/sweep/route.ts` einsammeln
+- [ ] T064 [US2] Lokalen einmaligen und wiederkehrenden Sweep-Aufruf in `scripts/sweep.ts` implementieren
+- [ ] T065 [US2] Eigentümergebundene Statusausgabe ohne `cleanup_storage_path` oder Dokumentinhalt in `app/api/jobs/status/route.ts` implementieren
+- [ ] T066 [US2] `retryIngestion` nur für eigene Quelle im Zustand `failed` mit neuem Auftrag und Versuch 0 in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [ ] T067 [US2] Quellenliste mit `wird verarbeitet · bereit · fehlgeschlagen · nicht nutzbar`, wobei `uploading` und `processing` beide „wird verarbeitet“ heißen, in `components/notebook/source-list.tsx` implementieren
+- [ ] T068 [P] [US2] Polling nur solange ein Auftrag offen ist in `components/notebook/use-job-status.ts` implementieren
+- [ ] T069 [US2] Uploadfeld und Dublettenentscheidung mit Lade-, Abbruch-, Erfolgs- und Fehlerzuständen in `components/notebook/source-upload.tsx` implementieren; Upload-Abbruch ruft `cancelUpload` auf und lässt die Altquelle unverändert
 
-**Checkpoint**: Dokumente lassen sich aufnehmen, Zustände sind verständlich, Fehler wiederholbar.
+**Checkpoint**: US2 nimmt Dokumente verlässlich auf und zeigt alle Fehler- und Ersatzpfade.
 
 ---
 
 ## Phase 5: User Story 3 — Belegte Antwort erhalten und im Original prüfen (Priority: P1)
 
-**Goal**: Frage stellen, Antwort schrittweise lesen, Verweis anklicken und die Passage im Dokument sehen. Der Kernnutzen.
+**Goal**: Fragen schrittweise mit vollständig geprüften Claim-Absätzen beantworten und jeden Verweis bis zur Originalstelle verfolgen.
 
-**Independent Test**: Frage an ein Notebook mit bekanntem Inhalt stellen und jeden Verweis bis zur Originalstelle verfolgen.
+**Independent Test**: Eine bekannte Frage beantworten, jeden terminalen Verweis öffnen sowie Anbieterausfall, Retry und einen ungültigen Claim prüfen.
 
 ### Tests for User Story 3
 
-- [ ] T059 [P] [US3] Test der Belegprüfung in `tests/unit/verify-citations.test.ts`: erfundener Auszug wird verworfen, unbekannte Nummer wird verworfen, abweichender Leerraum besteht, fehlerhafte Marke wird verworfen (D-07)
-- [ ] T060 [P] [US3] Test Kontextgrenze in `tests/unit/context-budget.test.ts`: die Summe der übergebenen Abschnittstexte überschreitet 60.000 Zeichen nicht (FR-036)
-- [ ] T061 [P] [US3] Test der Vorbedingungen und Zugriffsmatrix in `tests/integration/chat-preconditions.test.ts`: keine Quelle ausgewählt, keine im Zustand `ready`, keine einschlägige Passage, Frage über 2.000 Zeichen — jeweils Erklärung statt Antwort mit Verweisen; Chat und Status funktionieren für den Eigentümer, liefern fremd `404` und anonym `401`, jeweils ohne Inhalt (FR-022, SC-002)
-- [ ] T062 [P] [US3] Terminalzustände in `tests/integration/chat-terminal-states.test.ts`: Anbieterausfall endet auf `failed`; Client-Abbruch beendet die Modellanforderung und endet auf `aborted`; in beiden Fällen erscheint die Teilantwort nicht als fertig und die Notebook-Sperre wird frei; Quellen- und Notebook-Löschung liefern während `streaming` den Konflikt `409` (FR-020a, FR-025, FR-035)
-- [ ] T063 [P] [US3] Ablauftest Kernablauf in `tests/e2e/core-flow.spec.ts`: anmelden, Notebook anlegen, PDF hochladen, fragen, Antwort lesen, Verweis öffnen und die hervorgehobene Passage oder den freigegebenen Wortlaut-Fallback sehen (FR-029, FR-032)
+- [ ] T070 [P] [US3] Abruf mit ausschließlich eigenen ausgewählten `ready`-Quellen, Top-8, 60.000-Zeichen-Packing sowie Scores unterhalb, genau auf und oberhalb des versionierten Mindestwerts in `tests/unit/retrieval.test.ts` zuerst fehlschlagend abbilden
+- [ ] T071 [P] [US3] Kalibrierartefakt-Schema und Fingerprints für Modell, Distanzmaß, Datensatz und Chunk-Konfiguration in `tests/unit/retrieval-config.test.ts` zuerst fehlschlagend abbilden
+- [ ] T072 [P] [US3] Claim-Schema, unbekannte Chunknummer, nicht ausgewählte Quelle, abweichender Wortlaut, fehlender Beleg sowie vollständige Verwerfung bei einem ungültigen von mehreren Claims in `tests/unit/verify-claims.test.ts` zuerst fehlschlagend abbilden
+- [ ] T073 [P] [US3] Atomaren Abschluss aus Nachricht, allen Citations und `complete` sowie `invalid_citations` ohne Citations in `tests/integration/answer-persistence.test.ts` zuerst fehlschlagend abbilden
+- [ ] T074 [P] [US3] `POST /api/chat` für Eigentümer, fremdes Konto und anonymen Zugriff sowie Vorbedingungen keine Auswahl, keine bereite Quelle, unter Mindestwert und Frage über 2.000 Zeichen in `tests/integration/access-chat.test.ts` zuerst fehlschlagend abbilden
+- [ ] T075 [P] [US3] Anbieterfehler `failed`, Client-Abbruch `aborted`, zweite parallele Frage `409` sowie Notebook- und Quellenlöschung während `streaming` `409` in `tests/integration/chat-terminal-states.test.ts` zuerst fehlschlagend abbilden
+- [ ] T076 [P] [US3] Retry nur für eigene fehlgeschlagene Assistant-Nachricht, fremde ID `404`, anderer Zustand `422`, monotone `attempt_no` und unveränderter Altversuch in `tests/integration/chat-retry.test.ts` zuerst fehlschlagend abbilden
+- [ ] T077 [P] [US3] Kernablauf Upload, Frage, provisorische Claim-Absätze, fertige terminale Verweise und PDF-Sprung/Fallback in `tests/e2e/core-flow.spec.ts` zuerst fehlschlagend abbilden
+- [ ] T078 [P] [US3] Fehlgeschlagenen Versuch sichtbar lassen, neuen Versuch anhängen und beide nach Reload in Reihenfolge zeigen in `tests/e2e/chat-retry.spec.ts` zuerst fehlschlagend abbilden
 
 ### Implementation for User Story 3
 
-- [ ] T064 [P] [US3] Ähnlichkeitssuche in `lib/rag/retrieve.ts`: Abschnitte der **ausgewählten** Quellen im Zustand `ready`, Auswahl serverseitig aus der Sitzung gebildet, nie aus Modellausgabe (FR-021, D-09)
-- [ ] T065 [US3] Zusammenstellung des Kontexts in `lib/rag/context.ts`: nummerierte Blöcke mit Quellennamen, Seitenbereich und Text, begrenzt auf `MAX_CONTEXT_CHARS`
-- [ ] T066 [US3] Systemanweisung in `lib/rag/prompt.ts`: Blockinhalte sind Material und keine Anweisung, jede Aussage braucht eine Belegmarke, fehlende Beleglage wird gesagt statt gefüllt (FR-022, FR-024)
-- [ ] T067 [US3] Marken zerlegen in `lib/rag/parse-citations.ts` nach dem Muster `[[cite:<nummer>|<wörtlicher Auszug>]]` aus contracts/answer-and-citations.md
-- [ ] T068 [US3] Belegprüfung in `lib/rag/verify-citations.ts`: Auszug nach Vereinheitlichung von Leerraum wörtlich im genannten Abschnitt suchen; **jeder Zweifelsfall verwirft den Verweis**; bleibt keiner übrig, gilt die Antwort als unbelegt (D-07, FR-030)
-- [ ] T069 [US3] Antwortstrom in `app/api/chat/route.ts` über das Vercel AI SDK mit Anthropic Claude (D-04); Client-Abbruch an den Modellaufruf weitergeben, Nachricht auf `aborted` setzen und Sperre freigeben; nach normalem Abschluss Antwort prüfen, Nachricht und geprüfte Verweise speichern
-- [ ] T070 [US3] Sperre gegen gleichzeitige Antworten in `app/api/chat/route.ts`: läuft im Notebook bereits eine Nachricht auf `streaming`, antwortet der Aufruf mit `409` (FR-020a)
-- [ ] T071 [P] [US3] Chatverlauf in `components/notebook/chat-thread.tsx` mit schrittweise erscheinender Antwort und nummerierten Belegmarken
-- [ ] T072 [P] [US3] Fragefeld in `components/notebook/question-input.tsx`, gesperrt während der Erzeugung, mit Abbrechen (FR-020a)
-- [ ] T073 [US3] Belegansicht in `components/notebook/source-viewer.tsx` mit pdf.js: Seite öffnen und den geprüften Wortlaut in der Textebene hervorheben; wird er nicht gefunden, nach der freigegebenen Demo-Abschwächung die Seite öffnen und den Wortlaut daneben zeigen (D-11, FR-029)
-- [ ] T074 [US3] Erklärung statt Antwort in `components/notebook/unsupported-answer.tsx` für die Fälle aus FR-022
+- [ ] T079 [P] [US3] Vier freigegebene Demo-PDFs und zwölf Fragen mit sechs beantwortbaren, drei unbeantwortbaren, zwei widersprüchlichen und einer Injection-Frage samt erwarteten Stellen in `eval/dataset/questions.json` und `eval/dataset/documents/` anlegen
+- [ ] T080 [US3] Kandidatenschwellen aus dem Referenzdatensatz bewerten, Balanced Accuracy maximieren und bei Gleichstand fail-closed den höheren Wert wählen in `eval/calibrate-retrieval.ts`
+- [ ] T081 [US3] Kalibriervorschlag mit Modell-, Distanz-, Datensatz- und Chunk-Fingerprint erzeugen, Maintainer-Freigabe einholen und erst danach den freigegebenen Wert mit `topK = 8` in `eval/dataset/retrieval-calibration.json` versionieren
+- [ ] T082 [US3] Kalibrierartefakt mit Zod laden, Fingerprint-Abweichungen ablehnen und nie zur Laufzeit umschreiben in `lib/rag/retrieval-config.ts`
+- [ ] T083 [US3] Top-8-Cosine-Suche mit Mindestwert ausschließlich über eigene ausgewählte `ready`-Quellen in `lib/rag/retrieve.ts` implementieren
+- [ ] T084 [US3] Treffer in Rangfolge als nummerierte Blöcke mit Quellennamen, Seitenbereich und höchstens 60.000 Zeichen in `lib/rag/context.ts` packen
+- [ ] T085 [US3] Systemanweisung für untrusted Dokumentblöcke und das Ergebnis `{ kind: "answer", claims[] } | { kind: "unsupported" }` in `lib/rag/prompt.ts` implementieren
+- [ ] T086 [US3] Strukturierte Claim-Einheiten über Anthropic und das Vercel AI SDK vollständig je Einheit puffern in `lib/rag/generate-answer.ts`
+- [ ] T087 [US3] Claim-Schema mit einzeiligem, nichtleerem `text`, mindestens einer Citation und ausschließlich bekannten Feldern in `lib/rag/claim-schema.ts` definieren
+- [ ] T088 [US3] Auswahl, Chunkherkunft und whitespace-normalisierten Wortlaut jedes Belegs prüfen und bei einem Fehler den gesamten Entwurf verwerfen in `lib/rag/verify-claims.ts`
+- [ ] T089 [US3] Erfolgreiche Antwort, vollständige Citations und Zustand `complete` atomar speichern; bei `invalid_citations` nur festen Einschränkungstext ohne Citations speichern in `lib/rag/persist-answer.ts`
+- [ ] T090 [US3] Neue Frage mit User-Nachricht, Auswahl-Snapshot und Assistant-Versuch `attempt_no = 1` über `POST /api/chat` in `app/api/chat/route.ts` implementieren
+- [ ] T091 [US3] `retryOfMessageId` in `app/api/chat/route.ts` implementieren: fehlgeschlagenen eigenen Versuch und zugehörige Frage sperren, nächste `attempt_no` anhängen, gespeicherten Fragetext und Snapshot verwenden und frühere Versuche nicht verändern
+- [ ] T092 [US3] Verbindungsabbruch an den Modellaufruf weitergeben, Zustand `aborted` setzen und die Notebook-Sperre zuverlässig lösen in `app/api/chat/route.ts`
+- [ ] T093 [US3] Keine-Auswahl-, Keine-Ready-, Unter-Grenzwert- und Modell-`unsupported`-Fälle ohne Citations als feste Texte in `lib/rag/unsupported.ts` abbilden
+- [ ] T094 [P] [US3] Chatverlauf mit provisorischem Zustand „wird geprüft“, Claim-Einheit je Absatz und nicht interaktiven Verweisen bis zum Gesamtabschluss in `components/notebook/chat-thread.tsx` implementieren
+- [ ] T095 [P] [US3] Frageeingabe während `streaming` sperren und Abbrechen anbieten in `components/notebook/question-input.tsx`
+- [ ] T096 [P] [US3] „Erneut versuchen“ ausschließlich an fehlgeschlagenen Assistant-Versuchen anzeigen und `retryOfMessageId` senden in `components/notebook/retry-answer-button.tsx`
+- [ ] T097 [P] [US3] Feste Einschränkungstexte ohne Verweise in `components/notebook/unsupported-answer.tsx` darstellen
+- [ ] T098 [P] [US3] Terminale Verweise mit Wortlaut, Quellenname und Seite in `components/notebook/citation-chip.tsx` rendern
+- [ ] T099 [US3] PDF mit pdf.js auf der belegten Seite öffnen, Wortlaut hervorheben und bei fehlender Textebenenstelle den geprüften Wortlaut daneben anzeigen in `components/notebook/source-viewer.tsx`
+- [ ] T100 [US3] Quellenliste, Chatverlauf, Fragefeld und Belegansicht in `app/notebooks/[notebookId]/page.tsx` zum vollständigen Kernablauf integrieren
 
-**Checkpoint**: Der Kernablauf trägt. Ab hier ist das Produkt vorführbar.
+**Checkpoint**: US3 liefert den vollständigen vorführbaren Kernablauf.
 
 ---
 
 ## Phase 6: User Story 4 — Quellenauswahl steuern und Quellen entfernen (Priority: P2)
 
-**Goal**: Auswählen, welche Quellen für die nächste Frage gelten, und Quellen entfernen.
+**Goal**: Persistente Auswahl für neue Antworten steuern und Quellen entfernen, ohne historische Belege zu verlieren.
 
-**Independent Test**: Eine Frage, die nur aus Quelle A beantwortbar ist, einmal mit A und einmal mit B ausgewählt stellen.
+**Independent Test**: Eine nur aus Quelle A beantwortbare Frage mit A und B stellen, Auswahl nach Reload prüfen und anschließend A löschen.
 
 ### Tests for User Story 4
 
-- [ ] T075 [P] [US4] Test der Auswahlwirkung in `tests/integration/selection-scope.test.ts`: alle Verweise stammen ausschließlich aus der Auswahl (FR-021)
-- [ ] T076 [P] [US4] Test entfernter Quelle in `tests/integration/source-removal.test.ts`: nach dem Entfernen sind Datei und Abschnitte weg, die Verweise früherer Antworten behalten Wortlaut, Quellenname und Seite, `chunk_id` ist `NULL` (FR-031, FR-028a)
-- [ ] T077 [P] [US4] Ablauftest in `tests/e2e/source-selection.spec.ts`: abwählen, fragen, alle abwählen und die Erklärung sehen
+- [ ] T101 [P] [US4] Abruf und Citations stammen ausschließlich aus höchstens zehn ausgewählten Quellen in `tests/integration/selection-scope.test.ts` zuerst fehlschlagend abbilden
+- [ ] T102 [P] [US4] Auswahlzustand bleibt nach Reload erhalten und keine Auswahl erzeugt `no_selection` in `tests/integration/selection-persistence.test.ts` zuerst fehlschlagend abbilden
+- [ ] T103 [P] [US4] Quellenlöschung entfernt Datei und Chunks, setzt historische `chunk_id` und `source_id` auf `NULL`, erhält Wortlaut, Quellenname und Seite und bietet keinen Sprung an in `tests/integration/source-removal.test.ts` zuerst fehlschlagend abbilden
+- [ ] T104 [P] [US4] Auswahl, Reload, Löschen mit Bestätigung und Darstellung „Quelle entfernt“ in `tests/e2e/source-selection.spec.ts` zuerst fehlschlagend abbilden
 
 ### Implementation for User Story 4
 
-- [ ] T078 [US4] Server Action `setSourceSelected` in `app/notebooks/[notebookId]/actions.ts`, begrenzt auf höchstens 10 ausgewählte Quellen je Frage (FR-036)
-- [ ] T079 [US4] Server Action `deleteSource` in `app/notebooks/[notebookId]/actions.ts`: mit Bestätigung, entfernt Datei und Abschnitte, lässt Verweise nach FR-031 unangetastet und lehnt während einer laufenden Antwort mit `409` ab
-- [ ] T080 [P] [US4] Auswahlbedienung in `components/notebook/source-list.tsx` mit Hinweis, wenn keine Quelle ausgewählt ist
-- [ ] T081 [P] [US4] Darstellung entfernter Belege in `components/notebook/citation-chip.tsx`: Wortlaut, Quellenname und Seite mit dem Hinweis „Quelle entfernt", ohne Sprung ins Dokument (FR-031)
+- [ ] T105 [US4] `setSourceSelected` mit persistenter Speicherung und höchstens zehn ausgewählten Quellen in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [ ] T106 [US4] `deleteSource` mit Bestätigung, `409` während `streaming`, Storage-Löschung, Chunk-Löschung und erhaltenen Citations in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [ ] T107 [P] [US4] Auswahlbedienung, Höchstgrenzenhinweis und Zustand „keine Quelle ausgewählt“ in `components/notebook/source-list.tsx` implementieren
+- [ ] T108 [P] [US4] Historischen Beleg mit gespeichertem Wortlaut, Quellenname, Seite und Hinweis „Quelle entfernt“ ohne Link in `components/notebook/citation-chip.tsx` implementieren
+- [ ] T109 [US4] US4-Tests aus `tests/integration/selection-scope.test.ts`, `tests/integration/selection-persistence.test.ts`, `tests/integration/source-removal.test.ts` und `tests/e2e/source-selection.spec.ts` ausführen und das Ergebnis in `specs/001-notebook-source-qa/verification.md` ergänzen
+
+**Checkpoint**: US4 ist unabhängig auf Auswahl und Löschung prüfbar.
 
 ---
 
 ## Phase 7: User Story 5 — Widersprüche und Anweisungsversuche (Priority: P2)
 
-**Goal**: Widersprüche zwischen herangezogenen Passagen benennen. Anweisungen in Dokumenten verändern nichts.
+**Goal**: Widersprüche der abgerufenen Passagen sichtbar machen und Dokumentanweisungen wirkungslos halten.
 
-**Independent Test**: Zwei präparierte Quellen mit widersprüchlicher Angabe und eine Quelle mit eingebetteter Anweisung.
+**Independent Test**: Widersprüchliches Quellenpaar und präpariertes Injection-Dokument aus dem Referenzdatensatz verwenden.
 
 ### Tests for User Story 5
 
-- [ ] T082 [P] [US5] Test gegen Anweisungen im Dokument in `tests/integration/prompt-injection.test.ts`: präpariertes Dokument fordert das Offenlegen anderer Notebooks und das Behaupten ohne Beleg — Antwortverhalten und Zugriffsgrenzen bleiben unverändert (FR-024, SC-006)
-- [ ] T083 [P] [US5] Test Widerspruch in `tests/integration/contradiction.test.ts`: die Antwort benennt den Widerspruch und verweist auf beide Stellen (FR-023)
+- [ ] T110 [P] [US5] Widerspruch wird innerhalb der abgerufenen Passagen benannt und mit beiden terminalen Verweisen belegt in `tests/integration/contradiction.test.ts` zuerst fehlschlagend abbilden
+- [ ] T111 [P] [US5] Dokumentanweisung zum Offenlegen fremder Notebooks oder Ignorieren der Belegregeln verändert Antwort und Zugriffsgrenze nicht in `tests/integration/prompt-injection.test.ts` zuerst fehlschlagend abbilden
+- [ ] T112 [P] [US5] Widerspruch und Injection-Dokument im vollständigen UI-Ablauf in `tests/e2e/trust-cases.spec.ts` zuerst fehlschlagend abbilden
 
 ### Implementation for User Story 5
 
-- [ ] T084 [US5] Regel für Widersprüche in `lib/rag/prompt.ts` ergänzen: nur innerhalb der für die aktuelle Frage herangezogenen Passagen, keine Prüfung des Bestands (FR-023, Clarification vom 2026-09-14)
-- [ ] T085 [P] [US5] Darstellung des Widerspruchs in `components/notebook/chat-thread.tsx` mit Verweis auf beide Stellen
-- [ ] T086 [P] [US5] Präparierte Dokumente in `eval/dataset/`: ein widersprüchliches Paar und ein Dokument mit eingebetteter Anweisung
+- [ ] T113 [US5] Promptregel für Widersprüche ausschließlich innerhalb der herangezogenen Passagen und Belegpflicht beider Seiten in `lib/rag/prompt.ts` ergänzen
+- [ ] T114 [US5] Dokumenttext und Metadaten als abgegrenzte untrusted Datenblöcke ohne Einfluss auf System- oder Zugriffsregeln in `lib/rag/context.ts` implementieren
+- [ ] T115 [P] [US5] Widerspruch als Claim mit mehreren terminalen Verweisen in `components/notebook/chat-thread.tsx` verständlich darstellen
+- [ ] T116 [US5] US5-Tests aus `tests/integration/contradiction.test.ts`, `tests/integration/prompt-injection.test.ts` und `tests/e2e/trust-cases.spec.ts` ausführen und das Ergebnis in `specs/001-notebook-source-qa/verification.md` ergänzen
+
+**Checkpoint**: US5 schützt Vertrauenswürdigkeit gegen Widerspruch und Dokumentanweisung.
 
 ---
 
 ## Phase 8: User Story 6 — Gesprächsverlauf bleibt erhalten (Priority: P3)
 
-**Goal**: Nach erneutem Öffnen sind Fragen, Antworten und Verweise vorhanden.
+**Goal**: Fragen, alle Antwortversuche und Verweise bleiben nach Abmeldung und erneutem Öffnen in Reihenfolge erhalten.
 
-**Independent Test**: Fragen, abmelden, anmelden, Notebook öffnen.
+**Independent Test**: Frage mit fehlgeschlagenem und erfolgreichem Retry erzeugen, abmelden, erneut anmelden und denselben Verlauf öffnen.
 
 ### Tests for User Story 6
 
-- [ ] T087 [P] [US6] Test Verlauf in `tests/integration/conversation-history.test.ts`: Reihenfolge erhalten, Verweise vorhanden, fremder Zugriff auf den Verlauf scheitert
-- [ ] T088 [P] [US6] Ablauftest in `tests/e2e/history.spec.ts`: abmelden, anmelden, Verlauf wiederfinden
+- [ ] T117 [P] [US6] User-Frage einmal, Assistant-Versuche nach `attempt_no`, Citations und historische Quellenbelege in stabiler Reihenfolge sowie fremder Zugriff `404` in `tests/integration/conversation-history.test.ts` zuerst fehlschlagend abbilden
+- [ ] T118 [P] [US6] Abmelden, erneut anmelden und vollständigen Verlauf einschließlich fehlgeschlagenem Altversuch und Retry wiederfinden in `tests/e2e/history.spec.ts` zuerst fehlschlagend abbilden
 
 ### Implementation for User Story 6
 
-- [ ] T089 [US6] Verlauf serverseitig laden in `app/notebooks/[notebookId]/page.tsx`, Reihenfolge nach Anlagezeitpunkt
-- [ ] T090 [US6] Gespeicherte Verweise darstellen in `components/notebook/chat-thread.tsx`, einschließlich der Fälle mit entfernter Quelle
+- [ ] T119 [US6] User-Nachrichten mit ihren Assistant-Versuchen nach `created_at` und `attempt_no` eigentümergebunden in `lib/chat/load-history.ts` laden
+- [ ] T120 [US6] Verlauf samt Citations serverseitig in `app/notebooks/[notebookId]/page.tsx` laden
+- [ ] T121 [US6] Eine Frage mit mehreren sichtbaren Antwortversuchen ohne duplizierte User-Frage in `components/notebook/chat-thread.tsx` darstellen
+- [ ] T122 [US6] US6-Tests aus `tests/integration/conversation-history.test.ts` und `tests/e2e/history.spec.ts` ausführen und das Ergebnis in `specs/001-notebook-source-qa/verification.md` ergänzen
+
+**Checkpoint**: US6 erhält den vollständigen Verlauf über Sitzungen hinweg.
 
 ---
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T091 [P] Bewertungslauf in `eval/run.ts`: Belegtreue als Berichtsmetrik und Anteil ehrlicher Einschränkungen nach SC-005 am Referenzdatensatz, Bericht als Ausgabe; **kein Freigabetor** (Prinzip VI, plan.md)
-- [ ] T092 [P] Referenzdatensatz in `eval/dataset/` anlegen: vier selbst erstellte oder ausdrücklich freigegebene PDFs und zwölf Fragen gemäß spec.md, einschließlich erwarteter Belegstellen und dokumentierter Bewertungskriterien
-- [ ] T093 [P] Tastaturlauf in `tests/e2e/keyboard.spec.ts`: Kernablauf ausschließlich per Tastatur, Fokus immer sichtbar, kein Bereich ohne Ausweg (SC-009, FR-034)
-- [ ] T094 [P] Kontrast und Fokusring der Komponenten aus `components/ui/` prüfen und nachziehen; die kräftige Gestaltung darf den Fokus nicht verschlucken (D-13)
-- [ ] T095 [P] Test der Diagnose in `tests/integration/diagnostics.test.ts`: ausgelöste Fehler tragen Korrelationsmerkmal, Phase und Ursache, und weder Dokumentinhalt noch personenbezogene Daten noch Geheimnisse (SC-013, FR-038)
-- [ ] T096 [P] Prüfung auf Geheimnisse im Browser-Bündel in `tests/unit/no-server-secrets.test.ts`: keine Variable ohne Präfix `NEXT_PUBLIC_` erreicht den Client
-- [ ] T097 `README.md` schreiben mit Voraussetzungen sowie Setup-, Start- und Prüfkommandos — Pflicht aus AGENTS.md mit der Stack-Festlegung
-- [ ] T098 [P] Performance-Smoke-Test in `eval/performance.ts`: fünf Läufe in der vorbereiteten Demo-Umgebung, Zeit bis zum ersten sichtbaren Antwortteil einzeln berichten und SC-011 auswerten; **kein Freigabetor**
-- [ ] T099 Alle Prüfkommandos aus plan.md einmal vollständig durchlaufen, den vorbereiteten Demo-Kernablauf mit Zeitmessung unter 10 Minuten proben und Ergebnisse im Handoff festhalten (Gate 3, Gate 6, SC-001)
+**Purpose**: Barrierefreiheit, Diagnose, reproduzierbarer Betrieb und getrennte Qualitätsberichte
+
+- [ ] T123 [P] Belegtreue und Anteil ehrlicher Einschränkungen am versionierten Referenzdatensatz als probabilistischen, nicht blockierenden Bericht in `eval/run.ts` implementieren
+- [ ] T124 [P] Kernablauf ausschließlich mit Tastatur, sichtbarem Fokus und ohne Fokusfalle in `tests/e2e/keyboard.spec.ts` prüfen
+- [ ] T125 [P] Kontrast, Fokusring, Beschriftungen und Fehlerzuordnung der übernommenen Komponenten in `components/ui/` korrigieren
+- [ ] T126 [P] Diagnoseausgaben auf Korrelationsmerkmal, Phase und Ursache sowie Abwesenheit von Dokumenttext, personenbezogenen Daten und Geheimnissen in `tests/integration/diagnostics.test.ts` prüfen
+- [ ] T127 [P] Ausschluss von Dienstrollen-, Modell- und Job-Geheimnissen aus Client-Bundles in `tests/unit/no-server-secrets.test.ts` prüfen
+- [ ] T128 [P] Fünf Demo-Läufe bis zum ersten sichtbaren Claim messen, Einzelwerte und Vier-von-fünf-Ziel ≤ 5 Sekunden als Nicht-Gate in `eval/performance.ts` berichten
+- [ ] T129 Voraussetzungen, Cloud-/Lokal-Setup, Start, Sweep, Migrationen, Kalibrierfreigabe und alle Prüfkommandos in `README.md` vervollständigen
+- [ ] T130 Frisches lokales Setup einschließlich `pnpm db:reset` und aller 15 Nachweisläufe aus `specs/001-notebook-source-qa/quickstart.md` durchführen und Ergebnisse in `specs/001-notebook-source-qa/verification.md` dokumentieren
+- [ ] T131 `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm test:integration`, `pnpm test:e2e` und `pnpm db:reset` vollständig ausführen; `pnpm eval`, `pnpm calibrate:retrieval` und `pnpm perf` getrennt als Nicht-Gates in `specs/001-notebook-source-qa/verification.md` ausweisen
+- [ ] T132 Stand, Task-IDs, Branch, Commit, Änderungen, Prüfungen und offene Einschränkungen für eine frische unabhängige Review-Sitzung in `specs/001-notebook-source-qa/handoff.md` dokumentieren; nicht selbst mergen
 
 ---
 
-## Dependencies
+## Dependencies & Execution Order
+
+### Phase Dependencies
 
 ```text
 Phase 1 Setup
    └─► Phase 2 Foundational  ⚠ blockiert alle Stories
-          ├─► Phase 3  US1  (P1)  🎯 MVP
-          │      └─► Phase 4  US2  (P1)   braucht Notebook + Sitzung
-          │             └─► Phase 5  US3  (P1)   braucht verarbeitete Quellen
-          │                    ├─► Phase 6  US4  (P2) ─┐
-          │                    ├─► Phase 7  US5  (P2) ─┼─► Phase 9  Polish
-          │                    └─► Phase 8  US6  (P3) ─┘
+          └─► Phase 3 US1 (P1) 🎯 MVP
+                 └─► Phase 4 US2 (P1)
+                        └─► Phase 5 US3 (P1) — vorführbarer Kern
+                               ├─► Phase 6 US4 (P2) ─┐
+                               ├─► Phase 7 US5 (P2) ─┼─► Phase 9 Polish
+                               └─► Phase 8 US6 (P3) ─┘
 ```
 
-US4, US5 und US6 hängen jeweils an US3, aber **nicht aneinander** — nach Abschluss von US3 sind sie parallel bearbeitbar. Phase 9 beginnt erst, wenn US4, US5 und US6 abgeschlossen sind.
+- US1 braucht nur das Fundament.
+- US2 braucht Notebook und Sitzung aus US1.
+- US3 braucht verarbeitete Quellen aus US2.
+- US4, US5 und US6 brauchen den Chatkern aus US3, hängen aber nicht voneinander ab.
+- Phase 9 beginnt nach den für die Abnahme vorgesehenen Story-Phasen.
+
+### Within Each User Story
+
+- Tests werden zuerst geschrieben und müssen vor der Implementierung fehlschlagen.
+- Datenmodell und Datenzugriff kommen vor Services, Actions und Route Handlers.
+- Endpunkte kommen vor UI-Integration.
+- Der Story-Checkpoint muss bestehen, bevor die nächste abhängige Phase beginnt.
+- T081 ist ein ausdrücklicher Maintainer-Checkpoint: Ein Kalibriervorschlag wird nicht automatisch zur Laufzeitkonfiguration.
 
 ## Parallel Opportunities
 
 | Phase | Parallel ausführbar |
 |---|---|
-| Setup | T003, T004, T005, T008, T009, T010, T011 |
-| Foundational | T017, T021, T023 (T013–T016 und T018 bauen aufeinander auf, T019 braucht alle Tabellen) |
-| US1 | Tests T025–T028; Umsetzung T029, T030, T035 |
-| US2 | Tests T037–T043; Umsetzung T044, T045, T046, T057 |
-| US3 | Tests T059–T063; Umsetzung T064, T071, T072 |
-| US4 | Tests T075–T077; Umsetzung T080, T081 |
-| US5 | Tests T082, T083; Umsetzung T085, T086 |
-| US6 | T087, T088 |
-| Polish | T091, T092, T094, T096, T098; T093 und T095 erst nach ihren vollständigen Ablauf- beziehungsweise Fehlerpfaden; T099 nach allen Prüfaufgaben |
+| Setup | T003–T005, T009–T012 |
+| Foundational | T024–T026; Migrationen T014–T019 können in getrennten Dateien vorbereitet werden, T020 folgt danach |
+| US1 | Tests T028–T031; UI T032, T033 und T038 |
+| US2 | Tests T041–T050; Logik T051–T055; UI T067 und T068 |
+| US3 | Tests T070–T078; nach T093 die UI T094–T098 |
+| US4 | Tests T101–T104; UI T107 und T108 |
+| US5 | Tests T110–T112; Darstellung T115 parallel zu Prompt/Context |
+| US6 | Tests T117 und T118 |
+| Polish | T123–T128; T129–T132 folgen als Dokumentations- und Gesamtnachweis |
+
+## Parallel Examples
+
+### User Story 1
+
+`T028`, `T029`, `T030` und `T031` können als getrennte Testdateien parallel entstehen; danach können `T032`, `T033` und `T038` parallel umgesetzt werden.
+
+### User Story 2
+
+`T041`–`T050` können parallel als fehlschlagende Nachweise geschrieben werden. Anschließend sind `T051`–`T055` unabhängig; der Transaktionspfad `T056`–`T066` bleibt seriell.
+
+### User Story 3
+
+`T070`–`T078` können parallel vorbereitet werden. Danach laufen Kalibrierung und Runtime-Konfiguration `T079`–`T093` seriell; `T094`–`T098` sind nach dem Serververtrag parallel.
+
+### User Story 4
+
+`T101`–`T104` laufen parallel; nach Actions `T105` und `T106` können `T107` und `T108` parallel umgesetzt werden.
+
+### User Story 5
+
+`T110`, `T111` und `T112` laufen parallel; `T113` und `T114` sind seriell zur gemeinsamen Prompt-/Context-Grenze, `T115` kann parallel zur Darstellung entstehen.
+
+### User Story 6
+
+`T117` und `T118` laufen parallel; danach folgen Loader `T119`, Page-Integration `T120` und Darstellung `T121`.
+
+---
 
 ## Implementation Strategy
 
-**MVP**: Phase 1 + Phase 2 + Phase 3. Danach steht ein privater Arbeitsbereich mit nachgewiesener Zugriffsgrenze — das ist der Teil, dessen Fehlen den größten Schaden anrichtet.
+### MVP First
 
-**Erster vorführbarer Stand**: nach Phase 5. Der Kernablauf aus spec.md ist dann vollständig, einschließlich geprüfter Belege.
+1. Phase 1 Setup abschließen.
+2. Phase 2 Fundament abschließen.
+3. Phase 3 US1 abschließen.
+4. US1 unabhängig prüfen und als privaten Arbeitsbereich vorführen.
 
-**Abschlussphase**: Phase 9 läuft nach den User Stories und enthält die vollständigen Nachweise, die Demo-Generalprobe und die nicht blockierenden Qualitäts- und Performanceberichte.
+### First Complete Demo
 
-**Reihenfolge innerhalb einer Story**: Tests zuerst, dann Datenzugriff, dann Server Actions und Endpunkte, dann Oberfläche. Die Zugriffstests aus Phase 3 laufen ab dann bei jedem Gate-Durchlauf mit.
+1. US2 ergänzt die sichere Dokumentaufnahme.
+2. US3 ergänzt den belegten Chat und bildet den vollständigen Kernablauf.
+3. Am T081-Checkpoint den Retrieval-Wert ausdrücklich freigeben.
+4. Nach T100 Kernablauf und feste Zugriffsmatrix erneut prüfen.
 
-**Zwei Regeln, die nicht verhandelbar sind**: Ein fehlschlagender deterministischer Test wird nicht abgeschwächt, um eine Umsetzung durchzubringen (Prinzip I). Ein öffentlich erreichbarer Datenpfad ohne die zugehörigen Fälle der festgelegten Demo-Zugriffsmatrix gilt als unfertig (Prinzip II, Gate 4).
+### Incremental Delivery
+
+1. US4 ergänzt Auswahl und historische Belege.
+2. US5 ergänzt Widersprüche und Schutz vor Dokumentanweisungen.
+3. US6 ergänzt den persistenten Verlauf.
+4. Phase 9 führt alle Gates, Nicht-Gate-Berichte und den Handoff aus.
+
+## Notes
+
+- `[P]` bedeutet ausschließlich dateiseitig unabhängige Arbeit.
+- Kein Agent merged; der Autor ist nicht alleiniger Reviewer.
+- Deterministische Gate-Tests werden nie zugunsten eines Modellberichts abgeschwächt.
+- `pnpm eval`, `pnpm calibrate:retrieval` und `pnpm perf` bleiben Nicht-Gates.
+- Die physische Bereinigung verwaister Storage-Objekte nach Upload-Abbruch oder vollständiger Notebook-Löschung bleibt die dokumentierte Demo-Ausnahme; normale Quellenlöschung und Replacement-`cleanup` bleiben Pflicht.

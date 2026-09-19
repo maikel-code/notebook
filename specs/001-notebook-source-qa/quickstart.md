@@ -1,6 +1,6 @@
 # Einrichtung und Prüfweg
 
-**Feature**: 001-notebook-source-qa · **Datum**: 2026-09-14
+**Feature**: 001-notebook-source-qa · **Datum**: 2026-09-19
 
 Wie das Projekt von null aufgesetzt und wie nachgewiesen wird, dass es tut, was [spec.md](./spec.md) verlangt. Prinzip VII verlangt, dass beides ohne undokumentierte Handgriffe nachvollziehbar ist.
 
@@ -83,10 +83,13 @@ pnpm test:integration   # Gate 3 und Gate 4 — braucht laufendes `supabase star
 pnpm test:e2e           # Gate 3 — braucht laufendes `pnpm dev`
 pnpm db:reset           # Gate 3
 pnpm eval               # KEIN Tor — Antwortqualität, Ergebnis wird berichtet
+pnpm calibrate:retrieval # KEIN Tor — erzeugt einen Freigabevorschlag für die Abrufkonfiguration
 pnpm perf               # KEIN Tor — fünf beobachtende Latenzläufe
 ```
 
-`pnpm eval` und `pnpm perf` gehören bewusst nicht zu den Toren. Ihre Ergebnisse schwanken zwischen Läufen; sie als Freigabebedingung zu führen, würde entweder zu willkürlichen Wiederholungen oder zum Absenken der Messlatte führen (Prinzip VI).
+`pnpm eval`, `pnpm calibrate:retrieval` und `pnpm perf` gehören bewusst nicht zu den Toren. Ihre Ergebnisse hängen von externen Modellen oder der Umgebung ab. Der Kalibrierlauf erzeugt nur einen Vorschlag; erst der vom Maintainer freigegebene Wert wird mit Modell-, Datensatz- und Chunk-Fingerprint in `eval/dataset/retrieval-calibration.json` versioniert. `pnpm test` prüft danach deterministisch Schema, Fingerprints sowie Scores unterhalb, auf und oberhalb dieses Werts (D-17).
+
+Neu kalibriert wird nur bei Änderungen an Einbettungsmodell, Distanzmaß, Chunk-Konfiguration oder Referenzdatensatz. Die Laufzeit schreibt das Artefakt nie selbst um.
 
 ## Nachweisläufe
 
@@ -98,7 +101,7 @@ In der vorbereiteten Demo-Umgebung eine Zeitmessung starten, dann registrieren, 
 
 ### 2 — Zugriffsgrenzen (SC-002, FR-003, FR-004)
 
-Zwei Konten anlegen, in jedem ein Notebook mit einer Quelle. Die feste Demo-Matrix für Notebook-Seite plus `renameNotebook`, Storage-Download, `POST /api/chat` und `GET /api/jobs/status` jeweils als Eigentümer, mit Konto B und ohne Anmeldung ausführen. Interne Job-Endpunkte zusätzlich mit gültigem, fehlendem und ungültigem `JOB_TRIGGER_SECRET` aufrufen und einen Cross-User-Auftrag verarbeiten lassen.
+Zwei Konten anlegen, in jedem ein Notebook mit einer Quelle. Die feste Demo-Matrix für Notebook-Seite plus `renameNotebook`, Storage-Download, `POST /api/chat` und `GET /api/jobs/status` jeweils als Eigentümer, mit Konto B und ohne Anmeldung ausführen. Beim Chat zusätzlich eine fremde `retryOfMessageId`, beim Upload eine fremde `replaceSourceId` versuchen. Interne Job-Endpunkte außerdem mit gültigem, fehlendem und ungültigem `JOB_TRIGGER_SECRET` aufrufen und einen Cross-User-Auftrag verarbeiten lassen.
 
 **Erwartet**: Berechtigte Zugriffe funktionieren. Fremd gibt es `404`, anonym `401`, jeweils ohne Inhaltsfragment oder Existenzauskunft. Interne Jobs akzeptieren nur das gültige Geheimnis und bleiben im Eigentümerkontext des Auftrags. Dieser Lauf ist als `pnpm test:integration` automatisiert; die Handprüfung dient der Gegenprobe.
 
@@ -118,13 +121,13 @@ Quelle im Fehlerzustand erzeugen, Abschnitte zählen, Verarbeitung erneut ansto�
 
 Dieselbe Datei unter anderem Namen ein zweites Mal in dasselbe Notebook laden.
 
-**Erwartet**: Rückfrage mit Ersetzen, zusätzlich aufnehmen, Abbrechen. Nach Ersetzen genau eine Quelle dieses Inhalts.
+**Erwartet**: Rückfrage mit Ersetzen, zusätzlich aufnehmen, Abbrechen. Bei erfolgreichem Ersatz bleibt die alte Quelle bis zur serverseitigen Bestätigung des neuen Objekts nutzbar; danach gibt es genau eine Quelle dieses Inhalts und genau einen neuen Auftrag. Einen zweiten Ersatz beim Übertragen abbrechen: alte Quelle, Datei und Abschnitte bleiben unverändert, kein Auftrag startet.
 
 ### 6 — Ehrliche Grenzen (SC-005, FR-022)
 
 Frage stellen, die keine Quelle beantwortet. Danach alle Quellen abwählen und erneut fragen.
 
-**Erwartet**: Erklärung der Einschränkung, keine Antwort mit Verweisen.
+**Erwartet**: Erklärung der Einschränkung, keine Antwort mit Verweisen. Die Unit-Fixtures weisen zusätzlich nach: Score unter der versionierten Grenze wird verworfen, Score genau auf der Grenze und darüber wird angenommen; bleiben keine Treffer, erfolgt kein Modellaufruf.
 
 ### 7 — Widerspruch (FR-023)
 
@@ -146,7 +149,7 @@ Drei Teilläufe, weil zwei Anbieter zwei unabhängige Ausfallpfade haben (D-04):
 2. Schlüssel des Einbettungsanbieters ungültig setzen, dann ein PDF hochladen.
 3. Den Verarbeitungslauf mitten im Upload abbrechen, danach `pnpm worker:sweep` ausführen.
 
-**Erwartet**: (1) Nachricht endet auf `failed` mit erneutem Versuch, die Aufnahme bleibt davon unberührt. (2) Auftrag scheitert in Phase `embed`, bestehende Quellen bleiben nutzbar. (3) Die hängende Quelle wird eingesammelt und zeigt einen Fehlerzustand statt dauerhaft `wird verarbeitet`. In keinem Fall erscheint eine Teilausgabe als fertig.
+**Erwartet**: (1) Nachricht endet auf `failed`. Danach „Erneut versuchen“ wählen: Der alte Versuch bleibt sichtbar, ein neuer Versuch wird an dieselbe Frage angehängt; nach Neuladen stehen beide in Reihenfolge. (2) Auftrag scheitert in Phase `embed`, bestehende Quellen bleiben nutzbar. (3) Die hängende Quelle wird eingesammelt und zeigt einen Fehlerzustand statt dauerhaft `wird verarbeitet`. In keinem Fall erscheint eine Teilausgabe als fertig.
 
 ### 10 — Entfernte Quelle (FR-031)
 
@@ -181,6 +184,12 @@ pnpm perf
 ```
 
 **Erwartet**: fünf dokumentierte Einzelwerte aus der vorbereiteten Demo-Umgebung. In mindestens vier Läufen wird der erste Antwortteil innerhalb von 5 Sekunden sichtbar. Das Ergebnis ist **kein** Freigabetor.
+
+### 15 — Claim- und Belegformat (FR-027, FR-030)
+
+Mit festen Modell-Fixtures nacheinander erzeugen: gültige Mehrabsatzantwort; Claim ohne Verweis; unbekannte Abschnittsnummer; abweichender Wortlaut; eine Antwort mit einem gültigen und einem ungültigen Claim.
+
+**Erwartet**: Die gültige Antwort erscheint mit genau einer Claim-Einheit pro Absatz und ausschließlich terminalen Verweisen. Jeder Negativfall ersetzt die gesamte provisorische Antwort durch den festen Einschränkungstext; es wird kein Verweis gespeichert und kein gültiger Teilabsatz als erfolgreiche Antwort gerettet.
 
 ## Referenzdatensatz
 

@@ -1,6 +1,6 @@
 # Phase 0 — Entscheidungen
 
-**Feature**: 001-notebook-source-qa · **Stand**: 2026-09-15
+**Feature**: 001-notebook-source-qa · **Stand**: 2026-09-19
 
 Jede Entscheidung nennt die verworfene Alternative (Prinzip I). **Zusätzliche Abhängigkeit** markiert Einträge, die Prinzip IV begründen müssen.
 
@@ -22,11 +22,11 @@ Jede Entscheidung nennt die verworfene Alternative (Prinzip I). **Zusätzliche A
 
 ## D-03 Abrufverfahren
 
-**Decision**: Zerlegung in Textabschnitte, Einbettung je Abschnitt, Ähnlichkeitssuche über `pgvector`.
+**Decision**: Zerlegung in Textabschnitte, Einbettung je Abschnitt, Ähnlichkeitssuche über `pgvector`. Pro Frage werden höchstens acht Treffer (`topK = 8`) betrachtet. Treffer unter dem versionierten Mindestwert werden verworfen; verbleibende Treffer werden in Rangfolge bis zur Grenze von 60.000 Zeichen gepackt.
 
 **Rationale**: `pgvector` gehört zu Supabase, kein zusätzlicher Dienst. Verweise brauchen ohnehin eine Passage mit Seitenbezug (FR-028); Abschnitte sind diese Einheit. Kosten unabhängig von der Dokumentgröße.
 
-**Alternatives**: Ganze Dokumente im Kontext — jede Frage kostet die volle Dokumentmenge, Belegstelle muss trotzdem lokalisiert werden. Zusätzliche Stichwortsuche — **Auslöser für Nachrüstung**: Die berichtete Belegtreue fällt bei Fragen nach Eigennamen, Zahlen oder Aktenzeichen erkennbar ab.
+**Alternatives**: Ganze Dokumente im Kontext — jede Frage kostet die volle Dokumentmenge, Belegstelle muss trotzdem lokalisiert werden. Nur Top-k ohne Mindestwert — erzwingt auch bei unpassenden Treffern einen Modellaufruf. Zusätzliche Stichwortsuche — **Auslöser für Nachrüstung**: Die berichtete Belegtreue fällt bei Fragen nach Eigennamen, Zahlen oder Aktenzeichen erkennbar ab.
 
 ## D-04 Modellanbieter
 
@@ -65,19 +65,19 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 ## D-07 Prüfung der Belege — tragender Entwurfsteil
 
-**Decision**: Das Modell liefert je Aussage Abschnittsnummer **und wörtlichen Auszug**. Vor der Anzeige prüft der Server, ob der Auszug — nach Vereinheitlichung von Leerraum — wörtlich im genannten Abschnitt vorkommt. Verweise, die das nicht bestehen, werden verworfen. Bleibt keiner übrig, gilt die Aussage als unbelegt (FR-022).
+**Decision**: Das Modell liefert strukturierte Claim-Einheiten mit Aussage, Abschnittsnummern und **wörtlichen Auszügen**. Eine Claim-Einheit wird als genau ein Absatz gerendert; ihre geprüften Verweise stehen ausschließlich am Absatzende. Der Server prüft Auswahl, Herkunft und Wortlaut jeder Einheit. Scheitert eine Einheit oder ein Verweis, werden der gesamte Entwurf und alle abgeleiteten Verweise verworfen und durch eine feste Einschränkung ersetzt (FR-022, FR-027).
 
 **Rationale**: FR-030 schließt aus, dass eine Quellenkennung als Beleg genügt. Ohne diesen Schritt prüft nur das Modell sich selbst. Der Abgleich ist deterministisch und anbieterunabhängig; er liefert zugleich den Wortlaut, den FR-028a speichern muss.
 
-**Alternatives**: Dem Modell vertrauen — von FR-030 ausgeschlossen. Zweites Modell als Prüfer — teurer, langsamer, selbst probabilistisch.
+**Alternatives**: Einzelne gültige Verweise retten — verletzt die Gesamtverwerfung aus FR-027. Freitext semantisch in Aussagen zerlegen — nicht deterministisch. Zweites Modell als Prüfer — teurer, langsamer, selbst probabilistisch.
 
-## D-08 Streamen und Belegmarken
+## D-08 Streamen und Claim-Einheiten
 
-**Decision**: Antwort als Textstrom, Belege als Marken im Text mit Abschnittsnummer und Auszug. Auflösung und Prüfung nach Abschluss.
+**Decision**: Strukturierte Claim-Einheiten werden nacheinander erzeugt und jeweils vollständig gepuffert. Erst eine vollständig bestandene Einheit erscheint provisorisch als Absatz mit nicht interaktiven Verweisen und dem Zustand „wird geprüft“. Nach erfolgreicher Gesamtprüfung werden Antwort und Verweise atomar gespeichert und interaktiv. Scheitert eine spätere Einheit, ersetzt der Server alle provisorischen Absätze durch die feste Einschränkung.
 
-**Rationale**: FR-020 verlangt schrittweises Erscheinen; reiner Text streamt ohne Zwischenzustände. Die Prüfung nach D-07 braucht ohnehin die vollständige Antwort.
+**Rationale**: FR-020 verlangt schrittweises Erscheinen, Prinzip III aber keine ungeprüften fertigen Aussagen. Claim-weises Puffern erfüllt beides und macht „ein Absatz = eine Claim-Einheit“ strukturell prüfbar.
 
-**Alternatives**: Strukturierte Ausgabe im Strom — unruhige Darstellung. Zweiter Modellaufruf zur Belegzuordnung — doppelte Kosten und Wartezeit.
+**Alternatives**: Rohen Modelltext anzeigen — kann ungültige Belege sichtbar machen. Erst nach vollständiger Antwort etwas anzeigen — verletzt das schrittweise Erscheinen. Zweiter Modellaufruf zur Belegzuordnung — doppelte Kosten und Wartezeit.
 
 ## D-09 Anweisungen in Dokumenten
 
@@ -146,3 +146,37 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 **Rationale**: Prinzip II verlangt die benannte positive und negative Demo-Matrix; aussagekräftig nur gegen echte Regeln, nicht gegen Attrappen. Prinzip VI verlangt getrennte Ausweisung von deterministisch, probabilistisch und beobachtend.
 
 **Alternatives**: Zugriffsgrenzen mit Attrappen — prüft den Code, nicht die Regel. Antwortqualität in derselben Suite — macht das Freigabetor von schwankenden Ergebnissen abhängig.
+
+## D-17 Kalibrierter Abrufgrenzwert
+
+**Decision**: `eval/dataset/retrieval-calibration.json` versioniert `topK = 8`, Mindestähnlichkeit, Einbettungsmodell, Distanzmaß sowie Fingerprints von Datensatz und Chunk-Konfiguration. Ein separater Kalibrierlauf bewertet Kandidatenschwellen am Referenzdatensatz, maximiert die ausgewogene Trefferquote beantwortbarer und unbeantwortbarer Fragen und wählt bei Gleichstand den höheren Wert. Der Maintainer gibt das erzeugte Artefakt frei; die Laufzeit verändert es nie selbst.
+
+**Rationale**: FR-022 braucht einen vorhersehbaren technischen Abbruch. Die Herkunft des Werts bleibt nachvollziehbar, während deterministische Tests die festgeschriebene Konfiguration und die Fälle unterhalb, auf und oberhalb der Grenze prüfen können.
+
+**Rekalibrierung**: bei Änderung von Einbettungsmodell, Distanzmaß, Chunk-Konfiguration oder Referenzdatensatz. Der externe Lauf ist probabilistisch und kein Gate; das freigegebene Ergebnis ist danach feste Eingabe der Gate-Tests.
+
+**Alternatives**: Handwert im Quelltext oder in einer Umgebungsvariable — weder hergeleitet noch reproduzierbar. Dynamische Schwelle je Anfrage — erzeugt unvorhersehbare Zustände. Cross-Encoder oder Hybrid-Suche — zusätzliche Laufzeit und Komplexität ohne belegten Demo-Bedarf.
+
+## D-18 Zweiphasiger Ersatz einer Dublette
+
+**Decision**: `prepareUpload(intent: 'replace')` legt eine neue Quelle als `uploading` mit `replaces_source_id` an; die alte Quelle bleibt unverändert. `confirmUpload` prüft das neue Objekt serverseitig auf Existenz, Größe und Hash. Erst dann sperrt eine Datenbanktransaktion beide Quellen, entfernt die alte Datenbankquelle, setzt die neue auf `processing` und erzeugt genau einen Auftrag. Dessen erste idempotente Phase `cleanup` entfernt den alten Storage-Pfad, bevor die neue Datei verarbeitet wird. `cancelUpload` entfernt nur den neuen Entwurf und startet keinen Auftrag.
+
+**Rationale**: Ein Upload-Abbruch kann die funktionsfähige alte Quelle nicht zerstören. Datenbankwechsel und Auftragserzeugung sind atomar; die nicht transaktionale Storage-Löschung wird über den vorhandenen Wiederholungsmechanismus zuverlässig ausgeführt.
+
+**Alternatives**: Alte Quelle vor dem Upload löschen — verletzt FR-010a. Austausch nur im Browser vormerken — nicht reload- oder crashfest. Separate Upload- und Cleanup-Tabellen — für die Demo unnötig.
+
+## D-19 Antwortversuche
+
+**Decision**: Eine Benutzerfrage wird einmal gespeichert. Jede Assistant-Nachricht verweist über `question_message_id` darauf und trägt eine innerhalb der Frage fortlaufende `attempt_no`. `POST /api/chat` akzeptiert entweder eine neue Frage oder `retryOfMessageId`; ein Retry ist nur für eine eigene fehlgeschlagene Assistant-Nachricht zulässig und hängt einen neuen Versuch an. Fragetext und Auswahl-Snapshot der ursprünglichen Frage werden wiederverwendet, aktuell entfernte oder unbereite Quellen führen zur festen Einschränkung.
+
+**Rationale**: Der fehlgeschlagene Versuch bleibt unverändert sichtbar, ohne die Frage im Verlauf zu duplizieren. Der bestehende Streaming-Endpunkt und sein zentraler Autorisierungsweg genügen.
+
+**Alternatives**: Fehlgeschlagene Nachricht überschreiben — verliert die Versuchshistorie. Frage duplizieren — verfälscht den Verlauf. Eigener Retry-Endpunkt — erweitert die Angriffs- und Testfläche ohne Nutzen.
+
+## D-20 Atomarer Antwortabschluss
+
+**Decision**: Erfolgreiche Antwort, vollständige Menge ihrer Verweise und Zustand `complete` werden in einer Transaktion gespeichert. Bei `invalid_citations` wird nur der feste serverseitige Einschränkungstext mit `unsupported_reason` gespeichert; der verworfene Modellentwurf und abgeleitete Verweise werden nicht als erfolgreiche Antwort persistiert.
+
+**Rationale**: Nach Neuladen darf weder eine Teilrettung noch eine Antwort ohne ihre vollständigen Belege erscheinen. Die Transaktion macht den gespeicherten Zustand unabhängig von einem Verbindungsabbruch beim Abschluss.
+
+**Alternatives**: Nachricht und Verweise einzeln speichern — erzeugt sichtbare Zwischenzustände. Ungültigen Entwurf zu Diagnosezwecken im Verlauf behalten — widerspricht der geforderten Ersetzung und speichert unnötigen Modelltext.

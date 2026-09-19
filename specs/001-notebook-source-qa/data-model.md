@@ -1,6 +1,6 @@
 # Phase 1 — Datenmodell
 
-**Feature**: 001-notebook-source-qa · **Datum**: 2026-09-14
+**Feature**: 001-notebook-source-qa · **Datum**: 2026-09-19
 
 Herleitung aus den Entitäten und Anforderungen in [spec.md](./spec.md). Namen sind englisch, weil sie im Code erscheinen; Erläuterungen deutsch.
 
@@ -10,6 +10,7 @@ Herleitung aus den Entitäten und Anforderungen in [spec.md](./spec.md). Namen s
 2. **Belege überdauern ihre Quelle.** `citations` trägt Wortlaut, Seitenbereich und Quellennamen als eigene Spalten. Fremdschlüssel auf Quelle und Abschnitt werden beim Löschen auf `NULL` gesetzt, nicht kaskadiert (FR-028a, FR-031).
 3. **Lauf und Dokument sind getrennt.** Versuchszähler, Phase und Fehlerursache liegen bei `ingestion_jobs`, nicht bei `sources`.
 4. **Ein Gesprächsverlauf je Notebook** (A-07). Es gibt keine Tabelle für Unterhaltungen; `messages` hängt direkt am Notebook.
+5. **Upload-Ersatz und Antwort-Retry ergänzen bestehende Entitäten.** Ein Quellenentwurf verweist auf die zu ersetzende Quelle; Antwortversuche verweisen auf dieselbe Benutzerfrage. Zusätzliche Ablauf-Tabellen sind für die Demo nicht nötig (D-18, D-19).
 
 ## Tabellen
 
@@ -39,11 +40,15 @@ Löschen entfernt Quellen, Abschnitte, Aufträge und Nachrichten des Notebooks (
 | `status` | text | Zustandsmaschine unten |
 | `error_reason` | text, null | benutzerlesbare Ursache (FR-012) |
 | `is_selected` | boolean | für Fragen ausgewählt (FR-015) |
+| `replaces_source_id` | uuid, FK → `sources`, null | **ON DELETE SET NULL**; nur bei einem Ersatz-Entwurf im Zustand `uploading` (D-18) |
+| `cleanup_storage_path` | text, null | alter, vor der Verarbeitung idempotent zu löschender Storage-Pfad; nie an den Browser geben |
 | `created_at` | timestamptz | |
 
 **Index auf `(notebook_id, content_hash)` — bewusst nicht eindeutig.** FR-010a erlaubt dem Benutzer die zusätzliche Aufnahme einer inhaltsgleichen Datei. Eine Eindeutigkeitsregel würde diese Wahl technisch verhindern; die Erkennung ist eine Abfrage vor dem Upload, keine Beschränkung.
 
 `is_selected` ist persistent. Beim erneuten Öffnen eines Notebooks wird der gespeicherte Auswahlzustand wiederhergestellt (A-10).
+
+Ein Ersatz-Entwurf zählt für `MAX_SOURCES_PER_NOTEBOOK` nicht zusätzlich, solange `replaces_source_id` auf eine vorhandene Quelle desselben Notebooks zeigt. `confirmUpload` prüft das neue Storage-Objekt serverseitig und führt danach in einer Transaktion den Quellenwechsel und die Auftragserzeugung aus. Vor dieser Bestätigung bleiben alte Quelle, Datei und Abschnitte unverändert (D-18).
 
 ### `ingestion_jobs`
 
@@ -53,7 +58,7 @@ Löschen entfernt Quellen, Abschnitte, Aufträge und Nachrichten des Notebooks (
 | `source_id` | uuid, FK → `sources` | kaskadiert |
 | `user_id` | uuid, FK → `auth.users` | trägt den autorisierten Verarbeitungskontext (D-10) |
 | `status` | text | `queued` · `running` · `succeeded` · `failed` |
-| `phase` | text, null | `extract` · `chunk` · `embed` · `finalize` — für FR-038 |
+| `phase` | text, null | `cleanup` · `extract` · `chunk` · `embed` · `finalize` — für FR-038 |
 | `attempt` | int | Start 0, Höchstwert 3 (FR-037) |
 | `last_error` | text, null | Ursache ohne Dokumentinhalt (FR-038) |
 | `correlation_id` | uuid | Merkmal für die Fehlersuche (FR-038, SC-013) |
@@ -83,13 +88,17 @@ Löschen entfernt Quellen, Abschnitte, Aufträge und Nachrichten des Notebooks (
 | `notebook_id` | uuid, FK → `notebooks` | kaskadiert |
 | `user_id` | uuid, FK → `auth.users` | |
 | `role` | text | `user` · `assistant` |
-| `content` | text | Frage ≤ 2.000 Zeichen (FR-036) |
+| `content` | text | bei `user` Frage ≤ 2.000 Zeichen; bei `assistant` Antwort oder fester Einschränkungstext |
 | `status` | text | `streaming` · `complete` · `aborted` · `failed` (FR-020a, FR-025) |
-| `unsupported_reason` | text, null | gesetzt, wenn nicht geantwortet werden konnte (FR-022) |
-| `selected_sources_snapshot` | jsonb, null | Liste aus Kennung und Name der zum Fragezeitpunkt ausgewählten Quellen |
+| `unsupported_reason` | text, null | `no_selection` · `no_ready_source` · `below_similarity_threshold` · `invalid_citations` |
+| `selected_sources_snapshot` | jsonb, null | nur bei `user`: Liste aus Kennung und Name der zum Fragezeitpunkt ausgewählten Quellen |
+| `question_message_id` | uuid, FK → `messages`, null | bei `assistant` gesetzt; **ON DELETE CASCADE** auf die zugehörige Benutzerfrage |
+| `attempt_no` | int, null | bei `assistant` ≥ 1 und je Frage fortlaufend |
 | `created_at` | timestamptz | |
 
 Der Abzug der Auswahl ist bewusst eine Kopie, kein Verbund: er muss das Entfernen einer Quelle überdauern, damit später nachvollziehbar bleibt, worauf die Frage zielte.
+
+Benutzerfragen haben `status = complete`, `question_message_id = NULL` und `attempt_no = NULL`. Assistant-Nachrichten haben eine Frage und einen Versuchszähler; `(question_message_id, attempt_no)` ist eindeutig. Ein partieller eindeutiger Index erlaubt je Notebook höchstens eine Assistant-Nachricht im Zustand `streaming`. Ein Retry legt nur eine neue Assistant-Nachricht an und verändert weder Frage noch frühere Versuche (D-19).
 
 ### `citations`
 
@@ -143,6 +152,8 @@ streaming ──► complete
 
 `aborted` und `failed` sind sichtbare Endzustände. Eine Teilantwort DARF nie als `complete` erscheinen.
 
+Ein bestandener Modellentwurf, alle seine Verweise und `complete` werden atomar gespeichert. Bei `invalid_citations` wird derselbe Versuch mit dem festen Einschränkungstext und ohne Verweise abgeschlossen; der verworfene Entwurf wird nicht als erfolgreiche Antwort gespeichert (D-20).
+
 ## Zugriffsregeln
 
 Row-Level-Security ist auf **allen** genannten Tabellen eingeschaltet. Je Tabelle gilt für Lesen, Einfügen, Ändern und Löschen dieselbe Bedingung:
@@ -173,3 +184,7 @@ Alle Werte aus spec.md liegen an einer Stelle in `lib/limits.ts` und werden sowo
 | `MAX_CONTEXT_CHARS` | 60.000 | FR-036 |
 | `MAX_JOB_ATTEMPTS` | 3 | FR-037 |
 | `JOB_TIMEOUT_MS` | 5 Minuten | FR-037 |
+
+## Versionierte Abrufkonfiguration
+
+Der Abrufgrenzwert ist keine Datenbankeinstellung. `eval/dataset/retrieval-calibration.json` enthält `topK = 8`, Mindestähnlichkeit, Distanzmaß, Einbettungsmodell, Algorithmusversion sowie Fingerprints von Referenzdatensatz und Chunk-Konfiguration (D-17). Die Laufzeit liest dieses freigegebene Artefakt unverändert; bei einem Fingerprint-Konflikt schlägt die Konfigurationsprüfung fehl, statt still einen anderen Wert zu verwenden.

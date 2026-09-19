@@ -1,6 +1,6 @@
 # Vertrag — Verarbeitungsauftrag
 
-**Feature**: 001-notebook-source-qa · **Datum**: 2026-09-14
+**Feature**: 001-notebook-source-qa · **Datum**: 2026-09-19
 
 Beschreibt, wie aus einer hochgeladenen Datei durchsuchbare Textabschnitte werden, und welche Zusagen dabei gelten. Zustände und Spalten siehe [data-model.md](../data-model.md).
 
@@ -8,12 +8,15 @@ Beschreibt, wie aus einer hochgeladenen Datei durchsuchbare Textabschnitte werde
 
 | Phase | Tut | Bricht ab bei |
 |---|---|---|
+| `cleanup` | entfernt bei einem bestätigten Ersatz idempotent den alten Storage-Pfad und leert `cleanup_storage_path` | Storage nicht erreichbar → Wiederholung; „nicht vorhanden“ gilt als Erfolg |
 | `extract` | liest den Text seitenweise aus dem PDF | kein PDF, beschädigt, passwortgeschützt, über 50 Seiten |
 | `chunk` | bildet Abschnitte mit Seitenbezug | kein extrahierbarer Text → Zustand `unusable` (FR-013) |
 | `embed` | berechnet Einbettungen je Abschnitt | Anbieter nicht erreichbar → Wiederholung |
 | `finalize` | setzt die Quelle auf `ready`, schließt den Auftrag | — |
 
 Die Phase wird bei jedem Wechsel geschrieben. Sie beantwortet nach einem Fehlschlag die Frage, **wo** es gescheitert ist, ohne Dokumentinhalt zu protokollieren (FR-038).
+
+`cleanup` läuft nur bei einem Ersatz. Die neue Datei ist zu diesem Zeitpunkt bereits serverseitig bestätigt und der Datenbankwechsel abgeschlossen; ein Fehlschlag setzt die neue Quelle sichtbar auf `failed` und ist über denselben begrenzten Wiederholungsweg behebbar (D-18).
 
 ## Zusagen
 

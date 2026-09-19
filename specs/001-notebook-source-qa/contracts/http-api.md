@@ -1,6 +1,6 @@
 # Vertrag — Server-Schnittstellen
 
-**Feature**: 001-notebook-source-qa · **Datum**: 2026-09-14
+**Feature**: 001-notebook-source-qa · **Datum**: 2026-09-19
 
 Zwei Arten von Schnittstellen. **Server Actions** für alles, was ein Formular auslöst — typisiert, ohne eigenen Endpunkt. **Route Handlers** nur dort, wo ein Datenstrom oder ein Aufruf von außen nötig ist. Weniger Endpunkte heißt weniger Stellen, an denen die Zugriffsprüfung fehlen kann (Prinzip IV und II).
 
@@ -20,15 +20,16 @@ Zwei Arten von Schnittstellen. **Server Actions** für alles, was ein Formular a
 | `createNotebook` | `name` | Notebook-Kennung | FR-006 |
 | `renameNotebook` | `id`, `name` | — | FR-006 |
 | `deleteNotebook` | `id` | — | FR-006, FR-007 |
-| `prepareUpload` | `notebookId`, `fileName`, `contentHash`, `byteSize` | `{ decision, existingSourceId?, uploadTarget?, sourceId? }` | FR-009, FR-010, FR-010a |
-| `confirmUpload` | `sourceId` | — legt Verarbeitungsauftrag an | FR-011 |
+| `prepareUpload` | `notebookId`, `fileName`, `contentHash`, `byteSize`, optional `intent`, `replaceSourceId` | `{ decision, existingSourceId?, uploadTarget?, sourceId? }` | FR-009, FR-010, FR-010a |
+| `confirmUpload` | `sourceId` | — bestätigt Objekt, vollzieht Ersatz und legt genau einen Auftrag an | FR-010a, FR-011 |
+| `cancelUpload` | `sourceId` | — entfernt nur eigenen Entwurf im Zustand `uploading` | FR-010a |
 | `setSourceSelected` | `sourceId`, `selected` | — | FR-015 |
 | `deleteSource` | `sourceId` | — | FR-016, FR-017, FR-031 |
 | `retryIngestion` | `sourceId` | — neuer Auftrag, Zähler zurückgesetzt | FR-012 |
 
 ### `prepareUpload` — Dublettenerkennung
 
-Wird **vor** dem Übertragen der Datei aufgerufen. Der Client berechnet die Prüfsumme des Dateiinhalts. Bei bereits 30 Quellen im Notebook antwortet die Aktion mit `rejected` und nennt die verletzte Grenze.
+Wird **vor** dem Übertragen der Datei aufgerufen. Der Client berechnet die Prüfsumme des Dateiinhalts. Bei bereits 30 Quellen im Notebook antwortet `add` mit `rejected` und nennt die verletzte Grenze. Ein gültiger Ersatz-Entwurf darf vorübergehend die 31. Zeile sein, weil er nach der Bestätigung genau eine vorhandene Quelle ersetzt.
 
 `decision` nimmt einen von drei Werten an:
 
@@ -38,7 +39,11 @@ Wird **vor** dem Übertragen der Datei aufgerufen. Der Client berechnet die Prü
 | `duplicate` | inhaltsgleiche Quelle vorhanden | Rückfrage: ersetzen, zusätzlich aufnehmen, abbrechen (FR-010a) |
 | `rejected` | Grenzwert verletzt | Meldung mit der verletzten Bedingung, keine Übertragung |
 
-Bei `duplicate` ruft die Oberfläche `prepareUpload` erneut mit `intent: 'replace' | 'add'` auf. `replace` entfernt die bisherige Quelle nach FR-031, bevor die neue angelegt wird.
+Bei `duplicate` ruft die Oberfläche `prepareUpload` erneut mit `intent: 'replace' | 'add'` auf. `replace` verlangt `replaceSourceId`, prüft Eigentümer, Notebook und identischen Hash und legt nur einen neuen Entwurf mit `status = uploading` und `replaces_source_id` an. Die alte Quelle bleibt unverändert und nutzbar.
+
+`confirmUpload` prüft das neue Objekt serverseitig auf Existenz, Größe und Hash. Erst danach sperrt eine Datenbanktransaktion alte und neue Quelle, lehnt eine laufende Antwort mit `409` ab, übernimmt den alten Storage-Pfad als `cleanup_storage_path`, entfernt die alte Datenbankquelle, setzt die neue auf `processing` und erzeugt genau einen Auftrag. Wiederholte Bestätigung erzeugt keinen zweiten Auftrag. Der Auftrag löscht den alten Storage-Pfad in seiner Phase `cleanup` vor der Extraktion (D-18).
+
+Bei Upload-Abbruch ruft der Client `cancelUpload` auf. Die Aktion löscht ausschließlich den neuen Entwurf, startet keinen Auftrag und versucht, dessen Storage-Objekt zu entfernen. Ein wegen Verbindungsabbruch verbleibendes Objekt fällt unter die Demo-Ausnahme; die alte Quelle bleibt in jedem Fall unverändert.
 
 ## Route Handlers
 
@@ -46,9 +51,16 @@ Bei `duplicate` ruft die Oberfläche `prepareUpload` erneut mit `intent: 'replac
 
 Erzeugt eine Antwort und liefert sie als Strom (FR-019, FR-020).
 
-**Eingabe**: `notebookId`, `question`
+**Eingabe**: genau eine Variante:
 
-**Ablauf**: Sitzung prüfen → ausgewählte Quellen im Zustand `ready` serverseitig ermitteln → passende Abschnitte suchen → Antwort erzeugen → Belege nach [answer-and-citations.md](./answer-and-citations.md) prüfen → Nachricht und Verweise speichern.
+```text
+{ notebookId, question }
+{ notebookId, retryOfMessageId }
+```
+
+**Ablauf bei neuer Frage**: Sitzung prüfen → Benutzerfrage samt Auswahl-Snapshot speichern → Assistant-Versuch 1 anlegen → ausgewählte Quellen im Zustand `ready` serverseitig ermitteln → Top-8 suchen und Mindestwert anwenden → strukturierte Claim-Einheiten erzeugen → Belege nach [answer-and-citations.md](./answer-and-citations.md) prüfen → Nachricht und Verweise atomar speichern.
+
+**Ablauf bei Retry**: Die bezeichnete Assistant-Nachricht MUSS dem Benutzer und Notebook gehören und `failed` sein. Fremd oder nicht vorhanden liefert `404`, ein anderer Zustand `422`. Der Server lädt Fragetext und Auswahl-Snapshot der zugehörigen Benutzerfrage, ermittelt unter Sperre die nächste `attempt_no` und hängt einen neuen Assistant-Versuch an. Der frühere Versuch bleibt unverändert. Aktuell entfernte oder nicht bereite Quellen führen zur erklärten Einschränkung. Es gibt keinen zusätzlichen Endpunkt und keinen vom Client gelieferten Fragetext für den Retry (D-19).
 
 **Vorbedingungen mit eigener Antwort** — in diesen Fällen entsteht **keine** Antwort mit Verweisen (FR-022):
 
@@ -56,10 +68,10 @@ Erzeugt eine Antwort und liefert sie als Strom (FR-019, FR-020).
 |---|---|
 | keine Quelle ausgewählt | Hinweis, dass mindestens eine Quelle ausgewählt sein muss |
 | keine ausgewählte Quelle im Zustand `ready` | Hinweis auf die Voraussetzung |
-| keine einschlägige Passage gefunden | Erklärung, dass die Quellen dazu nichts hergeben |
+| kein Top-8-Treffer erreicht den versionierten Mindestwert | Erklärung, dass die Quellen dazu nichts hergeben; kein Modellaufruf |
 | Frage über 2.000 Zeichen | `422` mit Nennung der Grenze |
 
-**Abbruch**: Bricht der Client die Verbindung ab, wird die Modellanforderung beendet und die Nachricht erhält den Zustand `aborted` (FR-020a). Fällt der Anbieter aus, wird `failed` gesetzt und ein erneuter Versuch angeboten (FR-025). In beiden Fällen bleibt die Teilantwort sichtbar, aber als unvollständig gekennzeichnet; die Sperre des Notebooks endet mit dem Zustandswechsel.
+**Abbruch**: Bricht der Client die Verbindung ab, wird die Modellanforderung beendet und die Nachricht erhält den Zustand `aborted` (FR-020a). Fällt der Anbieter aus, wird `failed` gesetzt und ein erneuter Versuch angeboten (FR-025). In beiden Fällen bleibt die provisorische Teilantwort sichtbar, aber als unvollständig gekennzeichnet; die Sperre des Notebooks endet mit dem Zustandswechsel. Nur `failed` darf über `retryOfMessageId` erneut versucht werden.
 
 **Sperre**: Solange eine Nachricht des Notebooks im Zustand `streaming` ist, weist ein weiterer Aufruf mit `409` ab. Die Oberfläche sperrt die Eingabe bereits vorher; die Prüfung im Server ist die verbindliche (FR-020a).
 
