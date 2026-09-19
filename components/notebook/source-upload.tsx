@@ -11,7 +11,7 @@ import { SOURCES_BUCKET } from "@/lib/ingestion/storage"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { sha256Hex } from "@/lib/upload/hash"
 
-type UploadStage = "error" | "idle" | "uploading"
+type UploadStage = "error" | "idle" | "processing" | "uploading"
 
 export function SourceUpload({ notebookId }: { notebookId: string }) {
   const router = useRouter()
@@ -39,15 +39,18 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
       return
     }
     setActiveSourceId(prepared.sourceId)
+    router.refresh()
     try {
       const client = createBrowserSupabaseClient()
       const { error: storageError } = await client.storage
         .from(SOURCES_BUCKET)
         .upload(prepared.storagePath, file, { contentType: "application/pdf", upsert: false })
       if (storageError) throw new Error("Die Datei konnte nicht hochgeladen werden.")
+      setStage("processing")
       await confirmUpload(prepared.sourceId)
     } catch (uploadError) {
       await cancelUpload(prepared.sourceId).catch(() => undefined)
+      router.refresh()
       throw uploadError
     }
   }
@@ -94,12 +97,13 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
         type="file"
       />
       {stage === "uploading" ? <p role="status">Datei wird hochgeladen…</p> : null}
+      {stage === "processing" ? <p role="status">Quelle wird verarbeitet…</p> : null}
       {error ? (
         <p id="source-upload-error" role="alert">
           {error}
         </p>
       ) : null}
-      {stage === "uploading" ? (
+      {stage === "uploading" || stage === "processing" ? (
         <Button type="button" variant="outline" onClick={cancelActiveUpload}>
           Upload abbrechen
         </Button>

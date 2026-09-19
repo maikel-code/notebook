@@ -1,5 +1,6 @@
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import { validationError } from "@/lib/http/errors"
+import { localE2EPages } from "@/lib/ingestion/local-e2e"
 import { MAX_FILE_BYTES, MAX_PAGES } from "@/lib/limits"
 
 export interface ValidatedPdf {
@@ -23,6 +24,8 @@ export async function validatePdf(bytes: Uint8Array, _fileName: string): Promise
   ) {
     rejected("Die Datei ist keine gültige PDF-Datei.")
   }
+
+  if (localE2EPages(bytes)) return { pageCount: 1 }
 
   try {
     const document = await getDocument({ data: bytes.slice() }).promise

@@ -103,7 +103,9 @@ export async function deleteNotebookAction(
 
 export async function prepareUpload(input: PrepareUploadInput): Promise<PrepareUploadResult> {
   const { userId } = await requireUser()
-  return prepareUploadForContext({ userId }, input, createServiceSupabaseClient())
+  const prepared = await prepareUploadForContext({ userId }, input, createServiceSupabaseClient())
+  if (prepared.decision === "ok") revalidatePath(`/notebooks/${input.notebookId}`)
+  return prepared
 }
 
 export async function confirmUpload(sourceId: string): Promise<void> {
@@ -122,6 +124,8 @@ export async function cancelUpload(sourceId: string): Promise<void> {
 
 export async function retryIngestion(sourceId: string): Promise<void> {
   const { userId } = await requireUser()
-  await retryIngestionForContext({ userId }, sourceId, createServiceSupabaseClient())
+  const service = createServiceSupabaseClient()
+  await retryIngestionForContext({ userId }, sourceId, service)
+  await runNextIngestionJob(service, sourceId)
   revalidatePath(`/notebooks`)
 }

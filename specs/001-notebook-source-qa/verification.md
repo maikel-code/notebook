@@ -226,3 +226,34 @@ atomaren Vorbereitungs- und Konfliktlogik sowie die T049-Sicherungen erkannt.
 | `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
 | `pnpm build` | erfolgreicher Next-16-Produktions-Build |
 | Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
+
+## Phase 4 — Abschluss T046 und T050 — 2026-09-19
+
+**Umfang:** Ausschließlich T046 und T050. `GET /api/jobs/status` wird jetzt
+durch den echten Route Handler mit realen Supabase-Sitzungen geprüft: Eigentümer
+erhält nur den eigenen Status, fremdes und nicht vorhandenes Notebook erhalten
+identische `404`-Antworten, anonym erhält `401`. Der Chromium-Ablauf lädt ein
+echtes textbasiertes PDF über die Oberfläche hoch, zeigt den Übergang ohne
+Reload, einen verständlichen terminalen Fehler und dessen erfolgreichen Retry.
+
+**Lokale E2E-Grenze:** `NOTEBOOK_E2E_INGESTION_MODE=1` wird ausschließlich vom
+Playwright-Webserver gesetzt. Der serverseitige Fixture-Pfad verlangt zusätzlich
+eine Loopback-Supabase-URL und ist unter `NODE_ENV=production` deaktiviert.
+Er ersetzt nur die lokale Extraktion/Einbettung für die expliziten E2E-Fixtures;
+Browser-Geheimnisse und der Produktionspfad bleiben unverändert.
+
+**Test-first-Nachweis:** Der neue Chromium-Test schlug vor den Produktkorrekturen
+erwartungsgemäß fehl, weil der Übergang nicht sichtbar wurde. Nach serverseitiger
+lokaler Fixture-Grenze, sichtbarem Verarbeitungszustand und unmittelbarer
+Retry-Ausführung besteht derselbe Ablauf.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; dreizehn Migrationen frisch angewendet |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich; 89 Dateien geprüft |
+| `pnpm test:integration` | erfolgreich; frischer lokaler Reset, 19 Dateien, 58 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe einschließlich T050 |
+| `pnpm build` | erfolgreicher Next-16-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |

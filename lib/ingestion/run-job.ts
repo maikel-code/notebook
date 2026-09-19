@@ -5,10 +5,12 @@ import { chunkExtractedPages } from "@/lib/ingestion/chunk"
 import { cleanupStoragePath } from "@/lib/ingestion/cleanup"
 import { embedChunks } from "@/lib/ingestion/embed"
 import { extractPdfText } from "@/lib/ingestion/extract"
+import { LocalE2EIngestionFailure } from "@/lib/ingestion/local-e2e"
 import { replaceChunksForSource } from "@/lib/ingestion/persist"
 import { nextRetryState } from "@/lib/ingestion/retry"
 import { SOURCES_BUCKET } from "@/lib/ingestion/storage"
 import { validatePdf } from "@/lib/ingestion/validate-pdf"
+import { MAX_JOB_ATTEMPTS } from "@/lib/limits"
 
 interface ClaimedJob {
   attempt: number
@@ -53,8 +55,15 @@ async function updatePhase(
   if (error) throw new Error("Auftragsphase konnte nicht aktualisiert werden.")
 }
 
-async function failJob(service: SupabaseClient, job: ClaimedJob, phase: string): Promise<void> {
-  const retry = nextRetryState(job.attempt)
+async function failJob(
+  service: SupabaseClient,
+  job: ClaimedJob,
+  phase: string,
+  forceTerminalFailure = false,
+): Promise<void> {
+  const retry = forceTerminalFailure
+    ? { attempt: MAX_JOB_ATTEMPTS, status: "failed" as const }
+    : nextRetryState(job.attempt)
   const { error } = await service
     .from("ingestion_jobs")
     .update({
@@ -153,8 +162,8 @@ export async function runNextIngestionJob(
       .eq("user_id", job.user_id)
     if (sourceFinishError) throw new Error("Quelle konnte nicht abgeschlossen werden.")
     return true
-  } catch {
-    await failJob(service, job, phase)
+  } catch (error) {
+    await failJob(service, job, phase, error instanceof LocalE2EIngestionFailure)
     return true
   }
 }
