@@ -6,7 +6,7 @@
 
 Next.js-Anwendung mit privaten Notebooks, PDF-Aufnahme und quellengebundenem Chat. Vier Teile: **Supabase** (Datenbank, Authentifizierung, Dateiablage, durchgängige RLS), eine **Aufnahmestrecke** mit zweiphasigem Quellenersatz, eine **Abrufstrecke** mit Top-8 und versioniert kalibriertem Mindestwert sowie eine **Belegprüfung** strukturierter Claim-Absätze. Fehlgeschlagene Antworten bleiben als Versuch erhalten; ein Retry hängt einen neuen Versuch an dieselbe Frage.
 
-Die Belegprüfung ist der tragende Teil: Sie prüft Herkunft, Auswahl, Wortlaut und vollständige Claim-Struktur deterministisch. Scheitert eine Einheit, wird die gesamte Antwort durch eine feste Einschränkung ersetzt. Ob die Passage die zugeordnete Aussage inhaltlich stützt, bleibt eine getrennte Qualitätsmetrik des Referenzdatensatzes (research.md D-07, D-20).
+Die Belegprüfung ist der tragende Teil: Sie prüft Herkunft, Auswahl, Wortlaut und vollständige Claim-Struktur deterministisch. Scheitert eine Einheit, gilt der gesamte Entwurf als unbelegt, bleibt dauerhaft entsprechend gekennzeichnet sichtbar und erhält keine aktiven Verweise. Ob die Passage die zugeordnete Aussage inhaltlich stützt, bleibt eine getrennte Qualitätsmetrik des Referenzdatensatzes (research.md D-07, D-20).
 
 ## Technical Context
 
@@ -16,15 +16,17 @@ Die Belegprüfung ist der tragende Teil: Sie prüft Herkunft, Auswahl, Wortlaut 
 
 **Storage**: Supabase Postgres mit `pgvector`, privater Storage-Bucket. Lokale Instanz für Entwicklung und Prüfläufe, Cloud-Projekt als Veröffentlichungsziel (D-14)
 
-**Testing**: Vitest, Playwright, Integrationslauf für Zugriffsgrenzen, getrennter Bewertungslauf (D-16)
+**Testing**: Vitest, Playwright mit einem Chromium-Projekt, Integrationslauf für Zugriffsgrenzen, getrennter Bewertungslauf (D-16)
 
-**Target Platform**: Browser (aktuelle Chromium-, Firefox-, WebKit-Versionen)
+**Tooling**: Biome für Linting, Formatprüfung und Importorganisation
+
+**Target Platform**: Browser (aktuelle Chromium-Version)
 
 **Project Type**: Ein Next.js-Projekt mit Server- und Clientanteil
 
 **Performance Goals**: SC-011 erster Antwortteil in mindestens vier von fünf dokumentierten Demo-Läufen ≤ 5 s; beobachtender Smoke-Wert, kein Freigabetor
 
-**Constraints**: Grenzwerte aus spec.md zentral in `lib/limits.ts`; Abrufwert aus dem freigegebenen, fingerprint-gebundenen Kalibrierartefakt (D-17)
+**Constraints**: Anwendungsgrenzwerte aus spec.md zentral in `lib/limits.ts`, darunter `MAX_FILE_BYTES = 10_485_760`; der Storage-Bucket spiegelt diesen Wert unvermeidbar in der versionierten Migration und ein Integrationstest prüft die Übereinstimmung; Abrufwert aus dem freigegebenen, fingerprint-gebundenen Kalibrierartefakt (D-17)
 
 **Scale/Scope**: Demonstrationsumgebung, einzelne Benutzer (A-09)
 
@@ -35,15 +37,15 @@ Die Belegprüfung ist der tragende Teil: Sie prüft Herkunft, Auswahl, Wortlaut 
 | Prinzip | Einlösung |
 |---|---|
 | I Technische Verantwortung | Entscheidungen mit Alternative in research.md; Prüfkommandos unten |
-| II Sichere Zugriffsgrenzen | Feste Demo-Matrix für Notebook-Seite plus `renameNotebook`, Storage-Download, Chat und Status; interne Jobs mit Geheimnisprüfung und Cross-User-Worker-Test; Dienstrolle auf den Auftragseigentümer eingeschränkt (D-10) |
-| III Quellengebundene Antworten | Claim-Einheiten vollständig fail-closed geprüft und bei einem Fehler insgesamt verworfen (D-07, D-20); semantische Belegtreue separat berichtet, Dokumenttext als Daten (D-09), Abruf auf ausgewählte Quellen begrenzt |
+| II Sichere Zugriffsgrenzen | Alle Felder der Zugriffsmatrix aus spec.md werden für Eigentümer, fremdes Konto und anonymen Zugriff geprüft; direkter Browserzugriff auf die sechs Tabellen ist gesperrt, Elternbeziehungen eigentümerkonsistent; Storage erlaubt nur eigenes `INSERT` und `SELECT` und prüft fremde, anonyme und unerlaubte Schreibpfade; serverseitige Datenbankzugriffe sind zentral autorisiert; interne Jobs zusätzlich mit Geheimnisprüfung und Cross-User-Worker-Test (D-10) |
+| III Quellengebundene Antworten | Claim-Einheiten vollständig fail-closed geprüft; ein ungültiger Gesamtentwurf bleibt nur als dauerhaft gekennzeichneter, nicht belegter Text ohne aktive Verweise sichtbar (D-07, D-20); semantische Belegtreue separat berichtet, Dokumenttext als Daten (D-09), Abruf auf ausgewählte Quellen begrenzt |
 | IV Einfache Architektur | Ein Projekt, eine Datenbank, keine zusätzliche Laufzeit. Drei Abhängigkeiten in research.md begründet; drei Auslöser des Verarbeitungsauftrags unter Complexity Tracking |
 | V Vollständige Nutzerabläufe | Zustände als Zustandsmaschinen in data-model.md; Upload-Abbruch lässt die alte Quelle bestehen, Retry zeigt alle Versuche; Barrierefreiheit über die Primitive, geprüft in Playwright |
 | VI Verifikation | Deterministische Grenz-, Claim- und Zitatprüfungen sind von Kalibrierung und Qualitätsbewertung getrennt; beide externen Läufe sind kein Tor |
-| VII Reproduzierbarkeit | Node gepinnt, Migrationen versioniert, Grenzwerte zentral, Abrufkonfiguration mit Fingerprints versioniert, Aufnahme und Quellenersatz idempotent (D-06, D-17, D-18) |
+| VII Reproduzierbarkeit | Node gepinnt, Migrationen versioniert, Anwendungsgrenzwerte zentral und 10-MB-Grenze zusätzlich im Bucket durchgesetzt und auf Übereinstimmung geprüft, Abrufkonfiguration mit Fingerprints versioniert, Aufnahme und Quellenersatz idempotent (D-06, D-17, D-18) |
 | VIII Zusammenarbeit | Entscheidungen in research.md, Verträge in contracts/, Prüfweg in quickstart.md |
 
-**Nach Phase 1 erneut geprüft**: Der Entwurf ergänzt keine Abhängigkeit und keinen öffentlichen Endpunkt. Retry nutzt `/api/chat`, Quellenersatz bestehende Server Actions; beide laufen über denselben zentralen Autorisierungsweg. Die neue `cleanup`-Phase nutzt den vorhandenen Auftrags- und Wiederholungsmechanismus. Kalibrierung bleibt ausdrücklich außerhalb des Gates, ihr freigegebenes Ergebnis wird zur festen, deterministisch geprüften Laufzeitkonfiguration. Die Abweichung Node v25 statt 22 LTS ist in quickstart.md benannt.
+**Nach Phase 1 erneut geprüft**: Der Entwurf ergänzt keinen öffentlichen Endpunkt und keine zusätzliche Laufzeitabhängigkeit. Biome ersetzt mehrere überlappende Entwicklungswerkzeuge und ist in D-16 begründet. Retry nutzt `/api/chat`, Quellenersatz bestehende Server Actions; beide laufen über denselben zentralen Autorisierungsweg. Die neue `cleanup`-Phase nutzt den vorhandenen Auftrags- und Wiederholungsmechanismus. Kalibrierung bleibt ausdrücklich außerhalb des Gates, ihr freigegebenes Ergebnis wird zur festen, deterministisch geprüften Laufzeitkonfiguration. Die Abweichung Node v25 statt 22 LTS ist in quickstart.md benannt.
 
 ## Verification Commands
 
@@ -52,9 +54,9 @@ Verbindlich für Gate 3. Codex führt sie aus und weist das Ergebnis im Handoff 
 | Zweck | Kommando | Tor |
 |---|---|---|
 | Typprüfung | `pnpm typecheck` | Gate 3 |
-| Linting und Format | `pnpm lint` | Gate 3 |
-| Reine Logik einschließlich Abrufgrenze und Claim-Gesamtverwerfung | `pnpm test` | Gate 3 |
-| Zugriffsgrenzen, Aufnahme, Quellenersatz und Retry-Persistenz | `pnpm test:integration` | Gate 3 + Gate 4 |
+| Linting, Format- und Importprüfung | `pnpm lint` (`biome check .`) | Gate 3 |
+| Reine Logik einschließlich Abrufgrenze und Claim-Gesamtprüfung | `pnpm test` | Gate 3 |
+| Vollständige Zugriffsmatrix einschließlich fehlender Objekte, gesperrter Browser-Datenbankzugriff, relationale Eigentümerbindung, Aufnahme, Quellenersatz, Suchausfall und Antwortpersistenz | `pnpm test:integration` | Gate 3 + Gate 4 |
 | Abläufe einschließlich Retry-Historie | `pnpm test:e2e` | Gate 3 |
 | Migrationen auf frischer Datenbank | `pnpm db:reset` (lokale Instanz) | Gate 3 |
 | Antwortqualität | `pnpm eval` | **kein Tor** — probabilistisch |
@@ -92,17 +94,27 @@ components/
 └── notebook/               # Quellenliste, Chatverlauf, Belegansicht
 
 lib/
+├── auth/                   # zentrale Autorisierung
+├── chat/                   # Laden des Gesprächsverlaufs
+├── http/                   # gemeinsame HTTP-Fehler
 ├── supabase/               # Server, Browser, Dienstrolle
+├── upload/                 # Hash-Berechnung
 ├── ingestion/              # Upload-Ersatz, Cleanup, Extraktion, Zerlegung, Einbettung
 ├── rag/                    # Abrufkonfiguration, Claim-Erzeugung und Gesamtprüfung
+├── diagnostics.ts          # korrelationsgebundene, inhaltsfreie Diagnose
+├── env.ts                  # getrennte Client- und Server-Umgebung
 └── limits.ts               # Grenzwerte an einer Stelle
 
 supabase/migrations/        # Schema inklusive Zugriffsregeln
 tests/{unit,integration,e2e}/
+scripts/sweep.ts
 eval/
 ├── dataset/{documents,questions,retrieval-calibration.json}
 ├── calibrate-retrieval.ts
+├── performance.ts
 └── run.ts                  # Qualitätsbewertung, bewusst außerhalb tests/
+
+biome.json · playwright.config.ts · vitest.config.ts
 ```
 
 **Structure Decision**: Ein Next.js-Projekt im Wurzelverzeichnis. Getrennte Frontend- und Backend-Verzeichnisse wären künstlich, weil Next.js beide Seiten trägt und Typen geteilt werden. Die Trennlinien verlaufen in `lib/`: Aufnahme, Abruf und Datenzugriff sind ohne Oberfläche prüfbar. `eval/` liegt außerhalb `tests/`, damit die probabilistische Bewertung nicht in einen Gate-Lauf gerät.
@@ -116,6 +128,7 @@ eval/
 | Zitatprüfung als eigener Schritt | FR-030 verlangt eine deterministisch prüfbare Herkunft und einen wörtlich vorhandenen Auszug | Nur der Modellmarke zu vertrauen würde Herkunft und Wortlaut ungeprüft lassen; die semantische Belegtreue wird separat berichtet |
 | Persistenter Ersatz-Entwurf und `cleanup`-Phase | FR-010a verlangt, dass die alte Quelle einen Upload-Abbruch unverändert übersteht; Storage und Datenbank haben keine gemeinsame Transaktion | Löschen vor Upload verletzt FR-010a; eine weitere Ablauf-Tabelle wäre komplexer als zwei Felder auf `sources` und die vorhandene Auftragsmaschine |
 | Mehrere Assistant-Versuche je Frage | FR-025 verlangt sichtbaren fehlgeschlagenen Versuch und einen angehängten Retry | Überschreiben verliert die Historie; duplizierte Benutzerfragen verfälschen den Gesprächsverlauf |
+| Serverseitige Datenbankgrenze für sechs Anwendungstabellen | Verhindert, dass ein Browser interne Spalten liest oder Zustandsmaschinen, Grenzwerte und Belegprüfung über die öffentliche Datenbankschnittstelle umgeht; relationale Eigentümerbindung schützt Elternbeziehungen | Benutzerpolicies plus Spaltenprivilegien wären ein zweites Berechtigungsmodell und Schreibpolicies prüften nur den selbst gesetzten `user_id`, nicht den vorgesehenen Ablauf oder die Elternzeile |
 
 ## Demo-Ausnahme: Storage-Bereinigung
 

@@ -7,6 +7,7 @@ Zwei Arten von Schnittstellen. **Server Actions** für alles, was ein Formular a
 ## Gemeinsame Regeln
 
 - Jede Schnittstelle ermittelt den Benutzer serverseitig aus der Sitzung. Eine Benutzerkennung aus dem Anfragekörper wird **nie** ausgewertet.
+- Benutzer- und anonyme Clients dürfen auf keine der sechs Anwendungstabellen direkt zugreifen. Jeder Datenbankzugriff nutzt den ausschließlich serverseitigen Service-Client erst nach zentraler Sitzungs- und Eigentümerprüfung, bei Mutationen zusätzlich nach Elternprüfung. Im privaten Storage-Bucket darf der authentifizierte Browser-Client unter Storage-RLS ausschließlich PDF-Objekte bis einschließlich 10.485.760 Bytes im eigenen `{user_id}/…`-Präfix neu anlegen und lesen; direkte Updates und Löschungen sowie anonyme oder fremde Zugriffe bleiben gesperrt (D-10).
 - Zugriff auf fremde oder nicht vorhandene Objekte liefert **denselben** Fehler: `404` mit unspezifischer Meldung. Kein Unterschied zwischen „gibt es nicht" und „gehört dir nicht" (FR-004).
 - Ohne Sitzung: `401`, keine Inhalte (FR-005).
 - Grenzwertverletzung: `422` mit Nennung der verletzten Bedingung (FR-010).
@@ -20,7 +21,7 @@ Zwei Arten von Schnittstellen. **Server Actions** für alles, was ein Formular a
 | `createNotebook` | `name` | Notebook-Kennung | FR-006 |
 | `renameNotebook` | `id`, `name` | — | FR-006 |
 | `deleteNotebook` | `id` | — | FR-006, FR-007 |
-| `prepareUpload` | `notebookId`, `fileName`, `contentHash`, `byteSize`, optional `intent`, `replaceSourceId` | `{ decision, existingSourceId?, uploadTarget?, sourceId? }` | FR-009, FR-010, FR-010a |
+| `prepareUpload` | `notebookId`, `fileName`, `contentHash`, `byteSize`, optional `intent`, `replaceSourceId` | `{ decision, existingSourceId?, storagePath?, sourceId? }`; Upload über authentifizierten Browser-Client unter Storage-RLS | FR-009, FR-010, FR-010a |
 | `confirmUpload` | `sourceId` | — bestätigt Objekt, vollzieht Ersatz und legt genau einen Auftrag an | FR-010a, FR-011 |
 | `cancelUpload` | `sourceId` | — entfernt nur eigenen Entwurf im Zustand `uploading` | FR-010a |
 | `setSourceSelected` | `sourceId`, `selected` | — | FR-015 |
@@ -71,7 +72,9 @@ Erzeugt eine Antwort und liefert sie als Strom (FR-019, FR-020).
 | kein Top-8-Treffer erreicht den versionierten Mindestwert | Erklärung, dass die Quellen dazu nichts hergeben; kein Modellaufruf |
 | Frage über 2.000 Zeichen | `422` mit Nennung der Grenze |
 
-**Abbruch**: Bricht der Client die Verbindung ab, wird die Modellanforderung beendet und die Nachricht erhält den Zustand `aborted` (FR-020a). Fällt der Anbieter aus, wird `failed` gesetzt und ein erneuter Versuch angeboten (FR-025). In beiden Fällen bleibt die provisorische Teilantwort sichtbar, aber als unvollständig gekennzeichnet; die Sperre des Notebooks endet mit dem Zustandswechsel. Nur `failed` darf über `retryOfMessageId` erneut versucht werden.
+Kann die Frage wegen eines Ausfalls der Einbettung oder Suche nicht verarbeitet werden, wird der Assistant-Versuch mit einem neutralen Hinweis als `failed` gespeichert. Dieser Pfad DARF NICHT als `below_similarity_threshold` oder andere Aussage über die Quellenlage behandelt werden und darf über `retryOfMessageId` erneut versucht werden (FR-025).
+
+**Abbruch**: Bricht der Client die Verbindung ab, wird die Modellanforderung beendet und die Nachricht erhält den Zustand `aborted` (FR-020a). Fällt der Anbieter aus, wird `failed` gesetzt und ein erneuter Versuch angeboten (FR-025). In beiden Fällen werden provisorische Antwortinhalte und Citations verworfen und nur ein fester terminaler Hinweis gespeichert; die Sperre des Notebooks endet mit dem Zustandswechsel. Nur `failed` darf über `retryOfMessageId` erneut versucht werden.
 
 **Sperre**: Solange eine Nachricht des Notebooks im Zustand `streaming` ist, weist ein weiterer Aufruf mit `409` ab. Die Oberfläche sperrt die Eingabe bereits vorher; die Prüfung im Server ist die verbindliche (FR-020a).
 

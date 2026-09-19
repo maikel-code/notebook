@@ -6,7 +6,7 @@ Herleitung aus den Entitäten und Anforderungen in [spec.md](./spec.md). Namen s
 
 ## Grundsätze
 
-1. **`user_id` auf jeder Tabelle**, auch wo sie über eine Beziehung herleitbar wäre. Die Zugriffsregel wird dadurch zu einem Vergleich ohne Verbund — sie bleibt lesbar und lässt sich nicht durch einen übersehenen Verbund aushebeln (Prinzip II).
+1. **`user_id` auf jeder Tabelle**, auch wo sie über eine Beziehung herleitbar wäre. Die Zugriffsregel bleibt dadurch lesbar; zugleich MUSS eine Datenbank-Invariante erzwingen, dass Kind und Elternobjekt demselben Benutzer gehören. Ein eigener `user_id` darf nie mit einer fremden Elternkennung kombiniert werden (Prinzip II).
 2. **Belege überdauern ihre Quelle.** `citations` trägt Wortlaut, Seitenbereich und Quellennamen als eigene Spalten. Fremdschlüssel auf Quelle und Abschnitt werden beim Löschen auf `NULL` gesetzt, nicht kaskadiert (FR-028a, FR-031).
 3. **Lauf und Dokument sind getrennt.** Versuchszähler, Phase und Fehlerursache liegen bei `ingestion_jobs`, nicht bei `sources`.
 4. **Ein Gesprächsverlauf je Notebook** (A-07). Es gibt keine Tabelle für Unterhaltungen; `messages` hängt direkt am Notebook.
@@ -35,7 +35,7 @@ Löschen entfernt Quellen, Abschnitte, Aufträge und Nachrichten des Notebooks (
 | `file_name` | text | Anzeigename aus dem Upload |
 | `storage_path` | text | `{user_id}/{notebook_id}/{source_id}.pdf` |
 | `content_hash` | text | Prüfsumme des Dateiinhalts, Grundlage der Dublettenerkennung (FR-010a) |
-| `byte_size` | bigint | ≤ 10 MB (FR-010) |
+| `byte_size` | bigint | ≤ 10.485.760 Bytes (Anzeige: 10 MB; FR-010) |
 | `page_count` | int | ≤ 50, erst nach der Extraktion bekannt |
 | `status` | text | Zustandsmaschine unten |
 | `error_reason` | text, null | benutzerlesbare Ursache (FR-012) |
@@ -88,8 +88,8 @@ Ein Ersatz-Entwurf zählt für `MAX_SOURCES_PER_NOTEBOOK` nicht zusätzlich, sol
 | `notebook_id` | uuid, FK → `notebooks` | kaskadiert |
 | `user_id` | uuid, FK → `auth.users` | |
 | `role` | text | `user` · `assistant` |
-| `content` | text | bei `user` Frage ≤ 2.000 Zeichen; bei `assistant` Antwort oder fester Einschränkungstext |
-| `status` | text | `streaming` · `complete` · `aborted` · `failed` (FR-020a, FR-025) |
+| `content` | text | bei `user` Frage ≤ 2.000 Zeichen; bei `assistant` Antwort, als unbelegt gekennzeichneter Entwurf oder fester Einschränkungs-/Statustext |
+| `status` | text | `streaming` · `complete` · `invalid` · `aborted` · `failed` (FR-020a, FR-025, FR-027a) |
 | `unsupported_reason` | text, null | `no_selection` · `no_ready_source` · `below_similarity_threshold` · `invalid_citations` |
 | `selected_sources_snapshot` | jsonb, null | nur bei `user`: Liste aus Kennung und Name der zum Fragezeitpunkt ausgewählten Quellen |
 | `question_message_id` | uuid, FK → `messages`, null | bei `assistant` gesetzt; **ON DELETE CASCADE** auf die zugehörige Benutzerfrage |
@@ -146,37 +146,36 @@ Ein Lauf mit `running` und überschrittener Laufzeitgrenze gilt als hängengebli
 
 ```text
 streaming ──► complete
+     ├──────► invalid   (Gesamtprüfung scheitert — FR-027a)
      ├──────► aborted   (Benutzer bricht ab — FR-020a)
      └──────► failed    (Anbieter fällt aus — FR-025)
 ```
 
-`aborted` und `failed` sind sichtbare Endzustände. Eine Teilantwort DARF nie als `complete` erscheinen.
+`invalid` speichert den vollständigen Entwurf mit `unsupported_reason = invalid_citations`, aber ohne Citations. Die Oberfläche zeigt ihn dauerhaft und nicht nur farblich als ungeprüft und nicht belegt an. `aborted` und `failed` sind sichtbare Endzustände mit festem Hinweis; provisorische Antwortinhalte und Citations werden dafür nicht gespeichert. Keine dieser Nachrichten DARF als `complete` erscheinen.
 
-Ein bestandener Modellentwurf, alle seine Verweise und `complete` werden atomar gespeichert. Bei `invalid_citations` wird derselbe Versuch mit dem festen Einschränkungstext und ohne Verweise abgeschlossen; der verworfene Entwurf wird nicht als erfolgreiche Antwort gespeichert (D-20).
+Ein bestandener Modellentwurf, alle seine Verweise und `complete` werden atomar gespeichert. Bei `invalid_citations` werden Entwurf, `invalid` und der Grund ohne Verweise atomar gespeichert (D-20).
 
 ## Zugriffsregeln
 
-Row-Level-Security ist auf **allen** genannten Tabellen eingeschaltet. Je Tabelle gilt für Lesen, Einfügen, Ändern und Löschen dieselbe Bedingung:
+Row-Level-Security ist auf **allen** genannten Tabellen eingeschaltet. Für Benutzer- und anonyme Tokens existiert keine freigebende Policy: direkte `SELECT`-, `INSERT`-, `UPDATE`- und `DELETE`-Operationen auf den sechs Anwendungstabellen sind vollständig gesperrt. Damit können interne Spalten wie `cleanup_storage_path`, Einbettungen und Auftragsdetails nicht über die öffentliche Datenbankschnittstelle gelesen oder verändert werden.
 
-```sql
-user_id = auth.uid()
-```
+Sämtliche Datenbankzugriffe erfolgen in Server Components, Server Actions, Route Handlers oder Verarbeitungsaufträgen über den serverseitigen Service-Client, nachdem Sitzung, Eigentümer und bei Mutationen das Elternobjekt zentral geprüft wurden. `user_id` wird aus der Sitzung oder dem bereits geprüften Auftrag gesetzt und nie aus einer Benutzereingabe übernommen. Ohne Sitzung endet die Autorisierung vor jedem Datenbankzugriff (FR-005).
 
-Ohne Sitzung liefert `auth.uid()` `NULL`, der Vergleich ergibt nicht `true`, und der Zugriff scheitert — damit ist der anonyme Fall abgedeckt (FR-005).
+**Relationale Eigentümerbindung**: Erforderliche Elternbeziehungen werden über `(parent_id, user_id)` gebunden. Das betrifft Quelle → Notebook, Auftrag/Abschnitt → Quelle, Nachricht → Notebook, Assistant-Versuch → Benutzerfrage im selben Notebook und Citation → Nachricht. Die nullable historischen Citation-Verweise auf Quelle und Abschnitt behalten `ON DELETE SET NULL`; solange sie gesetzt sind, erzwingt ein Constraint-Trigger denselben `user_id`. Dieselbe Prüfung gilt für `replaces_source_id` einschließlich identischem Notebook. Integrationsprüfungen versuchen jede dieser Beziehungen mit fremder Elternkennung und müssen scheitern.
 
-**Dateiablage**: privater Bucket, keine öffentlichen Adressen. Die Regel bindet den ersten Pfadabschnitt an die Benutzerkennung, sodass `{user_id}/…` nur vom Eigentümer gelesen wird (FR-003). Zugriff im Betrieb ausschließlich über kurzlebige signierte Adressen.
+**Dateiablage**: privater Bucket, keine öffentlichen Adressen. Der Bucket begrenzt jedes Objekt auf exakt 10.485.760 Bytes und akzeptiert als MIME-Art nur `application/pdf`; die serverseitige Signaturprüfung bleibt zusätzlich verbindlich. Upload und Abruf erfolgen über den authentifizierten Supabase-Browser-Client. Storage-RLS erlaubt ausschließlich `INSERT` und `SELECT`, wenn der erste Pfadabschnitt `auth.uid()` entspricht. Direkte Browser-Updates und -Löschungen sowie anonyme oder fremde Zugriffe bleiben gesperrt; serverseitige Löschpfade laufen nach Autorisierung über die Dienstrolle. Kurzlebige signierte Adressen sind für das Demo nicht vorgesehen.
 
-**Erhöhte Rechte**: Der Verarbeitungslauf arbeitet mit der Dienstrolle und umgeht RLS. Jede Abfrage darin MUSS zusätzlich `user_id = <Eigentümer des Auftrags>` enthalten (D-10). Das ist die Regel, die der Integrationslauf prüft.
+**Erhöhte Rechte**: Der serverseitige Service-Client umgeht RLS. Jeder Zugriff MUSS deshalb zuvor die Sitzung und das Zielobjekt zentral autorisieren und zusätzlich auf deren `user_id` eingeschränkt bleiben; bei Mutationen wird außerdem die Elternbeziehung geprüft. Für Verarbeitungsaufträge ist der Eigentümer des Auftrags der verbindliche Kontext (D-10). Integrationsläufe prüfen sowohl verweigerte direkte Browser-Datenbankzugriffe als auch Cross-User-Versuche über die Serverpfade.
 
 **Keine Existenzauskunft**: Zugriff auf ein fremdes Notebook antwortet wie bei einem nicht vorhandenen — gleicher Statuscode, gleiche Meldung (FR-004).
 
 ## Grenzwerte
 
-Alle Werte aus spec.md liegen an einer Stelle in `lib/limits.ts` und werden sowohl beim Eingeben als auch vor dem Schreiben geprüft. Ein zweiter Ort für dieselbe Zahl ist ein Fehler, weil Oberfläche und Server sonst auseinanderlaufen können.
+Alle Anwendungswerte aus spec.md liegen in `lib/limits.ts` und werden sowohl beim Eingeben als auch vor dem Schreiben geprüft. Die 10-MB-Grenze wird zusätzlich in der versionierten Storage-Migration gespiegelt, weil der Bucket sie vor dem Anwendungscode durchsetzen muss; T047 prüft die Übereinstimmung. Weitere unkontrollierte Kopien derselben Werte sind zu vermeiden, damit Oberfläche und Server nicht auseinanderlaufen.
 
 | Bezeichner | Wert | Anforderung |
 |---|---|---|
-| `MAX_FILE_BYTES` | 10 MB | FR-010 |
+| `MAX_FILE_BYTES` | 10.485.760 Bytes; Anzeige 10 MB | FR-010 |
 | `MAX_PAGES` | 50 | FR-010 |
 | `MAX_SOURCES_PER_NOTEBOOK` | 30 | FR-036 |
 | `MAX_SELECTED_SOURCES` | 10 | FR-036 |

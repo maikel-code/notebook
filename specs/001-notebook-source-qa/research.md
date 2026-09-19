@@ -8,7 +8,7 @@ Jede Entscheidung nennt die verworfene Alternative (Prinzip I). **Zusätzliche A
 
 **Decision**: Next.js App Router. Server Components für Anzeige, Route Handlers für Strom und Verarbeitungsaufträge.
 
-**Rationale**: Vom Briefing vorgegeben. Datenzugriff bleibt serverseitig — Voraussetzung für Prinzip II.
+**Rationale**: Vom Briefing vorgegeben. Datenbankzugriffe bleiben serverseitig; der direkte Browserzugriff beschränkt sich auf eigene Storage-Objekte unter Storage-RLS — Voraussetzung für Prinzip II.
 
 **Alternatives**: Pages Router (keine Server Components); getrenntes Backend (verdoppelt Typdefinitionen).
 
@@ -16,9 +16,9 @@ Jede Entscheidung nennt die verworfene Alternative (Prinzip I). **Zusätzliche A
 
 **Decision**: Supabase für alle drei. Postgres mit RLS, Auth mit E-Mail und Passwort (A-02), privater Storage-Bucket.
 
-**Rationale**: Vom Briefing vorgegeben. Die Zugriffsgrenze sitzt in der Datenbank, nicht in der Anwendung — eine vergessene Abfrage führt dann nicht zum Datenabfluss.
+**Rationale**: Vom Briefing vorgegeben. Leseregeln, Storage-Regeln und relationale Eigentümerbindung sitzen in der Datenbank. Privilegierte Schreibpfade ergänzen diese Grenze durch zentrale Autorisierung; keine einzelne Anwendungskontrolle trägt sie allein.
 
-**Alternatives**: Prüfung nur in der Anwendung — widerspricht Prinzip II.
+**Alternatives**: Prüfung nur in der Anwendung — widerspricht Prinzip II. Gleichförmige Benutzer-Schreibpolicies — erlauben das Umgehen der vorgesehenen Serverabläufe.
 
 ## D-03 Abrufverfahren
 
@@ -34,14 +34,15 @@ Jede Entscheidung nennt die verworfene Alternative (Prinzip I). **Zusätzliche A
 
 **Rationale**: Beide Konten liegen vor. Anthropic bietet keine Einbettungen, die kommen ohnehin von einem zweiten Anbieter. Das AI SDK kapselt die Erzeugung; ein Wechsel betrifft eine Konfigurationsstelle.
 
-**Folge — zwei unabhängige Ausfallpfade**, die verschiedene Abläufe treffen:
+**Folge — drei unabhängig sichtbare Ausfallpfade**, die verschiedene Abläufe treffen:
 
 | Ausfall | Wirkung |
 |---|---|
-| Einbettungen | Auftrag scheitert in Phase `embed`, Wiederholung nach FR-037; bestehende Quellen bleiben nutzbar |
+| Einbettungen beim Dokument | Auftrag scheitert in Phase `embed`, Wiederholung nach FR-037; bestehende Quellen bleiben nutzbar |
+| Einbettung der Frage oder Suche | Assistant-Versuch endet `failed`, erneuter Versuch nach FR-025; keine Aussage über die Beleglage |
 | Antwortmodell | Nachricht auf `failed`, erneuter Versuch (FR-025); Aufnahme läuft weiter |
 
-SC-010 braucht deshalb zwei Prüffälle, nicht einen.
+SC-010 braucht deshalb drei getrennte Prüffälle, nicht einen.
 
 **Alternatives**: OpenAI für beides — nur noch Bequemlichkeit, da beide Konten vorhanden. Gemini — gleichwertig, kein Wechselgrund.
 
@@ -67,15 +68,15 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 ## D-07 Prüfung der Belege — tragender Entwurfsteil
 
-**Decision**: Das Modell liefert strukturierte Claim-Einheiten mit Aussage, Abschnittsnummern und **wörtlichen Auszügen**. Eine Claim-Einheit wird als genau ein Absatz gerendert; ihre geprüften Verweise stehen ausschließlich am Absatzende. Der Server prüft Auswahl, Herkunft und Wortlaut jeder Einheit. Scheitert eine Einheit oder ein Verweis, werden der gesamte Entwurf und alle abgeleiteten Verweise verworfen und durch eine feste Einschränkung ersetzt (FR-022, FR-027).
+**Decision**: Das Modell liefert strukturierte Claim-Einheiten mit Aussage, Abschnittsnummern und **wörtlichen Auszügen**. Eine Claim-Einheit wird als genau ein Absatz gerendert; ihre geprüften Verweise stehen ausschließlich am Absatzende. Der Server prüft Auswahl, Herkunft und Wortlaut jeder Einheit. Scheitert eine Einheit oder ein Verweis, wird der gesamte Entwurf als erfolgreicher Antworttext verworfen und mit `status = invalid` sowie `unsupported_reason = invalid_citations` gespeichert. Er bleibt als ungeprüft und nicht belegt gekennzeichnet sichtbar; abgeleitete Verweise werden nicht gespeichert (FR-027, FR-027a).
 
 **Rationale**: FR-030 schließt aus, dass eine Quellenkennung als Beleg genügt. Ohne diesen Schritt prüft nur das Modell sich selbst. Der Abgleich ist deterministisch und anbieterunabhängig; er liefert zugleich den Wortlaut, den FR-028a speichern muss.
 
-**Alternatives**: Einzelne gültige Verweise retten — verletzt die Gesamtverwerfung aus FR-027. Freitext semantisch in Aussagen zerlegen — nicht deterministisch. Zweites Modell als Prüfer — teurer, langsamer, selbst probabilistisch.
+**Alternatives**: Einzelne gültige Verweise retten — verletzt die Gesamtverwerfung aus FR-027. Ungültigen Entwurf vollständig löschen — verletzt die persistente Kennzeichnung aus FR-027a. Freitext semantisch in Aussagen zerlegen — nicht deterministisch. Zweites Modell als Prüfer — teurer, langsamer, selbst probabilistisch.
 
 ## D-08 Streamen und Claim-Einheiten
 
-**Decision**: Strukturierte Claim-Einheiten werden nacheinander erzeugt und jeweils vollständig gepuffert. Erst eine vollständig bestandene Einheit erscheint provisorisch als Absatz mit nicht interaktiven Verweisen und dem Zustand „wird geprüft“. Nach erfolgreicher Gesamtprüfung werden Antwort und Verweise atomar gespeichert und interaktiv. Scheitert eine spätere Einheit, ersetzt der Server alle provisorischen Absätze durch die feste Einschränkung.
+**Decision**: Strukturierte Claim-Einheiten werden nacheinander erzeugt und jeweils vollständig gepuffert. Erst eine vollständig bestandene Einheit erscheint provisorisch als Absatz mit nicht interaktiven Verweisen und dem Zustand „wird geprüft“. Nach erfolgreicher Gesamtprüfung werden Antwort und Verweise atomar gespeichert und interaktiv. Scheitert eine spätere Einheit, bleibt der vollständige Entwurf ohne Citations mit `status = invalid` und dauerhafter Kennzeichnung sichtbar. Bei Client-Abbruch oder Anbieterfehler werden provisorische Inhalte dagegen verworfen und nur ein fester terminaler Hinweis ohne Citations gespeichert; für die Demo entsteht dadurch kein zusätzlicher persistenter Streaming-Zustand.
 
 **Rationale**: FR-020 verlangt schrittweises Erscheinen, Prinzip III aber keine ungeprüften fertigen Aussagen. Claim-weises Puffern erfüllt beides und macht „ein Absatz = eine Claim-Einheit“ strukturell prüfbar.
 
@@ -91,11 +92,11 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 ## D-10 Erhöhte Rechte
 
-**Decision**: Der Verarbeitungslauf nutzt die Dienstrolle. Jede Abfrage darin MUSS zusätzlich auf den Eigentümer des Auftrags eingeschränkt werden. Die Dienstrolle wird ausschließlich in `lib/supabase/service.ts` erzeugt und erreicht nie den Browser.
+**Decision**: Benutzer- und anonyme Clients erhalten keinen direkten Zugriff auf die sechs Anwendungstabellen. Sämtliche Datenbankzugriffe laufen in Server Components, Server Actions, Route Handlers oder Verarbeitungsaufträgen über die Dienstrolle. Vor jedem Zugriff werden Sitzung und Zielobjekt zentral geprüft; vor Mutationen zusätzlich die Elternbeziehung. `user_id` stammt aus diesem geprüften Kontext. Der Verarbeitungslauf bleibt zusätzlich auf den Eigentümer des Auftrags eingeschränkt. Die Dienstrolle wird ausschließlich in `lib/supabase/service.ts` erzeugt und erreicht nie den Browser. Direkte Dateiübertragung und Dateiabruf bleiben davon getrennt und laufen über den authentifizierten Browser-Client unter Storage-RLS.
 
-**Rationale**: Die Dienstrolle umgeht RLS; Prinzip II verlangt Beschränkung auf den autorisierten Verarbeitungskontext. Ein einziger Einstiegspunkt macht die Regel prüfbar.
+**Rationale**: Gleichförmige Benutzerpolicies wie `user_id = auth.uid()` würden interne Spalten lesbar machen und einem Browser bei Schreibfreigabe erlauben, Zustände, Aufträge, Abschnitte, Assistant-Nachrichten oder Citations an den vorgesehenen Serverprüfungen vorbei zu verändern. Die serverseitige Datenbankgrenze hält die sechs Tabellen vollständig aus dem direkten Browserzugriff heraus. Weil die Dienstrolle RLS umgeht, sind zentrale Autorisierung, eigentümergebundene Abfragen und relationale Datenbank-Invarianten gemeinsam erforderlich.
 
-**Alternatives**: Lauf mit Benutzersitzung — scheitert nach dem Abmelden. Dienstrolle frei verfügbar — jede spätere Abfrage ist ein möglicher Bruch.
+**Alternatives**: Lesen mit Benutzer-Token und Spaltenprivilegien — zweites Berechtigungsmodell zusätzlich zu den ohnehin nötigen Serverpfaden. Schreiben mit Benutzer-Token — umgeht Grenzwerte und Zustandsmaschinen über die öffentliche Datenbankschnittstelle. Eigene Datenbankfunktionen je Aktion — mehr Schnittstellen und Prüfpfade für denselben Demo-Umfang. Dienstrolle ohne zentrale Autorisierung — jede Abfrage wäre ein möglicher Cross-User-Bruch.
 
 ## D-11 Textextraktion und Belegansicht — Zusätzliche Abhängigkeit
 
@@ -143,11 +144,11 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 ## D-16 Prüfwerkzeuge — Zusätzliche Abhängigkeit
 
-**Decision**: Vitest für reine Logik, Playwright für Abläufe. Zugriffsgrenzen als feste Demo-Matrix gegen die lokale Instanz: Notebook-Seite plus `renameNotebook`, Storage-Download, `POST /api/chat` und `GET /api/jobs/status` jeweils berechtigt, fremd und anonym; interne Jobs mit gültigem, fehlendem und ungültigem Geheimnis sowie einem Cross-User-Worker-Fall. Weitere Server Actions verwenden denselben zentralen Autorisierungsweg. Bewertung und Performance-Smoke-Test laufen als getrennte Kommandos.
+**Decision**: Biome übernimmt Linting, Formatprüfung und Importorganisation. Vitest prüft reine Logik; Playwright führt die Demo-Abläufe in genau einem Chromium-Projekt aus. Jedes Feld der Zugriffsmatrix aus spec.md läuft gegen die lokale Instanz; interne Jobs zusätzlich mit gültigem, fehlendem und ungültigem Geheimnis sowie einem Cross-User-Worker-Fall. Bewertung und Performance-Smoke-Test laufen als getrennte Kommandos.
 
-**Rationale**: Prinzip II verlangt die benannte positive und negative Demo-Matrix; aussagekräftig nur gegen echte Regeln, nicht gegen Attrappen. Prinzip VI verlangt getrennte Ausweisung von deterministisch, probabilistisch und beobachtend.
+**Rationale**: Ein Werkzeug für Linting und Format vermeidet überlappende Konfiguration. Für die Demo genügt Chromium und hält E2E-Laufzeit sowie Wartung klein. Prinzip II verlangt die benannte positive und negative Demo-Matrix; aussagekräftig nur gegen echte Regeln, nicht gegen Attrappen. Prinzip VI verlangt getrennte Ausweisung von deterministisch, probabilistisch und beobachtend.
 
-**Alternatives**: Zugriffsgrenzen mit Attrappen — prüft den Code, nicht die Regel. Antwortqualität in derselben Suite — macht das Freigabetor von schwankenden Ergebnissen abhängig.
+**Alternatives**: ESLint plus separates Formatwerkzeug — zwei Konfigurationen ohne Demo-Nutzen. Firefox- und WebKit-Projekte — zusätzlicher Laufzeit- und Pflegeaufwand ohne Abnahmeanforderung. Zugriffsgrenzen mit Attrappen — prüft den Code, nicht die Regel. Antwortqualität in derselben Suite — macht das Freigabetor von schwankenden Ergebnissen abhängig.
 
 ## D-17 Kalibrierter Abrufgrenzwert
 
@@ -177,8 +178,8 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 ## D-20 Atomarer Antwortabschluss
 
-**Decision**: Erfolgreiche Antwort, vollständige Menge ihrer Verweise und Zustand `complete` werden in einer Transaktion gespeichert. Bei `invalid_citations` wird nur der feste serverseitige Einschränkungstext mit `unsupported_reason` gespeichert; der verworfene Modellentwurf und abgeleitete Verweise werden nicht als erfolgreiche Antwort persistiert.
+**Decision**: Erfolgreiche Antwort, vollständige Menge ihrer Verweise und Zustand `complete` werden in einer Transaktion gespeichert. Bei `invalid_citations` werden der vollständige Modellentwurf, `status = invalid` und `unsupported_reason = invalid_citations` atomar gespeichert; Citations werden nicht gespeichert. Die Oberfläche leitet daraus die dauerhafte, nicht nur farbliche Kennzeichnung und den festen Einschränkungstext ab.
 
-**Rationale**: Nach Neuladen darf weder eine Teilrettung noch eine Antwort ohne ihre vollständigen Belege erscheinen. Die Transaktion macht den gespeicherten Zustand unabhängig von einem Verbindungsabbruch beim Abschluss.
+**Rationale**: Nach Neuladen darf weder eine Teilrettung noch ein ungekennzeichneter Entwurf erscheinen. Die Transaktion macht Entwurf und Kennzeichnung unabhängig von einem Verbindungsabbruch beim Abschluss.
 
-**Alternatives**: Nachricht und Verweise einzeln speichern — erzeugt sichtbare Zwischenzustände. Ungültigen Entwurf zu Diagnosezwecken im Verlauf behalten — widerspricht der geforderten Ersetzung und speichert unnötigen Modelltext.
+**Alternatives**: Nachricht und Verweise einzeln speichern — erzeugt sichtbare Zwischenzustände. Nur die Einschränkung speichern — verliert den nach FR-027a sichtbar zu haltenden Entwurf. Ungültige Citations mitspeichern — ließe nicht geprüfte Belege wie echte Herkunftsangaben wirken.

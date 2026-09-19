@@ -27,8 +27,13 @@
 - Q: Wie soll das System entscheiden, dass trotz vorhandener Quellen keine einschlägige Passage gefunden wurde? → A: Es verwendet eine Top-k-Suche mit einem am versionierten Referenzdatensatz kalibrierten Mindestwert für die Ähnlichkeit.
 - Q: Wann soll beim Ersetzen einer inhaltsgleichen Datei die bisherige Quelle gelöscht werden? → A: Erst nach erfolgreicher Übertragung der neuen Datei; anschließend wird die alte Quelle entfernt und die neue Verarbeitung gestartet.
 - Q: Was soll geschehen, wenn der Benutzer eine wegen Anbieterfehler fehlgeschlagene Antwort erneut versucht? → A: Der fehlgeschlagene Versuch bleibt sichtbar; für dieselbe Frage wird ein neuer Antwortversuch angehängt.
-- Q: Was soll das System tun, wenn eine fertig erzeugte Antwort mindestens eine quellenbasierte Aussage ohne gültigen Verweis enthält? → A: Die gesamte Antwort wird als unbelegt verworfen und durch eine erklärte Einschränkung ersetzt.
+- Q: Was soll das System tun, wenn eine fertig erzeugte Antwort mindestens eine quellenbasierte Aussage ohne gültigen Verweis enthält? → A: Die gesamte Antwort wird als erfolgreiche Antwort verworfen; der Entwurf bleibt dauerhaft als ungeprüft und nicht belegt gekennzeichnet sichtbar, mit einer erklärten Einschränkung darunter und ohne aktive Verweise.
 - Q: Woran soll die Belegprüfung technisch erkennen, dass jede quellenbasierte Aussage einen gültigen Verweis besitzt? → A: Eine erfolgreiche Antwort enthält pro Absatz genau eine quellenbasierte Aussage; jeder solche Absatz endet mit mindestens einem gültigen Verweis.
+- Q: Wie soll die Anwendung reagieren, wenn die Frage nicht durchsuchbar gemacht werden kann, weil der dafür zuständige Dienst nicht erreichbar ist? → A: Eigener Fehlerzustand mit Wiederholung, klar getrennt von fehlender Beleglage; keine Aussage über die Quellenlage.
+- Q: Woran erkennt die Belegprüfung, ob ein Absatz eine quellenbasierte Aussage enthält und damit einen Verweis braucht? → A: Jeder Absatz braucht einen Verweis; ausgenommen sind ausschließlich die von der Anwendung selbst erzeugten festen Status- und Einschränkungstexte.
+- Q: Was sieht ein Benutzer, der eine Antwort mitgelesen hat, wenn die Belegprüfung sie danach vollständig verwirft? → A: Der Entwurfstext bleibt sichtbar, unmissverständlich als ungeprüft und nicht belegt gekennzeichnet, mit der erklärten Einschränkung darunter.
+- Q: Soll ein als unbelegt gekennzeichneter Entwurf im Gesprächsverlauf erhalten bleiben? → A: Ja, Entwurf und Kennzeichnung werden gespeichert und erscheinen beim erneuten Öffnen unverändert markiert.
+- Q: Wo soll die Zugriffsmatrix festgelegt werden, auf die sich SC-002 beruft? → A: Als vollständige Tabelle in `spec.md`, Zeilen je geschützter Oberfläche, Spalten Eigentümer / fremdes Konto / anonym.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -89,9 +94,11 @@ Ein Benutzer stellt eine Frage zu den Quellen seines Notebooks. Die Antwort ersc
 5. **Given** ein Notebook ohne bereite Quelle, **When** der Benutzer eine Frage stellen will, **Then** erklärt die Anwendung die Voraussetzung, statt eine Antwort zu erzeugen.
 6. **Given** eine laufende Antwort, **When** der Dienst des Modellanbieters ausfällt, **Then** wird der Fehler als solcher angezeigt, die unvollständige Antwort nicht als fertig ausgegeben und ein erneuter Versuch angeboten.
 7. **Given** eine laufende Antwort, **When** der Benutzer eine weitere Frage stellen will, **Then** ist die Eingabe gesperrt und ein Abbrechen wird angeboten.
-8. **Given** eine laufende Antwort, **When** der Benutzer abbricht, **Then** endet die Erzeugung, die Teilantwort ist als abgebrochen gekennzeichnet und die Eingabe ist wieder frei.
+8. **Given** eine laufende Antwort, **When** der Benutzer abbricht, **Then** endet die Erzeugung, die provisorische Teilantwort wird verworfen, der Versuch wird als „abgebrochen“ angezeigt und die Eingabe ist wieder frei.
 9. **Given** eine fehlgeschlagene Antwort, **When** der Benutzer „Erneut versuchen“ auswählt, **Then** bleibt der fehlgeschlagene Versuch sichtbar und für dieselbe Frage wird ein neuer Antwortversuch angehängt.
-10. **Given** eine fertig erzeugte Antwort, **When** die Belegprüfung abgeschlossen wird, **Then** enthält jeder quellenbasierte Absatz genau eine Aussage und endet mit mindestens einem gültigen Verweis; andernfalls wird die gesamte Antwort als unbelegt verworfen und stattdessen eine erklärte Einschränkung angezeigt.
+10. **Given** eine fertig erzeugte Antwort, **When** die Belegprüfung abgeschlossen wird, **Then** enthält jeder Absatz außer den festen Status- und Einschränkungstexten genau eine quellenbasierte Aussage und endet mit mindestens einem gültigen Verweis.
+11. **Given** eine Antwort, die die Belegprüfung nicht besteht, **When** sie angezeigt wird, **Then** bleibt der Entwurfstext sichtbar, ist unmissverständlich als ungeprüft und nicht belegt gekennzeichnet, trägt die erklärte Einschränkung darunter und bietet keine anklickbaren Verweise an.
+12. **Given** ein Notebook mit bereiten, ausgewählten Quellen, **When** der für die Suche zuständige Dienst nicht erreichbar ist, **Then** erscheint ein Fehlerzustand mit „Erneut versuchen“ und keine Aussage darüber, ob die Quellen zur Frage etwas hergeben.
 
 ---
 
@@ -141,6 +148,7 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 
 1. **Given** ein Notebook mit beantworteten Fragen, **When** der Benutzer es nach erneutem Anmelden öffnet, **Then** sind Fragen, Antworten und Verweise in ursprünglicher Reihenfolge vorhanden.
 2. **Given** ein Notebook mit Gesprächsverlauf, **When** ein anderer Benutzer dieses Notebook aufzurufen versucht, **Then** erhält er keinen Zugriff auf den Verlauf.
+3. **Given** ein Verlauf mit einer als unbelegt verworfenen Antwort, **When** der Benutzer das Notebook erneut öffnet, **Then** ist der Entwurf weiterhin sichtbar und unverändert als ungeprüft und nicht belegt gekennzeichnet.
 
 ---
 
@@ -191,17 +199,18 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 
 - **FR-019**: Benutzer MÜSSEN Fragen zu den ausgewählten Quellen eines Notebooks stellen können.
 - **FR-020**: Antworten MÜSSEN schrittweise erscheinen, während sie erzeugt werden.
-- **FR-020a**: Während eine Antwort erzeugt wird, MUSS die Frageeingabe gesperrt sein und ein Abbrechen angeboten werden. Der Client-Abbruch MUSS die Modellanforderung beenden, die Nachricht als `aborted` speichern und die Eingabe wieder freigeben.
+- **FR-020a**: Während eine Antwort erzeugt wird, MUSS die Frageeingabe gesperrt sein und ein Abbrechen angeboten werden. Der Client-Abbruch MUSS die Modellanforderung beenden, provisorische Antwortinhalte verwerfen, die Nachricht mit einem festen Hinweis als `aborted` speichern und die Eingabe wieder freigeben.
 - **FR-021**: Das System MUSS ausschließlich Inhalte der ausgewählten, bereiten Quellen als Belegbasis verwenden.
-- **FR-022**: Das System MUSS erklären, warum es nicht antworten kann, wenn keine Quelle ausgewählt, keine bereit oder bei einer Top-k-Suche keine Passage den am versionierten Referenzdatensatz kalibrierten Mindestwert für die Ähnlichkeit erreicht — und in diesen technisch feststellbaren Fällen KEINE Antwort mit Verweisen erzeugen. Die semantische Entscheidung bei vorhandenen, aber unzureichenden Passagen oberhalb des Mindestwerts wird nach SC-005 bewertet.
+- **FR-022**: Das System MUSS erklären, warum es nicht antworten kann, wenn keine Quelle ausgewählt, keine bereit oder bei einer Top-k-Suche keine Passage den am versionierten Referenzdatensatz kalibrierten Mindestwert für die Ähnlichkeit erreicht — und in diesen technisch feststellbaren Fällen KEINE Antwort mit Verweisen erzeugen. Die semantische Entscheidung bei vorhandenen, aber unzureichenden Passagen oberhalb des Mindestwerts wird nach SC-005 bewertet. Ist die Suche selbst nicht durchführbar, weil ein daran beteiligter Dienst nicht erreichbar ist, gilt FR-025; dieser Fall DARF NICHT als fehlende Beleglage dargestellt werden.
 - **FR-023**: Widersprechen sich Passagen, die für die aktuelle Frage herangezogen wurden, MUSS die Antwort den Widerspruch benennen und auf beide Stellen verweisen, statt eine Angabe als gesichert darzustellen. Eine darüber hinausgehende Prüfung des Quellenbestands findet NICHT statt.
 - **FR-024**: Das System MUSS Text aus hochgeladenen Dokumenten als nicht vertrauenswürdige Daten behandeln; darin enthaltene Anweisungen DÜRFEN Antwortverhalten und Zugriffsgrenzen NICHT verändern.
-- **FR-025**: Ein Abbruch oder Anbieterfehler bei der Antworterzeugung MUSS mit dem passenden Zustand `aborted` beziehungsweise `failed` erkennbar sein; eine unvollständige Antwort DARF NICHT als abgeschlossen erscheinen. Bei `failed` MUSS „Erneut versuchen“ für dieselbe Frage einen neuen Antwortversuch anhängen, während der fehlgeschlagene Versuch unverändert sichtbar bleibt.
-- **FR-026**: Der Gesprächsverlauf eines Notebooks MUSS nach erneutem Öffnen samt Antworten und Verweisen vorhanden sein.
+- **FR-025**: Ein Abbruch oder Anbieterfehler bei der Suche oder der Antworterzeugung MUSS mit dem passenden Zustand `aborted` beziehungsweise `failed` und einem festen Hinweis erkennbar sein, der KEINE Aussage über die Quellenlage trifft; provisorische Antwortinhalte und Verweise werden nicht gespeichert. Bei `failed` MUSS „Erneut versuchen“ für dieselbe Frage einen neuen Antwortversuch anhängen, während der fehlgeschlagene Versuch unverändert sichtbar bleibt.
+- **FR-026**: Der Gesprächsverlauf eines Notebooks MUSS nach erneutem Öffnen samt Antworten und Verweisen vorhanden sein. Das schließt als unbelegt gekennzeichnete Entwürfe samt ihrer Kennzeichnung nach FR-027a ein.
 
 **Belege**
 
-- **FR-027**: Eine erfolgreich angezeigte Antwort MUSS pro quellenbasiertem Absatz genau eine quellenbasierte Aussage enthalten; jeder solche Absatz MUSS mit mindestens einem gültigen Verweis auf die Passage enden, auf der die Aussage beruht. Feste Status- und Einschränkungstexte sind davon ausgenommen. Verletzt mindestens ein quellenbasierter Absatz diese Form oder besitzt er keinen gültigen Verweis, MUSS die gesamte Antwort als unbelegt verworfen und durch eine erklärte Einschränkung ersetzt werden.
+- **FR-027**: In einer erfolgreich angezeigten Antwort MUSS **jeder** Absatz genau eine quellenbasierte Aussage enthalten und mit mindestens einem gültigen Verweis auf die Passage enden, auf der sie beruht. Ausgenommen sind ausschließlich die von der Anwendung selbst erzeugten festen Status- und Einschränkungstexte; eine Kennzeichnung durch das Modell begründet KEINE Ausnahme. Freie Einleitungs- oder Zusammenfassungsabsätze ohne Verweis sind damit ausgeschlossen. Verletzt mindestens ein Absatz diese Form, MUSS die gesamte Antwort als unbelegt gelten.
+- **FR-027a**: Eine als unbelegt verworfene Antwort MUSS sichtbar bleiben und dabei unmissverständlich als ungeprüft und nicht belegt gekennzeichnet sein; die erklärte Einschränkung MUSS darunter stehen. Die Kennzeichnung DARF NICHT allein über Farbe erfolgen und MUSS auch der Textausgabe von Hilfstechnologien entnehmbar sein. Verweise einer verworfenen Antwort DÜRFEN NICHT als gültige Belege dargestellt und NICHT anklickbar sein. Entwurfstext und Kennzeichnung MÜSSEN gespeichert werden; die Kennzeichnung DARF KEINE reine Anzeigeeigenschaft der laufenden Sitzung sein, sonst kehrte der Text nach erneutem Öffnen unmarkiert zurück.
 - **FR-028**: Jeder Verweis MUSS auf eine gespeicherte Originalstelle auflösbar sein und Quelldokument, Passage und Seitenzahl benennen.
 - **FR-028a**: Jeder Verweis MUSS den zitierten Wortlaut bei sich speichern, damit die Belegstelle unabhängig vom Fortbestand der Quelle darstellbar bleibt.
 - **FR-029**: Ein Klick auf einen Verweis MUSS das Quelldokument an der belegten Seite anzeigen und die Passage hervorheben. Ist der geprüfte Wortlaut in der PDF-Textebene technisch nicht auffindbar, MUSS die Seite geöffnet und der Wortlaut daneben angezeigt werden.
@@ -228,7 +237,7 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 - **Quelle**: Hochgeladenes Dokument in einem Notebook; trägt Verarbeitungszustand, Fehlerursache, Auswahlkennzeichen und ein aus dem Dateiinhalt abgeleitetes Erkennungsmerkmal für Dubletten.
 - **Textabschnitt**: Abgegrenzter Ausschnitt einer Quelle mit Seitenbezug; kleinste Einheit, auf die ein Verweis zeigt.
 - **Frage**: Eingabe des Benutzers samt der zum Zeitpunkt der Frage ausgewählten Quellen.
-- **Antwort**: Erzeugter Text zu einer Frage; trägt Verweise und einen Abschlusszustand. Eine Frage kann nach einem Anbieterfehler mehrere chronologisch sichtbare Antwortversuche besitzen.
+- **Antwort**: Erzeugter Text zu einer Frage; trägt Verweise und einen Abschlusszustand. Ein Versuch kann als unbelegt gekennzeichnet sein; diese Kennzeichnung gehört zum gespeicherten Zustand, nicht zur Darstellung. Eine Frage kann nach einem Anbieterfehler mehrere chronologisch sichtbare Antwortversuche besitzen.
 - **Verweis**: Zuordnung einer Aussage der Antwort zu einem Textabschnitt; trägt den zitierten Wortlaut und den Seitenbezug als eigene Angaben, damit er die Löschung der Quelle überdauert.
 - **Verarbeitungsauftrag**: Lauf, der aus einer hochgeladenen Datei Textabschnitte erzeugt; trägt Zustand und Versuchszähler.
 
@@ -237,16 +246,38 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 ### Measurable Outcomes
 
 - **SC-001**: In der vorbereiteten Demo-Umgebung führt der Maintainer den Kernablauf von der Registrierung bis zur geprüften Originalstelle in unter 10 Minuten vor.
-- **SC-002**: In 100 % der Fälle der festgelegten Zugriffsmatrix erhält weder ein fremder noch ein anonymer Zugriff geschützte Inhalte; berechtigte Zugriffe funktionieren.
+- **SC-002**: In 100 % der Felder der Zugriffsmatrix im Abschnitt „Zugriffsmatrix" tritt das dort genannte Ergebnis ein.
 - **SC-003**: In 100 % der geprüften Antworten lässt sich jeder Verweis auf eine noch vorhandene Quelle zur Originalstelle auflösen. Nach Quellenlöschung bleiben gespeicherter Wortlaut, Quellenname und Seite mit dem Hinweis „Quelle entfernt“ sichtbar; ein Dokumentsprung wird nicht angeboten.
 - **SC-005**: Fragen, für die der Referenzdatensatz keine inhaltlich ausreichende Beleglage enthält, führen in mindestens 95 % der Fälle zu einer erklärten Einschränkung statt zu einer Antwort mit Verweisen. Das Ergebnis ist eine berichtete Qualitätsmetrik und kein Freigabetor.
 - **SC-006**: Kein Anweisungsversuch aus einem Dokument des Referenzdatensatzes verändert Antwortverhalten oder Zugriffsgrenzen.
 - **SC-007**: Beschädigte, leere, passwortgeschützte und nicht unterstützte Dateien führen in 100 % der Fälle zu einem sichtbaren Fehler- oder Ablehnungszustand und nie zu einer scheinbar bereiten Quelle.
 - **SC-008**: Erneute Verarbeitung derselben Quelle verändert die Anzahl ihrer Textabschnitte nicht.
 - **SC-009**: Der Kernablauf ist vollständig per Tastatur durchführbar, ohne dass der Fokus unsichtbar wird oder in einem Bereich gefangen bleibt.
-- **SC-010**: Bei Ausfall der Dokumentverarbeitung oder des Modellanbieters sieht der Benutzer in 100 % der Fälle einen Fehlerzustand mit Wiederholungsmöglichkeit und nie eine als erfolgreich dargestellte Teilausgabe.
+- **SC-010**: Bei Ausfall der Dokumentverarbeitung, der Suche oder des Modellanbieters sieht der Benutzer in 100 % der Fälle einen Fehlerzustand mit Wiederholungsmöglichkeit und nie eine als erfolgreich dargestellte Teilausgabe oder eine Aussage über die Quellenlage.
 - **SC-011**: Der erste Teil einer Antwort wird in mindestens vier von fünf dokumentierten Läufen der vorbereiteten Demo-Umgebung innerhalb von 5 Sekunden sichtbar. Das Ergebnis ist ein Performance-Smoke-Wert und kein Freigabetor.
 - **SC-013**: Jeder ausgelöste Fehlerfall lässt sich über Korrelationsmerkmal, Phase und Ursache einem Vorgang zuordnen, ohne dass Dokumentinhalte, personenbezogene Daten oder Geheimnisse in der Diagnoseausgabe erscheinen.
+
+### Zugriffsmatrix
+
+Abnahmegrundlage für SC-002. Jeder geschützte Vorgang ist eine Zeile; fehlt eine Zeile, fehlt eine Prüfung. **Fremd** heißt angemeldet mit einem anderen Konto, **anonym** heißt ohne Sitzung. Die Zuordnung der Vorgänge zu konkreten Schnittstellen steht in `contracts/`.
+
+| Geschützter Vorgang | Eigentümer | Fremd | Anonym |
+|---|---|---|---|
+| Notebook-Übersicht öffnen | zeigt nur eigene Notebooks | zeigt nur eigene Notebooks | zur Anmeldung, kein Inhalt |
+| Notebook öffnen | Zugriff | nicht gefunden | zur Anmeldung, kein Inhalt |
+| Notebook anlegen | erfolgreich | legt eigenes an, kein Fremdzugriff | abgelehnt |
+| Notebook umbenennen oder löschen | erfolgreich | nicht gefunden | abgelehnt |
+| Datei hochladen, bestätigen oder abbrechen | erfolgreich | nicht gefunden | abgelehnt |
+| Quelle auswählen, entfernen oder erneut verarbeiten | erfolgreich | nicht gefunden | abgelehnt |
+| Frage stellen | erfolgreich | nicht gefunden | abgelehnt |
+| Verarbeitungszustand abfragen | nur eigene Aufträge | nicht gefunden | abgelehnt |
+| PDF-Datei über ihre Adresse abrufen | Zugriff | kein Zugriff | kein Zugriff |
+| Gesprächsverlauf lesen | Zugriff | nicht gefunden | zur Anmeldung, kein Inhalt |
+| Verarbeitung von außen anstoßen | nur mit gültigem internem Geheimnis; eine Benutzersitzung berechtigt nicht | abgelehnt | abgelehnt |
+
+„Nicht gefunden" und „abgelehnt" MÜSSEN ununterscheidbar davon sein, dass das Objekt gar nicht existiert (FR-004). Ein neuer geschützter Vorgang erfordert eine neue Zeile, bevor er ausgeliefert wird.
+
+Zusätzlich zur Oberflächenmatrix MÜSSEN direkte Lese- und Schreibzugriffe mit einem Benutzer- oder anonymen Token auf allen sechs Anwendungstabellen scheitern. Fremde Elternkennungen DÜRFEN auch in Kombination mit dem eigenen `user_id` keine gültige Kindzeile ergeben. Diese beiden Datenbankgrenzen sind deterministische Bestandteile von SC-002.
 
 ### Grenzwerte
 
@@ -254,7 +285,7 @@ Die Werte sind durch den Maintainer am 2026-09-19 bestätigt und erfüllen die P
 
 | Größe | Wert |
 |---|---|
-| Dateigröße je PDF | 10 MB |
+| Dateigröße je PDF | Anzeige „10 MB“; technische Grenze 10 MiB = exakt 10.485.760 Bytes |
 | Seiten je PDF | 50 |
 | Quellen je Notebook | 30 |
 | Ausgewählte Quellen je Frage | 10 |
@@ -270,22 +301,26 @@ Deterministische und probabilistische Prüfungen werden getrennt ausgewiesen (Pr
 **Deterministisch** — jederzeit wiederholbar mit gleichem Ergebnis:
 
 - Zugriffsgrenzen mit eigenem, fremdem und anonymem Benutzer (SC-002).
+- Abweisung direkter Benutzer-/Anonym-Token-Zugriffe sowie eigentümerkonsistente Elternbeziehungen in der Datenbank (SC-002, FR-002, FR-003).
 - Dateiannahme und -ablehnung, Zustandswechsel, Wiederholung ohne Duplikate (SC-007, SC-008).
 - Auflösbarkeit jedes Verweises auf eine vorhandene Quelle sowie der historische Belegfall nach Quellenlöschung (SC-003).
 - Verhalten bei entfernten Quellen, ohne Auswahl, ohne bereite Quelle.
-- Ausfall von Dokumentverarbeitung und Modellanbieter, simuliert (SC-010).
+- Ausfall von Dokumentverarbeitung, Suche und Modellanbieter, simuliert (SC-010).
 - Tastaturbedienbarkeit des Kernablaufs (SC-009).
 - Diagnostizierbarkeit ausgelöster Fehler ohne Preisgabe von Inhalten, Personenbezug oder Geheimnissen (SC-013).
+- Kennzeichnung einer verworfenen Antwort: Markierung vorhanden, nicht allein farbbasiert, Verweise nicht anklickbar (FR-027a).
 
 **Probabilistisch und beobachtend** — kein Freigabetor, Schwankung erwartet:
 
 - Belegtreue: stützt die verwiesene Passage die Aussage; als Berichtsmetrik ohne eigenes Erfolgskriterium.
+- Ein-Aussage-Regel: enthält jeder Claim-Absatz nach der versionierten manuellen Rubrik genau eine quellenbasierte Aussage (FR-027).
 - Ehrliche Einschränkung bei fehlender Beleglage (SC-005).
 - Kenntlichmachung von Widersprüchen.
 - Widerstand gegen Anweisungen in Dokumenten (SC-006) — das Ergebnis wird probabilistisch bewertet, die Zugriffsgrenze dahinter bleibt deterministisch geprüft.
+- Antwort in der Sprache der Frage (A-06).
 - Zeit bis zum ersten sichtbaren Antwortteil in fünf Läufen der Demo-Umgebung (SC-011).
 
-**Referenzdatensatz**: vier selbst erstellte oder vom Maintainer ausdrücklich freigegebene, versionierte PDF-Dokumente und zwölf Fragen. Enthalten sind bekannte Aussagen, ein widersprüchliches Paar, ein eingebetteter Anweisungsversuch, sechs beantwortbare, drei unbeantwortbare, zwei widersprüchliche und eine auf den Anweisungsversuch zielende Frage. Erwartete Belegstellen, Bewertungskriterien und der daraus kalibrierte Mindestwert für die Ähnlichkeit werden mit dem Datensatz dokumentiert.
+**Referenzdatensatz**: vier selbst erstellte oder vom Maintainer ausdrücklich freigegebene, versionierte PDF-Dokumente und zwölf Fragen. Enthalten sind bekannte Aussagen, ein widersprüchliches Paar, ein eingebetteter Anweisungsversuch, sechs beantwortbare, drei unbeantwortbare, zwei widersprüchliche und eine auf den Anweisungsversuch zielende Frage; mindestens eine beantwortbare Frage ist deutsch und eine englisch. Erwartete Belegstellen, Antwortsprachen, Bewertungskriterien und der daraus kalibrierte Mindestwert für die Ähnlichkeit werden mit dem Datensatz dokumentiert.
 
 ## Out of Scope
 
@@ -310,7 +345,7 @@ Getroffene Vorfestlegungen, wo das Briefing keine Vorgabe macht. Jede ist ohne A
 - **A-01**: Registrierung ohne E-Mail-Bestätigung. Für ein Demonstrationsprojekt genügt das; die Zugriffsgrenzen hängen nicht daran.
 - **A-02**: Anmeldung mit E-Mail und Passwort, keine Anmeldung über Drittanbieter.
 - **A-03**: Entscheidung vom 2026-09-14, siehe Clarifications. Frühere Antworten werden beim Entfernen einer Quelle nicht nachträglich verändert.
-- **A-04**: Entscheidung vom 2026-09-14, siehe Clarifications.
+- **A-04**: Widersprüche werden nur innerhalb der für die aktuelle Frage herangezogenen Passagen erkannt; eine Prüfung des gesamten Quellenbestands findet nicht statt.
 - **A-05**: Löschen entfernt Datei und Textabschnitte endgültig; kein Papierkorb, keine Wiederherstellung, weil Demonstrationsprojekt. Ausgenommen sind die bei bereits erteilten Verweisen gespeicherten Wortlaute (FR-028a); sie verschwinden mit dem Gesprächsverlauf oder dem Notebook.
 - **A-06**: Die Antwort erfolgt in der Sprache der Frage.
 - **A-07**: Ein Gesprächsverlauf je Notebook, keine parallelen Unterhaltungen.

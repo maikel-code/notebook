@@ -30,7 +30,7 @@ Das Modell liefert genau eine Variante dieses Schemas:
 
 Bei `answer` ist ein Claim-Objekt die technische Einheit für genau einen Absatz. `text` enthält keine Belegmarken, Überschriften, Listen oder weiteren Absätze. `citations` enthält mindestens einen Eintrag; mehrere sind für gemeinsam gestützte Aussagen und Widersprüche zulässig. Der Renderer setzt alle bestandenen Verweise ausschließlich an das Ende des Absatzes. `unsupported` enthält keinen freien Modelltext; der Server setzt den festen Einschränkungstext. Auch andere feste Status- und Einschränkungstexte entstehen serverseitig und durchlaufen die Claim-Prüfung nicht (FR-027).
 
-Die Vorgabe „genau eine Aussage“ bleibt eine Modellanweisung und Qualitätsmetrik; natürliche Sprache lässt sich dafür nicht deterministisch semantisch zerlegen. Deterministisch erzwungen wird eine Claim-Einheit pro Absatz mit vollständiger Belegmenge.
+Die Vorgabe „genau eine Aussage“ bleibt eine Modellanweisung und wird mit der versionierten manuellen Rubrik des Referenzdatensatzes durch `pnpm eval` als eigene Qualitätsmetrik berichtet; natürliche Sprache lässt sich dafür nicht deterministisch semantisch zerlegen. Deterministisch erzwungen wird eine Claim-Einheit pro Absatz mit vollständiger Belegmenge.
 
 ## Prüfung vor dem Abschluss
 
@@ -41,9 +41,9 @@ Jede vollständig empfangene Claim-Einheit wird gepuffert und geprüft:
 3. `quote` nach Vereinheitlichung von Leerraum wörtlich im bezeichneten Abschnitt suchen. Nicht gefunden → Fehler.
 4. Für jeden bestandenen Beleg Abschnitt, Quelle, Quellenname, Seitenbereich und geprüften Wortlaut ableiten.
 
-**Fail-closed für die gesamte Antwort**: Scheitert eine Claim-Einheit oder ein Beleg, werden der vollständige Modellentwurf und alle daraus abgeleiteten Verweise verworfen. Der Assistant-Versuch wird stattdessen mit einem festen serverseitigen Einschränkungstext, `unsupported_reason = invalid_citations` und ohne Verweise abgeschlossen. Eine Teilrettung gültiger Absätze oder Verweise ist ausgeschlossen (FR-027).
+**Fail-closed für die gesamte Antwort**: Scheitert eine Claim-Einheit oder ein Beleg, gilt der vollständige Modellentwurf als ungeprüft und nicht belegt. Er wird mit `status = invalid` und `unsupported_reason = invalid_citations`, aber ohne Citations gespeichert. Die Oberfläche zeigt den Entwurf mit dauerhafter textlicher Kennzeichnung und festem Einschränkungstext darunter; eine Teilrettung gültiger Absätze oder Verweise ist ausgeschlossen (FR-027, FR-027a).
 
-Vollständig bestandene Einheiten dürfen während der Erzeugung provisorisch als „wird geprüft“ erscheinen; ihre Verweise sind noch nicht interaktiv. Erst nach erfolgreicher Prüfung aller Einheiten werden Antwort, vollständige Verweismenge und Zustand `complete` atomar gespeichert. Scheitert eine spätere Einheit, ersetzt die Einschränkung alle provisorischen Absätze (D-08, D-20).
+Vollständig bestandene Einheiten dürfen während der Erzeugung provisorisch als „wird geprüft“ erscheinen; ihre Verweise sind noch nicht interaktiv. Erst nach erfolgreicher Prüfung aller Einheiten werden Antwort, vollständige Verweismenge und Zustand `complete` atomar gespeichert. Scheitert eine spätere Einheit, bleibt der vollständige Entwurf als `invalid` ohne Citations sichtbar. Bei Client-Abbruch oder Anbieterfehler werden die provisorischen Absätze dagegen verworfen und nur ein fester terminaler Hinweis ohne Citations gespeichert (D-08, D-20).
 
 Diese Prüfung beweist die Herkunft des Wortlauts, nicht seine semantische Eignung für die Aussage. Die Belegtreue wird deshalb zusätzlich am Referenzdatensatz berichtet.
 
@@ -56,6 +56,7 @@ Der Schritt hat einen zweiten Nutzen: Der geprüfte Auszug ist genau das, was FR
 | Verweis mit vorhandener Quelle | anklickbar; öffnet das Dokument auf der Seite, Passage hervorgehoben (FR-029) |
 | Wortlaut in der Textebene nicht auffindbar | Seite wird geöffnet, Wortlaut daneben als Text gezeigt (D-11) |
 | Quelle entfernt (`chunk_id` ist `NULL`) | Wortlaut, Quellenname und Seite mit dem Hinweis „Quelle entfernt", kein Sprung (FR-031) |
+| Entwurf mit `status = invalid` | vollständiger Entwurf, textliche Kennzeichnung „ungeprüft und nicht belegt“, Einschränkung darunter, keine anklickbaren Verweise (FR-027a) |
 
 ## Was dieser Vertrag ausschließt
 

@@ -75,7 +75,7 @@ Verbindlich, Herkunft und Torzuordnung in [plan.md](./plan.md#verification-comma
 
 ```bash
 pnpm typecheck          # Gate 3
-pnpm lint               # Gate 3
+pnpm lint               # Gate 3 — `biome check .`, prüft Lint, Format und Imports ohne Dateien zu ändern
 pnpm test               # Gate 3 — reine Logik
 pnpm test:integration   # Gate 3 und Gate 4 — braucht laufendes `supabase start`
 pnpm test:e2e           # Gate 3 — braucht laufendes `pnpm dev`
@@ -84,6 +84,8 @@ pnpm eval               # KEIN Tor — Antwortqualität, Ergebnis wird berichtet
 pnpm calibrate:retrieval # KEIN Tor — erzeugt einen Freigabevorschlag für die Abrufkonfiguration
 pnpm perf               # KEIN Tor — fünf beobachtende Latenzläufe
 ```
+
+`pnpm lint` führt `biome check .` ohne Schreibzugriff aus und prüft Lint-Regeln, Format und Importorganisation gemeinsam. `pnpm format` führt `biome format --write .` als bewusste lokale Korrektur aus und ist kein eigenes Freigabetor. Die E2E-Suite läuft für das Demo ausschließlich in Chromium.
 
 `pnpm eval`, `pnpm calibrate:retrieval` und `pnpm perf` gehören bewusst nicht zu den Toren. Ihre Ergebnisse hängen von externen Modellen oder der Umgebung ab. Der Kalibrierlauf erzeugt nur einen Vorschlag; erst der vom Maintainer freigegebene Wert wird mit Modell-, Datensatz- und Chunk-Fingerprint in `eval/dataset/retrieval-calibration.json` versioniert. `pnpm test` prüft danach deterministisch Schema, Fingerprints sowie Scores unterhalb, auf und oberhalb dieses Werts (D-17).
 
@@ -99,9 +101,18 @@ In der vorbereiteten Demo-Umgebung eine Zeitmessung starten, dann registrieren, 
 
 ### 2 — Zugriffsgrenzen (SC-002, FR-003, FR-004)
 
-Zwei Konten anlegen, in jedem ein Notebook mit einer Quelle. Die feste Demo-Matrix für Notebook-Seite plus `renameNotebook`, Storage-Download, `POST /api/chat` und `GET /api/jobs/status` jeweils als Eigentümer, mit Konto B und ohne Anmeldung ausführen. Beim Chat zusätzlich eine fremde `retryOfMessageId`, beim Upload eine fremde `replaceSourceId` versuchen. Interne Job-Endpunkte außerdem mit gültigem, fehlendem und ungültigem `JOB_TRIGGER_SECRET` aufrufen und einen Cross-User-Auftrag verarbeiten lassen.
+Zwei Konten anlegen, in jedem ein Notebook mit einer Quelle. Jedes Feld der Zugriffsmatrix aus spec.md als Eigentümer, mit Konto B, ohne Anmeldung und — bei objektgebundenen Vorgängen — mit einer nicht vorhandenen Kennung ausführen. Dazu gehören Übersicht, Öffnen, Anlegen, Umbenennen/Löschen, Upload-Aktionen, Quellaktionen, Chat, Jobstatus, Storage-Download und Verlauf. Im Storage zusätzlich prüfen: eigener PDF-Upload bis einschließlich 10.485.760 Bytes und eigener Abruf erlaubt; Schreiben und Lesen über fremdes Präfix sowie anonymer Zugriff abgelehnt; direktes Update und Löschen, Upload ab 10.485.761 Bytes und andere MIME-Art abgelehnt; als PDF deklarierter Fremdinhalt scheitert an der serverseitigen Signaturprüfung. Mit Benutzer- und anonymem Token direkte Lese- und Schreibversuche auf allen sechs Anwendungstabellen ausführen und Kindzeilen mit eigener `user_id`, aber fremder Notebook-, Source- oder Message-Kennung versuchen. Interne Job-Endpunkte außerdem mit gültigem, fehlendem und ungültigem `JOB_TRIGGER_SECRET` aufrufen und einen Cross-User-Auftrag verarbeiten lassen.
 
-**Erwartet**: Berechtigte Zugriffe funktionieren. Fremd gibt es `404`, anonym `401`, jeweils ohne Inhaltsfragment oder Existenzauskunft. Interne Jobs akzeptieren nur das gültige Geheimnis und bleiben im Eigentümerkontext des Auftrags. Dieser Lauf ist als `pnpm test:integration` automatisiert; die Handprüfung dient der Gegenprobe.
+**Erwartet**: Jede Zelle verhält sich exakt wie in der Matrix festgelegt.
+Objektgebundene Fremdzugriffe und nicht vorhandene Kennungen ergeben dieselbe
+neutrale `404`-Antwort; anonyme Aufrufe werden ohne
+Inhaltsfragment oder Existenzauskunft abgewiesen beziehungsweise zur Anmeldung
+geführt. Übersicht und Neuanlage bleiben strikt auf das jeweils angemeldete
+Konto begrenzt. Interne Jobs akzeptieren nur das gültige Geheimnis und bleiben
+im Eigentümerkontext des Auftrags. Direkte Datenbankzugriffe mit Benutzer- oder
+anonymem Token und Kindzeilen mit fremder Elternkennung werden abgelehnt. Dieser
+Lauf ist als `pnpm test:integration` automatisiert; die Handprüfung dient der
+Gegenprobe.
 
 ### 3 — Dateien, die nicht funktionieren (SC-007, FR-010 bis FR-013)
 
@@ -141,13 +152,14 @@ Das präparierte Dokument des Referenzdatensatzes hochladen, das eine Anweisung 
 
 ### 9 — Ausfall (SC-010, FR-025)
 
-Drei Teilläufe, weil zwei Anbieter zwei unabhängige Ausfallpfade haben (D-04):
+Vier Teilläufe für die drei fachlich verschiedenen Anbieterpfade und den Wiederanlauf (D-04):
 
 1. Schlüssel des Antwortmodells ungültig setzen, dann fragen.
 2. Schlüssel des Einbettungsanbieters ungültig setzen, dann ein PDF hochladen.
-3. Den Verarbeitungslauf mitten im Upload abbrechen, danach `pnpm worker:sweep` ausführen.
+3. Schlüssel des Einbettungsanbieters bei vorhandenen bereiten Quellen ungültig setzen, dann eine Frage stellen.
+4. Den Verarbeitungslauf mitten im Upload abbrechen, danach `pnpm worker:sweep` ausführen.
 
-**Erwartet**: (1) Nachricht endet auf `failed`. Danach „Erneut versuchen“ wählen: Der alte Versuch bleibt sichtbar, ein neuer Versuch wird an dieselbe Frage angehängt; nach Neuladen stehen beide in Reihenfolge. (2) Auftrag scheitert in Phase `embed`, bestehende Quellen bleiben nutzbar. (3) Die hängende Quelle wird eingesammelt und zeigt einen Fehlerzustand statt dauerhaft `wird verarbeitet`. In keinem Fall erscheint eine Teilausgabe als fertig.
+**Erwartet**: (1) Nachricht endet auf `failed`. Danach „Erneut versuchen“ wählen: Der alte Versuch bleibt sichtbar, ein neuer Versuch wird an dieselbe Frage angehängt; nach Neuladen stehen beide in Reihenfolge. (2) Auftrag scheitert in Phase `embed`, bestehende Quellen bleiben nutzbar. (3) Der Assistant-Versuch endet mit neutralem Fehlerhinweis auf `failed`, ohne Aussage über die Quellenlage, und lässt sich erneut versuchen. (4) Die hängende Quelle wird eingesammelt und zeigt einen Fehlerzustand statt dauerhaft `wird verarbeitet`. In keinem Fall erscheint eine Teilausgabe als fertig.
 
 ### 10 — Entfernte Quelle (FR-031)
 
@@ -159,7 +171,7 @@ Frage mit Verweisen beantworten lassen, dann die belegende Quelle entfernen und 
 
 Während eine Antwort läuft, eine weitere Frage stellen wollen; danach abbrechen.
 
-**Erwartet**: Eingabe gesperrt, Abbrechen sichtbar. Quellen- und Notebook-Löschung werden währenddessen mit Konflikthinweis abgelehnt. Nach Abbruch endet die Modellanforderung, die Teilantwort ist als abgebrochen gekennzeichnet und die Eingabe wieder frei.
+**Erwartet**: Eingabe gesperrt, Abbrechen sichtbar. Quellen- und Notebook-Löschung werden währenddessen mit Konflikthinweis abgelehnt. Nach Abbruch endet die Modellanforderung, die provisorische Teilantwort wird verworfen, ein fester Hinweis „Antwort abgebrochen“ bleibt sichtbar und die Eingabe ist wieder frei.
 
 ### 12 — Tastatur (SC-009, FR-034)
 
@@ -173,7 +185,11 @@ Den Kernablauf aus Lauf 1 ausschließlich mit der Tastatur durchführen.
 pnpm eval
 ```
 
-**Erwartet**: ein Bericht mit Belegtreue als Berichtsmetrik und Anteil ehrlicher Einschränkungen nach SC-005. Werte unterhalb des Zielwerts sind ein Befund zur Besprechung, **kein** fehlgeschlagenes Tor.
+**Erwartet**: ein Bericht mit Belegtreue, ehrlichen Einschränkungen,
+Widerspruchsbehandlung, Injection-Resistenz, erwarteter Antwortsprache und dem
+Anteil der Claim-Absätze mit nach manueller Rubrik genau einer quellenbasierten
+Aussage als getrennte Metriken. Werte unterhalb des Zielwerts sind ein Befund
+zur Besprechung, **kein** fehlgeschlagenes Tor.
 
 ### 14 — Antwortlatenz (SC-011)
 
@@ -183,12 +199,12 @@ pnpm perf
 
 **Erwartet**: fünf dokumentierte Einzelwerte aus der vorbereiteten Demo-Umgebung. In mindestens vier Läufen wird der erste Antwortteil innerhalb von 5 Sekunden sichtbar. Das Ergebnis ist **kein** Freigabetor.
 
-### 15 — Claim- und Belegformat (FR-027, FR-030)
+### 15 — Claim- und Belegformat (FR-027, FR-027a, FR-030)
 
 Mit festen Modell-Fixtures nacheinander erzeugen: gültige Mehrabsatzantwort; Claim ohne Verweis; unbekannte Abschnittsnummer; abweichender Wortlaut; eine Antwort mit einem gültigen und einem ungültigen Claim.
 
-**Erwartet**: Die gültige Antwort erscheint mit genau einer Claim-Einheit pro Absatz und ausschließlich terminalen Verweisen. Jeder Negativfall ersetzt die gesamte provisorische Antwort durch den festen Einschränkungstext; es wird kein Verweis gespeichert und kein gültiger Teilabsatz als erfolgreiche Antwort gerettet.
+**Erwartet**: Die gültige Antwort erscheint mit genau einer Claim-Einheit pro Absatz und ausschließlich terminalen Verweisen. Bei jedem Negativfall bleibt der vollständige Entwurf nach dem Neuladen textlich als „ungeprüft und nicht belegt“ gekennzeichnet und mit der Einschränkung darunter sichtbar; es wird kein Verweis gespeichert oder anklickbar dargestellt und kein Teilabsatz als erfolgreiche Antwort gerettet.
 
 ## Referenzdatensatz
 
-Liegt versioniert unter `eval/dataset/` und umfasst vier selbst erstellte oder vom Maintainer ausdrücklich freigegebene PDFs sowie zwölf Fragen: sechs beantwortbare, drei unbeantwortbare, zwei widersprüchliche und eine auf den eingebetteten Anweisungsversuch zielende Frage. Erwartete Belegstellen, Herkunft und Bewertungskriterien werden mitversioniert.
+Liegt versioniert unter `eval/dataset/` und umfasst vier selbst erstellte oder vom Maintainer ausdrücklich freigegebene PDFs sowie zwölf Fragen: sechs beantwortbare, drei unbeantwortbare, zwei widersprüchliche und eine auf den eingebetteten Anweisungsversuch zielende Frage. Erwartete Belegstellen, Herkunft, Antwortsprachen, Claim-Anzahlen und die manuelle Ein-Aussage-Rubrik werden mitversioniert.
