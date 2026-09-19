@@ -22,6 +22,16 @@ Lesbarkeit geht vor Telegrammstil.
 - Agenten mergen nicht. Der Autor ist nie alleiniger Prüfer seiner Änderung.
 - Constitution, `AGENTS.md` und `.specify/templates/` ändert nur der Maintainer.
 
+## Agenten-Konfiguration
+
+- **Claude Code:** Opus 5, Denkaufwand extra hoch. Spezifikation, Plan, Aufgaben, Review.
+- **Codex:** 5.6 Terra, Aufwand hoch. Umsetzung.
+- Abweichungen von diesen Werten im Handoff nennen.
+- `speckit-implement` läuft ausschließlich in einer Codex-Sitzung (`$speckit-implement`).
+  In einer Claude-Sitzung aufgerufen schriebe Claude den Code und höbe die
+  Rollentrennung auf.
+- Das Review läuft in einer anderen Claude-Sitzung als Spezifikation und Plan.
+
 ## Arbeitsablauf
 
 1. Originalaufgabe lesen; fehlende Vorgaben als offene Fragen markieren.
