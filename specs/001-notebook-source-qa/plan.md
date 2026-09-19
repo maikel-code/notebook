@@ -1,152 +1,109 @@
 # Implementation Plan: Quellengebundenes Notebook-Frage-Antwort-System
 
-**Branch**: `001-notebook-source-qa` | **Date**: 2026-09-14 | **Spec**: [spec.md](./spec.md)
-
-**Input**: Feature specification from `specs/001-notebook-source-qa/spec.md`
+**Branch**: `001-notebook-source-qa` | **Stand**: 2026-09-15 | **Spec**: [spec.md](./spec.md)
 
 ## Summary
 
-Eine Next.js-Anwendung, in der angemeldete Benutzer private Notebooks anlegen, textbasierte PDFs hochladen und Fragen dazu stellen. Antworten werden aus den ausgewählten Quellen erzeugt und tragen Verweise, die zur Originalstelle mit Seitenbezug führen.
+Next.js-Anwendung mit privaten Notebooks, PDF-Aufnahme und quellengebundenem Chat. Vier Teile: **Supabase** (Datenbank, Authentifizierung, Dateiablage, durchgängige RLS), eine **Aufnahmestrecke** (seitenweise Zerlegung und Einbettung), eine **Abrufstrecke** (Vektorähnlichkeit über die ausgewählten Quellen) und eine **Belegprüfung**, die jedes Zitat wörtlich gegen den zitierten Abschnitt abgleicht.
 
-Der technische Kern besteht aus vier Teilen: **Supabase** als Datenbank, Authentifizierung und Dateiablage mit durchgängiger Row-Level-Security; eine **Aufnahmestrecke**, die PDFs seitenweise in Textabschnitte zerlegt und einbettet; eine **Abrufstrecke**, die zur Frage passende Abschnitte über Vektorähnlichkeit sucht; und eine **Belegprüfung**, die jedes vom Modell gelieferte Zitat wörtlich gegen den zitierten Abschnitt abgleicht, bevor es als Verweis erscheint. Der letzte Schritt macht FR-030 maschinell prüfbar statt zur Frage des Vertrauens.
+Die Belegprüfung ist der tragende Teil: sie macht FR-030 maschinell prüfbar statt zur Vertrauensfrage (research.md D-07).
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x, Node.js 22 LTS (gepinnt über `.nvmrc` und `engines`; lokal installiert ist v25.4.0 — siehe research.md D-12)
+**Language/Version**: TypeScript 5.x, Node.js 22 LTS gepinnt (D-12)
 
-**Primary Dependencies**: Next.js (App Router), React, Tailwind CSS v4, Komponenten von neobrutalism.com (über shadcn-CLI ins Repo kopiert, Primitive von Radix UI / Base UI / React Aria), Supabase JS Client, Vercel AI SDK, pdf.js für Textextraktion und Anzeige, Zod
+**Primary Dependencies**: Next.js App Router, React, Tailwind CSS v4, Komponenten von neobrutalism.com (D-13), Supabase JS, Vercel AI SDK, pdf.js, Zod
 
-**Storage**: Supabase Postgres mit `pgvector` für Einbettungen; Supabase Storage (privater Bucket) für die PDF-Dateien. Gehostetes Cloud-Projekt für Entwicklung und Vorführung, eigene lokale Instanz für die Prüfläufe (D-14).
+**Storage**: Supabase Postgres mit `pgvector`, privater Storage-Bucket. Cloud-Projekt für Entwicklung und Vorführung, eigene lokale Instanz für Prüfläufe (D-14)
 
-**Testing**: Vitest für reine Logik, Playwright für Abläufe im Browser, ein eigener Integrationslauf für Zugriffsgrenzen gegen eine lokale Supabase-Instanz, ein getrennter Bewertungslauf für Antwortqualität
+**Testing**: Vitest, Playwright, Integrationslauf für Zugriffsgrenzen, getrennter Bewertungslauf (D-16)
 
-**Target Platform**: Browser (aktuelle Chromium-, Firefox- und WebKit-Versionen); Serverteil als Next.js-Anwendung
+**Target Platform**: Browser (aktuelle Chromium-, Firefox-, WebKit-Versionen)
 
-**Project Type**: Web-Anwendung, ein Next.js-Projekt mit Server- und Clientanteil im selben Repository
+**Project Type**: Ein Next.js-Projekt mit Server- und Clientanteil
 
-**Performance Goals**: Erster Teil einer Antwort binnen 3 Sekunden sichtbar (SC-011); Dokument mit bis zu 50 Seiten binnen 60 Sekunden bereit (SC-012)
+**Performance Goals**: SC-011 erster Antwortteil ≤ 3 s · SC-012 50 Seiten ≤ 60 s bereit
 
-**Constraints**: Grenzwerte aus spec.md (25 MB und 300 Seiten je PDF, 50 Quellen je Notebook, 10 ausgewählte Quellen je Frage, 2.000 Zeichen Fragelänge, 60.000 Zeichen herangezogene Textmenge je Antwort, 3 automatische Wiederholungen, 5 Minuten Laufzeit je Verarbeitungsauftrag)
+**Constraints**: Grenzwerte aus spec.md, zentral in `lib/limits.ts`
 
-**Scale/Scope**: Demonstrationsumgebung mit einzelnen Benutzern (A-09); sechs User Stories, 41 funktionale Anforderungen, rund 12 Oberflächen
+**Scale/Scope**: Demonstrationsumgebung, einzelne Benutzer (A-09)
 
 ## Constitution Check
 
-*GATE: Muss vor Phase 0 bestehen. Nach Phase 1 erneut geprüft.*
+*Gate vor Phase 0, nach Phase 1 erneut geprüft — kein Prinzip verletzt.*
 
-| Prinzip | Bewertung | Wie der Plan es einlöst |
-|---|---|---|
-| I Technische Verantwortung | bestanden | Jede Architekturentscheidung steht in research.md mit Begründung und verworfener Alternative. Prüfkommandos siehe unten. |
-| II Sichere Zugriffsgrenzen | bestanden | RLS auf jeder Tabelle, privater Storage-Bucket mit pfadgebundener Regel, Abruf ausschließlich über RLS-gebundene Verbindungen. Der Hintergrundlauf nutzt erhöhte Rechte und MUSS jede Abfrage zusätzlich auf den Eigentümer des Auftrags einschränken (research.md D-10). |
-| III Quellengebundene Antworten | bestanden | Zitatprüfung vor Anzeige (D-07), Dokumenttext in abgegrenzten Blöcken als Daten (D-09), Abruf immer auf die ausgewählten Quellen des Benutzers beschränkt. |
-| IV Einfache Architektur | bestanden mit Anmerkung | Ein Next.js-Projekt, eine Datenbank, keine zusätzliche Laufzeit. Drei Abhängigkeiten über den Rahmen hinaus sind in research.md einzeln begründet. Der Hintergrundlauf hat drei Auslöser — begründet unter Complexity Tracking. |
-| V Vollständige Nutzerabläufe | bestanden | Zustände je Ablauf in data-model.md als Zustandsmaschine; Barrierefreiheit über die Primitive der Komponentenbibliothek, Prüfung in Playwright. |
-| VI Verifikation | bestanden | Deterministische und probabilistische Prüfungen sind getrennte Kommandos. Der Bewertungslauf ist **kein** Freigabetor. |
-| VII Reproduzierbarkeit | bestanden | Node-Version gepinnt, Migrationen versioniert, Grenzwerte zentral, Wiederholbarkeit über einen stabilen Schlüssel (D-05). |
-| VIII Zusammenarbeit | bestanden | Entscheidungen in research.md, Verträge in contracts/, Prüfweg in quickstart.md. |
+| Prinzip | Einlösung |
+|---|---|
+| I Technische Verantwortung | Entscheidungen mit Alternative in research.md; Prüfkommandos unten |
+| II Sichere Zugriffsgrenzen | RLS auf jeder Tabelle, pfadgebundene Storage-Regel, Dienstrolle nur in einer Datei und zusätzlich auf den Auftragseigentümer eingeschränkt (D-10) |
+| III Quellengebundene Antworten | Belegprüfung fail-closed (D-07), Dokumenttext als Daten (D-09), Abruf auf ausgewählte Quellen begrenzt |
+| IV Einfache Architektur | Ein Projekt, eine Datenbank, keine zusätzliche Laufzeit. Drei Abhängigkeiten in research.md begründet; drei Auslöser des Verarbeitungsauftrags unter Complexity Tracking |
+| V Vollständige Nutzerabläufe | Zustände als Zustandsmaschinen in data-model.md; Barrierefreiheit über die Primitive, geprüft in Playwright |
+| VI Verifikation | Deterministisch und probabilistisch als getrennte Kommandos; der Bewertungslauf ist kein Tor |
+| VII Reproduzierbarkeit | Node gepinnt, Migrationen versioniert, Grenzwerte zentral, Idempotenz über stabilen Schlüssel (D-06) |
+| VIII Zusammenarbeit | Entscheidungen in research.md, Verträge in contracts/, Prüfweg in quickstart.md |
 
-**Gate 3 Vorbedingung**: Die Prüfkommandos sind unten festgelegt. Damit ist die Bedingung aus der Constitution erfüllt, dass sie **vor** Implementierungsbeginn feststehen und vom implementierenden Agenten nicht eigenständig verkleinert werden dürfen.
+**Nach Phase 1**: Der Entwurf hat eine Grenze hinzugewonnen (interne Endpunkte hinter einem serverseitigen Geheimnis), keine Abhängigkeit ergänzt und die Zahl eigener Endpunkte auf vier gesenkt. Zwei Abweichungen der Arbeitsumgebung sind in quickstart.md benannt statt übergangen: Node v25 statt 22 LTS, und die Notwendigkeit zweier getrennter Supabase-Instanzen.
 
 ## Verification Commands
 
-Verbindlich für Gate 3. Codex führt diese Kommandos aus und weist ihr Ergebnis im Handoff nach.
+Verbindlich für Gate 3. Codex führt sie aus und weist das Ergebnis im Handoff nach.
 
 | Zweck | Kommando | Tor |
 |---|---|---|
 | Typprüfung | `pnpm typecheck` | Gate 3 |
 | Linting und Format | `pnpm lint` | Gate 3 |
 | Reine Logik | `pnpm test` | Gate 3 |
-| Zugriffsgrenzen und Aufnahmestrecke | `pnpm test:integration` | Gate 3 und Gate 4 |
+| Zugriffsgrenzen und Aufnahme | `pnpm test:integration` | Gate 3 + Gate 4 |
 | Abläufe im Browser | `pnpm test:e2e` | Gate 3 |
-| Migrationen auf frischer Datenbank | `pnpm db:reset` (**lokale Instanz**, nie gegen die Cloud) | Gate 3 |
-| Antwortqualität am Referenzdatensatz | `pnpm eval` | **kein Tor** — probabilistisch, Ergebnis wird berichtet, nicht bestanden |
+| Migrationen auf frischer Datenbank | `pnpm db:reset` (lokale Instanz) | Gate 3 |
+| Antwortqualität | `pnpm eval` | **kein Tor** — probabilistisch |
 
-Regeln dazu:
-
-- `pnpm eval` DARF NICHT als Nachweis für Gate 3 herangezogen werden (Prinzip VI: getrennte Ausweisung).
-- Schlägt ein Gate-Kommando fehl, wird die Ursache behoben. Der Prüfumfang wird nicht verkleinert und kein Test übersprungen (Prinzip I).
-- `pnpm test:integration` setzt eine laufende lokale Supabase-Instanz voraus (siehe quickstart.md).
+- `pnpm eval` DARF NICHT als Nachweis für Gate 3 dienen (Prinzip VI).
+- Bei Fehlschlag wird die Ursache behoben, nicht der Prüfumfang verkleinert (Prinzip I).
+- `pnpm test:integration` setzt die laufende lokale Instanz voraus (quickstart.md).
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation
 
 ```text
 specs/001-notebook-source-qa/
-├── plan.md              # Diese Datei
-├── research.md          # Phase 0 — Entscheidungen mit Begründung
-├── data-model.md        # Phase 1 — Tabellen, Zustände, Zugriffsregeln
-├── quickstart.md        # Phase 1 — Einrichtung und Prüfweg
-├── contracts/           # Phase 1 — Schnittstellenverträge
-│   ├── http-api.md
-│   ├── ingestion-job.md
-│   └── answer-and-citations.md
-├── checklists/
-│   └── requirements.md
-└── tasks.md             # Phase 2 — erzeugt von /speckit-tasks
+├── plan.md · research.md · data-model.md · quickstart.md · spec.md · tasks.md
+├── contracts/{http-api,ingestion-job,answer-and-citations}.md
+└── checklists/requirements.md
 ```
 
 ### Source Code (repository root)
 
 ```text
 app/
-├── (auth)/
-│   ├── sign-in/page.tsx
-│   └── sign-up/page.tsx
-├── notebooks/
-│   ├── page.tsx                      # Übersicht mit Leerzustand
-│   └── [notebookId]/
-│       ├── page.tsx                  # Quellenliste, Chat, Belegansicht
-│       └── sources/[sourceId]/page.tsx
-├── api/
-│   ├── chat/route.ts                 # Antwort im Strom
-│   ├── jobs/run/route.ts             # Arbeitsschritt eines Verarbeitungsauftrags
-│   └── jobs/sweep/route.ts           # Wiederaufnahme hängender Aufträge
-└── layout.tsx
+├── (auth)/{sign-in,sign-up}/page.tsx
+├── notebooks/page.tsx
+├── notebooks/[notebookId]/page.tsx
+└── api/{chat,jobs/run,jobs/sweep,jobs/status}/route.ts
 
 components/
-├── ui/                               # von neobrutalism.com kopiert
-└── notebook/                         # Quellenliste, Chatverlauf, Belegansicht
+├── ui/                     # von neobrutalism.com kopiert
+└── notebook/               # Quellenliste, Chatverlauf, Belegansicht
 
 lib/
-├── supabase/                         # Verbindungen: Server, Browser, erhöhte Rechte
-├── ingestion/                        # Textextraktion, Zerlegung, Einbettung
-├── rag/                              # Abruf, Aufforderungstext, Zitatprüfung
-└── limits.ts                         # Grenzwerte aus spec.md an einer Stelle
+├── supabase/               # Server, Browser, Dienstrolle
+├── ingestion/              # Extraktion, Zerlegung, Einbettung
+├── rag/                    # Abruf, Aufforderungstext, Zitatprüfung
+└── limits.ts               # Grenzwerte an einer Stelle
 
-supabase/
-└── migrations/                       # versionierte Schemaänderungen inklusive Zugriffsregeln
-
-tests/
-├── unit/                             # Vitest
-├── integration/                      # Zugriffsgrenzen, Aufnahmestrecke
-└── e2e/                              # Playwright
-
-eval/
-├── dataset/                          # Referenzdatensatz, versioniert
-└── run.ts                            # Bewertungslauf
+supabase/migrations/        # Schema inklusive Zugriffsregeln
+tests/{unit,integration,e2e}/
+eval/{dataset,run.ts}       # bewusst außerhalb tests/
 ```
 
-**Structure Decision**: Ein einzelnes Next.js-Projekt im Repository-Wurzelverzeichnis. Eine Trennung in getrennte Frontend- und Backend-Verzeichnisse wäre künstlich, weil Next.js beide Seiten trägt und die Typen geteilt werden. Die Trennlinien verlaufen stattdessen innerhalb von `lib/`: Aufnahme, Abruf und Datenzugriff sind eigenständige Bereiche und ohne Oberfläche prüfbar. `eval/` liegt bewusst außerhalb von `tests/`, damit die probabilistische Bewertung nicht versehentlich in einen Gate-Lauf gerät.
+**Structure Decision**: Ein Next.js-Projekt im Wurzelverzeichnis. Getrennte Frontend- und Backend-Verzeichnisse wären künstlich, weil Next.js beide Seiten trägt und Typen geteilt werden. Die Trennlinien verlaufen in `lib/`: Aufnahme, Abruf und Datenzugriff sind ohne Oberfläche prüfbar. `eval/` liegt außerhalb `tests/`, damit die probabilistische Bewertung nicht in einen Gate-Lauf gerät.
 
 ## Complexity Tracking
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| Drei Auslöser für den Verarbeitungsauftrag (nach Upload, wiederholender Aufruf, manueller Wiederholversuch) statt eines | FR-011 verlangt sichtbaren Fortschritt, FR-012 einen manuellen Wiederholversuch, FR-037 begrenzte automatische Wiederholungen mit sichtbarem Fehlerzustand. Ein einziger Auslöser erfüllt höchstens zwei davon. | Nur der Aufruf nach dem Upload lässt einen abgestürzten Lauf dauerhaft im Zustand „wird verarbeitet" stehen — der Benutzer sieht nie einen Fehler und kann nichts wiederholen. Damit fällt FR-037. |
-| Eigene Tabelle für Verarbeitungsaufträge neben der Quellentabelle | Versuchszähler, Phase und Fehlerursache gehören zum Lauf, nicht zum Dokument. FR-014 verlangt Wiederholung ohne Duplikate, das braucht einen Lauf mit eigenem Schlüssel. | Zustandsfelder direkt auf der Quelle vermischen Dokument und Lauf; ein zweiter Versuch überschreibt die Vorgeschichte, und FR-038 verliert seine Datengrundlage. |
-| Zitatprüfung als eigener Schritt nach der Antworterzeugung | FR-030 verlangt, dass die verwiesene Passage die Aussage stützt. Ohne mechanische Prüfung bleibt das eine Behauptung des Modells über sich selbst. | Dem Modell zu vertrauen ist die einfachere Variante und genau die, die FR-030 ausschließt. |
-
-## Constitution Re-Check nach Phase 1
-
-Erneut geprüft gegen den fertigen Entwurf. Kein Prinzip ist im Entwurf verletzt worden; drei Stellen haben sich verschärft statt gelockert.
-
-| Prüfpunkt | Befund |
-|---|---|
-| Prinzip II — Zugriffsgrenzen | Der Entwurf hat eine Grenze **hinzugewonnen**: `/api/jobs/run` und `/api/jobs/sweep` sind von außen erreichbar und daher durch ein serverseitiges Geheimnis geschützt. Damit ist die Zahl der Stellen mit erhöhten Rechten auf eine Datei begrenzt (D-10). |
-| Prinzip III — Belege | Die Zitatprüfung aus D-07 ist im Entwurf nicht nur beschrieben, sondern als fail-closed festgelegt: jeder Zweifelsfall verwirft den Verweis. Das ist strenger als die Anforderung und bewusst so. |
-| Prinzip IV — Einfachheit | Der Entwurf fügt gegenüber Phase 0 keine Abhängigkeit hinzu. Die Aufteilung in Server Actions und Route Handlers senkt die Zahl eigener Endpunkte auf vier. |
-| Prinzip VI — Verifikation | `pnpm eval` ist an drei Stellen ausdrücklich als Nicht-Tor markiert (plan.md, quickstart.md, research.md D-16). Die Trennung ist damit schwer versehentlich aufzuheben. |
-| Prinzip VII — Reproduzierbarkeit | Zwei Abweichungen der Arbeitsumgebung sind benannt statt übergangen: Node v25 statt 22 LTS, fehlende Supabase-Befehlszeile. Beide stehen in quickstart.md als zu erledigen. |
-
-**Am 2026-09-15 vom Maintainer entschieden**: D-04 — Antworten über Anthropic Claude, Einbettungen über OpenAI; beide Konten liegen vor. D-14 — Supabase als Cloud-Projekt, Anwendung vorerst lokal, Prüfläufe gegen eine eigene lokale Instanz. Aus D-14 folgt eine Vereinfachung: der Zeitplandienst auf Datenbankseite entfällt, weil die Cloud die lokale Anwendung nicht erreichen kann.
+| Drei Auslöser des Verarbeitungsauftrags statt eines | FR-011 sichtbarer Fortschritt, FR-012 manueller Wiederholversuch, FR-037 begrenzte automatische Wiederholung mit sichtbarem Fehlerzustand | Nur der Aufruf nach dem Upload lässt einen abgestürzten Lauf dauerhaft auf `processing` stehen — der Benutzer sieht nie einen Fehler. FR-037 fällt damit |
+| Eigene Tabelle für Verarbeitungsaufträge | Versuchszähler, Phase und Ursache gehören zum Lauf, nicht zum Dokument; FR-014 braucht einen Lauf mit eigenem Schlüssel | Zustandsfelder auf der Quelle vermischen Dokument und Lauf; ein zweiter Versuch überschreibt die Vorgeschichte und FR-038 verliert die Datengrundlage |
+| Zitatprüfung als eigener Schritt | FR-030 verlangt, dass die Passage die Aussage stützt | Dem Modell zu vertrauen ist genau die Variante, die FR-030 ausschließt |
