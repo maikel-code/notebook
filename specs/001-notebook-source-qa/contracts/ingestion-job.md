@@ -8,7 +8,7 @@ Beschreibt, wie aus einer hochgeladenen Datei durchsuchbare Textabschnitte werde
 
 | Phase | Tut | Bricht ab bei |
 |---|---|---|
-| `extract` | liest den Text seitenweise aus dem PDF | kein PDF, beschädigt, passwortgeschützt, über 300 Seiten |
+| `extract` | liest den Text seitenweise aus dem PDF | kein PDF, beschädigt, passwortgeschützt, über 50 Seiten |
 | `chunk` | bildet Abschnitte mit Seitenbezug | kein extrahierbarer Text → Zustand `unusable` (FR-013) |
 | `embed` | berechnet Einbettungen je Abschnitt | Anbieter nicht erreichbar → Wiederholung |
 | `finalize` | setzt die Quelle auf `ready`, schließt den Auftrag | — |

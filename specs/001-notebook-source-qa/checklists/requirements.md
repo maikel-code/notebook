@@ -31,22 +31,25 @@
 
 ## Notes
 
-Validierungslauf 2026-09-14, ein Durchgang mit einer Korrektur.
+Validierungsläufe 2026-09-14 und 2026-09-19.
 
 **Gefunden und behoben**: FR-038 (Diagnostizierbarkeit ohne Preisgabe von Inhalten,
 Personenbezug oder Geheimnissen) hatte weder ein Erfolgskriterium noch eine zugeordnete
 Prüfung. Ergänzt als SC-013 und als deterministische Prüfung im Abschnitt Verification
 Approach.
 
-**Bewusst keine [NEEDS CLARIFICATION]-Marker**: Für alle offenen Punkte existierte eine
-vertretbare Vorfestlegung. Sie stehen als A-01 bis A-09 im Abschnitt Assumptions und als
-OD-01 bis OD-04 unter Offene Entscheidungen, damit der Maintainer sie bestätigen oder
-korrigieren kann, ohne dass die Planung blockiert.
+**Maintainer-Freigabe 2026-09-19**: A-01 bis A-10 und OD-01 bis OD-04 sind entschieden.
+Die Quellenauswahl bleibt persistent; Umfang und Herkunft des Referenzdatensatzes sowie
+die Demo-Grenzwerte stehen verbindlich in `spec.md`.
 
 **Zum Stack**: Das Briefing nennt Next.js, React, TypeScript und Supabase. Diese Angaben
 sind bewusst nicht in die Spezifikation übernommen — sie gehören nach `plan.md`
 (Constitution, Abschnitt Dokumentgrenzen). Die Spezifikation bleibt dadurch prüfbar,
 ohne den Stack vorauszusetzen.
 
-**Grenzwerte**: Prinzip VII verlangt Limits in `spec.md`. Sie stehen als Tabelle unter
-Success Criteria und sind durchgängig als *Vorschlag* gekennzeichnet (OD-01).
+**Grenzwerte**: Prinzip VII verlangt Limits in `spec.md`. Die Tabelle unter Success
+Criteria enthält die am 2026-09-19 bestätigten Werte.
+
+**Belegqualität**: Herkunft und Wortlaut eines angezeigten Verweises sind deterministisch
+prüfbar. Semantische Belegtreue und ehrliche Einschränkung werden getrennt am
+Referenzdatensatz berichtet und sind für das Demo kein Freigabetor.

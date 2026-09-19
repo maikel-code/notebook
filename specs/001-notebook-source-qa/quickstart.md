@@ -83,27 +83,28 @@ pnpm test:integration   # Gate 3 und Gate 4 — braucht laufendes `supabase star
 pnpm test:e2e           # Gate 3 — braucht laufendes `pnpm dev`
 pnpm db:reset           # Gate 3
 pnpm eval               # KEIN Tor — Antwortqualität, Ergebnis wird berichtet
+pnpm perf               # KEIN Tor — fünf beobachtende Latenzläufe
 ```
 
-`pnpm eval` gehört bewusst nicht zu den Toren. Sein Ergebnis schwankt zwischen Läufen; es als Freigabebedingung zu führen, würde entweder zu willkürlichen Wiederholungen oder zum Absenken der Messlatte führen (Prinzip VI).
+`pnpm eval` und `pnpm perf` gehören bewusst nicht zu den Toren. Ihre Ergebnisse schwanken zwischen Läufen; sie als Freigabebedingung zu führen, würde entweder zu willkürlichen Wiederholungen oder zum Absenken der Messlatte führen (Prinzip VI).
 
 ## Nachweisläufe
 
 ### 1 — Kernablauf (SC-001, FR-032)
 
-Registrieren, anmelden, Notebook anlegen, textbasiertes PDF hochladen, warten bis `bereit`, Frage stellen, Antwort lesen, einen Verweis anklicken.
+In der vorbereiteten Demo-Umgebung eine Zeitmessung starten, dann registrieren, anmelden, Notebook anlegen, textbasiertes PDF hochladen, warten bis `bereit`, Frage stellen, Antwort lesen und einen Verweis anklicken.
 
-**Erwartet**: Das Dokument öffnet sich auf der belegten Seite, die Passage ist hervorgehoben, und ihr Inhalt stützt die Aussage, der sie zugeordnet war.
+**Erwartet**: Der Ablauf dauert weniger als 10 Minuten. Das Dokument öffnet sich auf der belegten Seite; die Passage ist hervorgehoben oder der geprüfte Wortlaut wird nach der freigegebenen Demo-Abschwächung daneben angezeigt.
 
 ### 2 — Zugriffsgrenzen (SC-002, FR-003, FR-004)
 
-Zwei Konten anlegen, in jedem ein Notebook mit einer Quelle. Dann mit Konto B versuchen: Notebook von A über dessen Kennung öffnen, Quelle von A herunterladen, `/api/chat` gegen das Notebook von A aufrufen. Alles wiederholen ohne Anmeldung.
+Zwei Konten anlegen, in jedem ein Notebook mit einer Quelle. Die feste Demo-Matrix für Notebook-Seite plus `renameNotebook`, Storage-Download, `POST /api/chat` und `GET /api/jobs/status` jeweils als Eigentümer, mit Konto B und ohne Anmeldung ausführen. Interne Job-Endpunkte zusätzlich mit gültigem, fehlendem und ungültigem `JOB_TRIGGER_SECRET` aufrufen und einen Cross-User-Auftrag verarbeiten lassen.
 
-**Erwartet**: kein Inhaltsfragment, keine Auskunft darüber, ob das Objekt existiert. Angemeldet fremd → `404`, nicht angemeldet → `401`. Dieser Lauf ist als `pnpm test:integration` automatisiert; die Handprüfung dient der Gegenprobe.
+**Erwartet**: Berechtigte Zugriffe funktionieren. Fremd gibt es `404`, anonym `401`, jeweils ohne Inhaltsfragment oder Existenzauskunft. Interne Jobs akzeptieren nur das gültige Geheimnis und bleiben im Eigentümerkontext des Auftrags. Dieser Lauf ist als `pnpm test:integration` automatisiert; die Handprüfung dient der Gegenprobe.
 
 ### 3 — Dateien, die nicht funktionieren (SC-007, FR-010 bis FR-013)
 
-Nacheinander hochladen: beschädigtes PDF, leeres PDF, Bilddatei, passwortgeschütztes PDF, reinen Scan, Datei über 25 MB.
+Nacheinander hochladen: beschädigtes PDF, leeres PDF, Bilddatei, passwortgeschütztes PDF, reinen Scan, Datei über 10 MB, Dokument über 50 Seiten und eine 31. Quelle.
 
 **Erwartet**: jede landet in einem sichtbaren Ablehnungs- oder Fehlerzustand mit lesbarer Ursache. Keine erscheint als `bereit`. Der Scan endet auf `nicht nutzbar` mit dem Hinweis auf fehlende Texterkennung.
 
@@ -157,7 +158,7 @@ Frage mit Verweisen beantworten lassen, dann die belegende Quelle entfernen und 
 
 Während eine Antwort läuft, eine weitere Frage stellen wollen; danach abbrechen.
 
-**Erwartet**: Eingabe gesperrt, Abbrechen sichtbar. Nach Abbruch ist die Teilantwort als abgebrochen gekennzeichnet und die Eingabe wieder frei.
+**Erwartet**: Eingabe gesperrt, Abbrechen sichtbar. Quellen- und Notebook-Löschung werden währenddessen mit Konflikthinweis abgelehnt. Nach Abbruch endet die Modellanforderung, die Teilantwort ist als abgebrochen gekennzeichnet und die Eingabe wieder frei.
 
 ### 12 — Tastatur (SC-009, FR-034)
 
@@ -165,14 +166,22 @@ Den Kernablauf aus Lauf 1 ausschließlich mit der Tastatur durchführen.
 
 **Erwartet**: Jeder Schritt erreichbar, Fokus immer sichtbar, kein Bereich, aus dem der Fokus nicht wieder herausführt. Bestätigungsdialoge lassen sich bedienen und schließen.
 
-### 13 — Antwortqualität (SC-004, SC-005)
+### 13 — Antwortqualität (SC-005)
 
 ```bash
 pnpm eval
 ```
 
-**Erwartet**: ein Bericht mit Belegtreue und Anteil ehrlicher Einschränkungen, gemessen am Referenzdatensatz. Werte unterhalb der Zielwerte sind ein Befund zur Besprechung, **kein** fehlgeschlagenes Tor.
+**Erwartet**: ein Bericht mit Belegtreue als Berichtsmetrik und Anteil ehrlicher Einschränkungen nach SC-005. Werte unterhalb des Zielwerts sind ein Befund zur Besprechung, **kein** fehlgeschlagenes Tor.
+
+### 14 — Antwortlatenz (SC-011)
+
+```bash
+pnpm perf
+```
+
+**Erwartet**: fünf dokumentierte Einzelwerte aus der vorbereiteten Demo-Umgebung. In mindestens vier Läufen wird der erste Antwortteil innerhalb von 5 Sekunden sichtbar. Das Ergebnis ist **kein** Freigabetor.
 
 ## Referenzdatensatz
 
-Liegt versioniert unter `eval/dataset/` und enthält Dokumente mit bekannten Aussagen, ein widersprüchliches Paar, ein Dokument mit eingebetteter Anweisung sowie Fragen mit erwarteten Belegstellen und Fragen ohne Beleglage. Umfang und Herkunft sind noch offen (OD-03).
+Liegt versioniert unter `eval/dataset/` und umfasst vier selbst erstellte oder vom Maintainer ausdrücklich freigegebene PDFs sowie zwölf Fragen: sechs beantwortbare, drei unbeantwortbare, zwei widersprüchliche und eine auf den eingebetteten Anweisungsversuch zielende Frage. Erwartete Belegstellen, Herkunft und Bewertungskriterien werden mitversioniert.

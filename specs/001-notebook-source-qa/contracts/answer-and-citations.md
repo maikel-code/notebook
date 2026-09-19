@@ -2,7 +2,7 @@
 
 **Feature**: 001-notebook-source-qa · **Datum**: 2026-09-14
 
-Der Teil, an dem sich FR-030 entscheidet: eine Quellenkennung allein ist kein Beleg. Deshalb prüft der Server jeden Verweis, bevor er erscheint.
+Der Teil, an dem sich die deterministische Seite von FR-030 entscheidet: eine Quellenkennung allein ist kein Beleg. Deshalb prüft der Server Herkunft und Wortlaut jedes Verweises, bevor er erscheint. Die inhaltliche Stützung der zugeordneten Aussage bleibt eine getrennte Qualitätsmetrik.
 
 ## Was das Modell bekommt
 
@@ -35,6 +35,8 @@ Nach Abschluss der Erzeugung, für jede Marke:
 4. Besteht die Marke, entsteht ein Verweis mit Abschnitt, Quelle, Quellenname, Seitenbereich und geprüftem Wortlaut.
 
 **Fail-closed**: Jeder Zweifelsfall führt zum Verwerfen, nie zur Anzeige. Bleibt zu einer Aussage kein Verweis übrig, gilt sie als unbelegt; enthält die Antwort danach gar keinen Verweis mehr, wird sie als unbelegt behandelt und fällt unter FR-022.
+
+Diese Prüfung beweist die Herkunft des Wortlauts, nicht seine semantische Eignung für die Aussage. Die Belegtreue wird deshalb zusätzlich am Referenzdatensatz berichtet.
 
 Der Schritt hat einen zweiten Nutzen: der geprüfte Auszug ist genau das, was FR-028a beim Verweis speichern muss, damit er die Löschung der Quelle überdauert.
 

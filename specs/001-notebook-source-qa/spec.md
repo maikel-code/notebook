@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-14
 
-**Status**: Draft
+**Status**: Approved — Maintainer-Freigabe vom 2026-09-19
 
 **Input**: Projektbriefing des Maintainers — NotebookLM-Klon. Benutzer organisieren eigene Dokumente in Notebooks und stellen Fragen dazu; Antworten beruhen auf ausgewählten Quellen und tragen überprüfbare Verweise auf die Originalstellen.
 
@@ -16,7 +16,19 @@
 - Q: Was soll passieren, wenn ein Benutzer dieselbe Datei ein zweites Mal in dasselbe Notebook hochlädt? → A: Die Anwendung erkennt die Dublette am Dateiinhalt und fragt nach: ersetzen, zusätzlich aufnehmen oder abbrechen.
 - Q: Wie weit soll die Anwendung nach Widersprüchen zwischen Quellen suchen? → A: Nur innerhalb der für die aktuelle Frage herangezogenen Passagen; keine Prüfung über den gesamten Bestand.
 - Q: Was soll die Anwendung tun, wenn ein Benutzer eine neue Frage stellt, während die vorige Antwort noch erzeugt wird? → A: Die Eingabe ist während der Erzeugung gesperrt; ein Abbrechen beendet die laufende Antwort und gibt die Eingabe wieder frei.
-- Q: In welcher Einheit soll die Obergrenze für den Textumfang gelten, den eine einzelne Antwort heranziehen darf? → A: Als Textmenge in Zeichen (Vorschlag 60.000), unabhängig von der Vorgehensweise; die Aufteilung entscheidet `plan.md`.
+- Q: In welcher Einheit soll die Obergrenze für den Textumfang gelten, den eine einzelne Antwort heranziehen darf? → A: Als Textmenge in Zeichen, festgelegt auf 60.000, unabhängig von der Vorgehensweise; die Aufteilung entscheidet `plan.md`.
+
+### Session 2026-09-19
+
+- Q: Welche vorgeschlagenen Werte und Annahmen gelten für das Demo? → A: Die Grenzwerte und Annahmen dieses Dokuments sind freigegeben. Die manuell angepassten Werte 10 MB, 50 Seiten, 30 Quellen und 5 Sekunden bis zum ersten Antwortteil sind verbindlich.
+- Q: Bleibt die Quellenauswahl nach erneutem Öffnen erhalten? → A: Ja, die Auswahl wird je Quelle persistent gespeichert.
+- Q: Wie wird Belegqualität einfach und überprüfbar getrennt? → A: Herkunft und Wortlaut eines angezeigten Verweises werden deterministisch geprüft; inhaltliche Stützung und ehrliche Einschränkung werden getrennt am Referenzdatensatz berichtet und sind kein Freigabetor.
+- Q: Was geschieht bei Löschungen während einer laufenden Antwort? → A: Quellen- und Notebook-Löschung werden mit verständlichem Konflikthinweis abgelehnt, bis die Antwort beendet oder abgebrochen ist.
+- Q: Wie soll das System entscheiden, dass trotz vorhandener Quellen keine einschlägige Passage gefunden wurde? → A: Es verwendet eine Top-k-Suche mit einem am versionierten Referenzdatensatz kalibrierten Mindestwert für die Ähnlichkeit.
+- Q: Wann soll beim Ersetzen einer inhaltsgleichen Datei die bisherige Quelle gelöscht werden? → A: Erst nach erfolgreicher Übertragung der neuen Datei; anschließend wird die alte Quelle entfernt und die neue Verarbeitung gestartet.
+- Q: Was soll geschehen, wenn der Benutzer eine wegen Anbieterfehler fehlgeschlagene Antwort erneut versucht? → A: Der fehlgeschlagene Versuch bleibt sichtbar; für dieselbe Frage wird ein neuer Antwortversuch angehängt.
+- Q: Was soll das System tun, wenn eine fertig erzeugte Antwort mindestens eine quellenbasierte Aussage ohne gültigen Verweis enthält? → A: Die gesamte Antwort wird als unbelegt verworfen und durch eine erklärte Einschränkung ersetzt.
+- Q: Woran soll die Belegprüfung technisch erkennen, dass jede quellenbasierte Aussage einen gültigen Verweis besitzt? → A: Eine erfolgreiche Antwort enthält pro Absatz genau eine quellenbasierte Aussage; jeder solche Absatz endet mit mindestens einem gültigen Verweis.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -55,7 +67,8 @@ Ein Benutzer lädt textbasierte PDFs in ein Notebook. Er sieht jederzeit, ob ein
 5. **Given** eine Quelle im Fehlerzustand, **When** der Benutzer die Verarbeitung erneut anstößt und sie gelingt, **Then** ist die Quelle genau einmal im Notebook vorhanden, nicht doppelt.
 6. **Given** eine Datei oberhalb der Größen- oder Seitengrenze, **When** der Benutzer sie hochlädt, **Then** wird sie vor der Verarbeitung abgelehnt mit Nennung der überschrittenen Grenze.
 7. **Given** ein Notebook mit einer bereits aufgenommenen Quelle, **When** der Benutzer eine inhaltsgleiche Datei unter anderem Namen hochlädt, **Then** weist die Anwendung auf die vorhandene Quelle hin und bietet Ersetzen, zusätzliche Aufnahme und Abbruch an.
-8. **Given** die Rückfrage zu einer erkannten Dublette, **When** der Benutzer Ersetzen wählt, **Then** ist danach genau eine Quelle dieses Inhalts im Notebook vorhanden.
+8. **Given** die Rückfrage zu einer erkannten Dublette, **When** der Benutzer Ersetzen wählt und die neue Datei erfolgreich übertragen wurde, **Then** wird die alte Quelle entfernt und die neue Verarbeitung gestartet; danach ist genau eine Quelle dieses Inhalts im Notebook vorhanden.
+9. **Given** der Benutzer hat bei einer Dublette Ersetzen gewählt, **When** die neue Übertragung abbricht, **Then** bleibt die bisherige Quelle unverändert erhalten und es startet keine neue Verarbeitung.
 
 ---
 
@@ -70,13 +83,15 @@ Ein Benutzer stellt eine Frage zu den Quellen seines Notebooks. Die Antwort ersc
 **Acceptance Scenarios**:
 
 1. **Given** ein Notebook mit mindestens einer bereiten Quelle, **When** der Benutzer eine beantwortbare Frage stellt, **Then** erscheint die Antwort schrittweise und enthält mindestens einen Verweis.
-2. **Given** eine Antwort mit Verweisen, **When** der Benutzer einen Verweis anklickt, **Then** öffnet sich das Quelldokument an der belegten Passage, die Seitenzahl ist sichtbar und die Passage ist hervorgehoben.
-3. **Given** eine Antwort mit Verweisen, **When** ein Verweis geprüft wird, **Then** stützt die verwiesene Passage die Aussage inhaltlich, der er zugeordnet ist.
+2. **Given** eine Antwort mit Verweisen, **When** der Benutzer einen Verweis anklickt, **Then** öffnet sich das Quelldokument auf der belegten Seite und die Passage ist hervorgehoben; ist der Wortlaut in der Textebene nicht auffindbar, wird er daneben angezeigt.
+3. **Given** eine Antwort mit Verweisen, **When** ein Verweis technisch geprüft wird, **Then** zeigt er auf einen tatsächlich abgerufenen Abschnitt einer ausgewählten, bereiten Quelle und sein gespeicherter Wortlaut kommt dort vor. Die inhaltliche Stützung der Aussage wird getrennt am Referenzdatensatz bewertet.
 4. **Given** ein Notebook mit bereiten Quellen, **When** der Benutzer eine Frage stellt, die keine Quelle beantwortet, **Then** erklärt die Anwendung, dass die Quellen dazu nichts hergeben, und erzeugt keine Antwort mit Verweisen.
 5. **Given** ein Notebook ohne bereite Quelle, **When** der Benutzer eine Frage stellen will, **Then** erklärt die Anwendung die Voraussetzung, statt eine Antwort zu erzeugen.
-6. **Given** eine laufende Antwort, **When** der Dienst des Modellanbieters ausfällt, **Then** wird der Abbruch als solcher angezeigt, die unvollständige Antwort nicht als fertig ausgegeben und ein erneuter Versuch angeboten.
+6. **Given** eine laufende Antwort, **When** der Dienst des Modellanbieters ausfällt, **Then** wird der Fehler als solcher angezeigt, die unvollständige Antwort nicht als fertig ausgegeben und ein erneuter Versuch angeboten.
 7. **Given** eine laufende Antwort, **When** der Benutzer eine weitere Frage stellen will, **Then** ist die Eingabe gesperrt und ein Abbrechen wird angeboten.
 8. **Given** eine laufende Antwort, **When** der Benutzer abbricht, **Then** endet die Erzeugung, die Teilantwort ist als abgebrochen gekennzeichnet und die Eingabe ist wieder frei.
+9. **Given** eine fehlgeschlagene Antwort, **When** der Benutzer „Erneut versuchen“ auswählt, **Then** bleibt der fehlgeschlagene Versuch sichtbar und für dieselbe Frage wird ein neuer Antwortversuch angehängt.
+10. **Given** eine fertig erzeugte Antwort, **When** die Belegprüfung abgeschlossen wird, **Then** enthält jeder quellenbasierte Absatz genau eine Aussage und endet mit mindestens einem gültigen Verweis; andernfalls wird die gesamte Antwort als unbelegt verworfen und stattdessen eine erklärte Einschränkung angezeigt.
 
 ---
 
@@ -94,6 +109,7 @@ Ein Benutzer wählt aus, welche Quellen für die nächste Frage herangezogen wer
 2. **Given** eine Quelle, die für Fragen ausgewählt ist, **When** der Benutzer sie entfernt, **Then** wird die Entfernung bestätigt abgefragt und die Quelle für neue Antworten nicht mehr herangezogen.
 3. **Given** eine frühere Antwort mit einem Verweis auf eine inzwischen entfernte Quelle, **When** der Benutzer diesen Verweis öffnet, **Then** zeigt die Anwendung den gespeicherten Wortlaut der Belegstelle mit dem Hinweis „Quelle entfernt“ und bietet keinen Sprung ins Dokument an.
 4. **Given** ein Notebook, in dem der Benutzer alle Quellen abgewählt hat, **When** er eine Frage stellen will, **Then** erklärt die Anwendung, dass mindestens eine Quelle ausgewählt sein muss.
+5. **Given** ein Benutzer mit ausgewählten und abgewählten Quellen, **When** er das Notebook erneut öffnet, **Then** ist derselbe Auswahlzustand wiederhergestellt.
 
 ---
 
@@ -130,10 +146,10 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 
 ### Edge Cases
 
-- Ein Upload wird abgebrochen oder die Verbindung bricht während der Übertragung ab.
+- Ein abgebrochener Upload zeigt einen Fehler, erzeugt keinen Verarbeitungsauftrag und kann als vollständiger Upload neu gestartet werden. Beim Ersetzen bleibt die bisherige Quelle unverändert erhalten. Eine physische Bereinigung verwaister Storage-Objekte ist für das Demo nicht Teil der Abnahme.
 - Die Verarbeitung eines Dokuments überschreitet die Laufzeitgrenze.
-- Eine Quelle wird entfernt, während eine Antwort dazu noch erzeugt wird.
-- Ein Notebook wird gelöscht, während in einem anderen Tab eine Frage dazu läuft.
+- Eine Quelle wird während einer laufenden Antwort nicht entfernt; der Löschversuch wird bis zum Ende oder Abbruch der Antwort abgelehnt.
+- Ein Notebook wird während einer laufenden Antwort nicht gelöscht; der Löschversuch wird bis zum Ende oder Abbruch der Antwort abgelehnt.
 - Der Benutzer stellt eine Frage oberhalb der Längengrenze.
 - Ein PDF ist passwortgeschützt.
 - Eine Antwort beruht auf einer Passage, die über einen Seitenumbruch reicht.
@@ -161,12 +177,12 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 
 - **FR-009**: Benutzer MÜSSEN textbasierte PDFs in ein Notebook hochladen können.
 - **FR-010**: Das System MUSS Dateien ablehnen, die keine PDFs sind oder die festgelegten Grenzen für Dateigröße oder Seitenzahl überschreiten, und die verletzte Bedingung benennen.
-- **FR-010a**: Das System MUSS beim Hochladen erkennen, ob eine inhaltsgleiche Datei bereits als Quelle im selben Notebook vorhanden ist, und den Benutzer zwischen Ersetzen, zusätzlicher Aufnahme und Abbruch wählen lassen. Die Erkennung MUSS auf dem Dateiinhalt beruhen, nicht auf dem Dateinamen. Beim Ersetzen werden Datei und Textabschnitte der bisherigen Quelle nach FR-031 entfernt.
-- **FR-011**: Das System MUSS je Quelle einen der Zustände „wird verarbeitet", „bereit", „fehlgeschlagen" oder „nicht nutzbar" anzeigen und Zustandswechsel ohne Neuladen der Seite sichtbar machen.
+- **FR-010a**: Das System MUSS beim Hochladen erkennen, ob eine inhaltsgleiche Datei bereits als Quelle im selben Notebook vorhanden ist, und den Benutzer zwischen Ersetzen, zusätzlicher Aufnahme und Abbruch wählen lassen. Die Erkennung MUSS auf dem Dateiinhalt beruhen, nicht auf dem Dateinamen. Beim Ersetzen bleibt die bisherige Quelle bis zur bestätigten Übertragung der neuen Datei unverändert erhalten; erst danach werden Datei und Textabschnitte der bisherigen Quelle nach FR-031 entfernt und die neue Verarbeitung gestartet.
+- **FR-011**: Das System MUSS je Quelle einen der Zustände „wird verarbeitet", „bereit", „fehlgeschlagen" oder „nicht nutzbar" anzeigen und Zustandswechsel ohne Neuladen der Seite sichtbar machen. Die internen Zustände `uploading` und `processing` werden beide als „wird verarbeitet" angezeigt.
 - **FR-012**: Das System MUSS bei fehlgeschlagener Verarbeitung eine verständliche Ursache nennen und einen erneuten Versuch anbieten.
 - **FR-013**: Das System MUSS PDFs ohne extrahierbaren Text als nicht nutzbar kennzeichnen und darf sie nicht als bereit ausweisen.
 - **FR-014**: Wiederholte Verarbeitung derselben Quelle DARF KEINE doppelten Textabschnitte oder doppelten Quelleneinträge erzeugen.
-- **FR-015**: Benutzer MÜSSEN die Quellen eines Notebooks einsehen, für Fragen auswählen und abwählen können.
+- **FR-015**: Benutzer MÜSSEN die Quellen eines Notebooks einsehen, für Fragen auswählen und abwählen können. Die Auswahl bleibt nach erneutem Öffnen des Notebooks erhalten.
 - **FR-016**: Benutzer MÜSSEN Quellen entfernen können; das Entfernen MUSS bestätigt werden.
 - **FR-017**: Entfernte Quellen DÜRFEN für neue Antworten NICHT mehr herangezogen werden.
 - **FR-018**: Nur Quellen im Zustand „bereit" DÜRFEN für Antworten herangezogen werden.
@@ -175,21 +191,21 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 
 - **FR-019**: Benutzer MÜSSEN Fragen zu den ausgewählten Quellen eines Notebooks stellen können.
 - **FR-020**: Antworten MÜSSEN schrittweise erscheinen, während sie erzeugt werden.
-- **FR-020a**: Während eine Antwort erzeugt wird, MUSS die Frageeingabe gesperrt sein und ein Abbrechen angeboten werden. Ein Abbruch MUSS die Erzeugung beenden und die Eingabe wieder freigeben.
+- **FR-020a**: Während eine Antwort erzeugt wird, MUSS die Frageeingabe gesperrt sein und ein Abbrechen angeboten werden. Der Client-Abbruch MUSS die Modellanforderung beenden, die Nachricht als `aborted` speichern und die Eingabe wieder freigeben.
 - **FR-021**: Das System MUSS ausschließlich Inhalte der ausgewählten, bereiten Quellen als Belegbasis verwenden.
-- **FR-022**: Das System MUSS erklären, warum es nicht antworten kann, wenn keine Quelle ausgewählt, keine bereit oder keine einschlägige Passage auffindbar ist — und in diesen Fällen KEINE Antwort mit Verweisen erzeugen.
+- **FR-022**: Das System MUSS erklären, warum es nicht antworten kann, wenn keine Quelle ausgewählt, keine bereit oder bei einer Top-k-Suche keine Passage den am versionierten Referenzdatensatz kalibrierten Mindestwert für die Ähnlichkeit erreicht — und in diesen technisch feststellbaren Fällen KEINE Antwort mit Verweisen erzeugen. Die semantische Entscheidung bei vorhandenen, aber unzureichenden Passagen oberhalb des Mindestwerts wird nach SC-005 bewertet.
 - **FR-023**: Widersprechen sich Passagen, die für die aktuelle Frage herangezogen wurden, MUSS die Antwort den Widerspruch benennen und auf beide Stellen verweisen, statt eine Angabe als gesichert darzustellen. Eine darüber hinausgehende Prüfung des Quellenbestands findet NICHT statt.
 - **FR-024**: Das System MUSS Text aus hochgeladenen Dokumenten als nicht vertrauenswürdige Daten behandeln; darin enthaltene Anweisungen DÜRFEN Antwortverhalten und Zugriffsgrenzen NICHT verändern.
-- **FR-025**: Ein Abbruch bei der Antworterzeugung MUSS als solcher erkennbar sein; eine unvollständige Antwort DARF NICHT als abgeschlossen erscheinen.
+- **FR-025**: Ein Abbruch oder Anbieterfehler bei der Antworterzeugung MUSS mit dem passenden Zustand `aborted` beziehungsweise `failed` erkennbar sein; eine unvollständige Antwort DARF NICHT als abgeschlossen erscheinen. Bei `failed` MUSS „Erneut versuchen“ für dieselbe Frage einen neuen Antwortversuch anhängen, während der fehlgeschlagene Versuch unverändert sichtbar bleibt.
 - **FR-026**: Der Gesprächsverlauf eines Notebooks MUSS nach erneutem Öffnen samt Antworten und Verweisen vorhanden sein.
 
 **Belege**
 
-- **FR-027**: Quellenbasierte Aussagen MÜSSEN Verweise auf die Passagen tragen, auf denen sie beruhen.
+- **FR-027**: Eine erfolgreich angezeigte Antwort MUSS pro quellenbasiertem Absatz genau eine quellenbasierte Aussage enthalten; jeder solche Absatz MUSS mit mindestens einem gültigen Verweis auf die Passage enden, auf der die Aussage beruht. Feste Status- und Einschränkungstexte sind davon ausgenommen. Verletzt mindestens ein quellenbasierter Absatz diese Form oder besitzt er keinen gültigen Verweis, MUSS die gesamte Antwort als unbelegt verworfen und durch eine erklärte Einschränkung ersetzt werden.
 - **FR-028**: Jeder Verweis MUSS auf eine gespeicherte Originalstelle auflösbar sein und Quelldokument, Passage und Seitenzahl benennen.
 - **FR-028a**: Jeder Verweis MUSS den zitierten Wortlaut bei sich speichern, damit die Belegstelle unabhängig vom Fortbestand der Quelle darstellbar bleibt.
-- **FR-029**: Ein Klick auf einen Verweis MUSS das Quelldokument an der belegten Passage anzeigen und die Passage hervorheben.
-- **FR-030**: Eine vorhandene Quellenkennung allein DARF NICHT als gültiger Beleg gelten; die verwiesene Passage MUSS die zugeordnete Aussage inhaltlich stützen.
+- **FR-029**: Ein Klick auf einen Verweis MUSS das Quelldokument an der belegten Seite anzeigen und die Passage hervorheben. Ist der geprüfte Wortlaut in der PDF-Textebene technisch nicht auffindbar, MUSS die Seite geöffnet und der Wortlaut daneben angezeigt werden.
+- **FR-030**: Eine vorhandene Quellenkennung allein DARF NICHT als gültiger Beleg gelten. Ein angezeigter Verweis MUSS auf einen tatsächlich abgerufenen Abschnitt einer ausgewählten, bereiten Quelle zeigen, und sein gespeicherter Wortlaut MUSS dort nach Vereinheitlichung von Leerraum vorkommen. Ob die Passage die zugeordnete Aussage inhaltlich stützt, wird getrennt als probabilistische Qualitätsmetrik berichtet.
 - **FR-031**: Wird eine Quelle entfernt, MÜSSEN ihre Datei und ihre Textabschnitte gelöscht werden. Verweise in früheren Antworten MÜSSEN den gespeicherten Wortlaut mit dem Hinweis „Quelle entfernt“ anzeigen und DÜRFEN keinen Sprung ins Dokument mehr anbieten.
 
 **Bedienung**
@@ -197,7 +213,7 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 - **FR-032**: Der Kernablauf Anmelden → Notebook anlegen → PDF hochladen → Frage stellen → Antwort lesen → Beleg im Original prüfen MUSS vollständig bedienbar sein.
 - **FR-033**: Die für den jeweiligen Ablauf relevanten Lade-, Leer-, Erfolgs- und Fehlerzustände MÜSSEN verständlich dargestellt sein.
 - **FR-034**: Alle Schritte des Kernablaufs MÜSSEN per Tastatur bedienbar sein, mit sichtbarem Fokus, beschrifteten Bedienelementen und Fehlermeldungen, die ihrem Eingabefeld zugeordnet sind.
-- **FR-035**: Löschende Aktionen MÜSSEN bestätigt werden und benennen, was entfernt wird.
+- **FR-035**: Löschende Aktionen MÜSSEN bestätigt werden und benennen, was entfernt wird. Läuft im betroffenen Notebook eine Antwort, MUSS die Löschung mit einem verständlichen Konflikthinweis abgelehnt werden.
 
 **Grenzen und Diagnose**
 
@@ -212,7 +228,7 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 - **Quelle**: Hochgeladenes Dokument in einem Notebook; trägt Verarbeitungszustand, Fehlerursache, Auswahlkennzeichen und ein aus dem Dateiinhalt abgeleitetes Erkennungsmerkmal für Dubletten.
 - **Textabschnitt**: Abgegrenzter Ausschnitt einer Quelle mit Seitenbezug; kleinste Einheit, auf die ein Verweis zeigt.
 - **Frage**: Eingabe des Benutzers samt der zum Zeitpunkt der Frage ausgewählten Quellen.
-- **Antwort**: Erzeugter Text zu einer Frage; trägt Verweise und einen Abschlusszustand.
+- **Antwort**: Erzeugter Text zu einer Frage; trägt Verweise und einen Abschlusszustand. Eine Frage kann nach einem Anbieterfehler mehrere chronologisch sichtbare Antwortversuche besitzen.
 - **Verweis**: Zuordnung einer Aussage der Antwort zu einem Textabschnitt; trägt den zitierten Wortlaut und den Seitenbezug als eigene Angaben, damit er die Löschung der Quelle überdauert.
 - **Verarbeitungsauftrag**: Lauf, der aus einer hochgeladenen Datei Textabschnitte erzeugt; trägt Zustand und Versuchszähler.
 
@@ -220,29 +236,27 @@ Ein Benutzer öffnet ein Notebook erneut und findet seinen bisherigen Gesprächs
 
 ### Measurable Outcomes
 
-- **SC-001**: Ein neuer Benutzer durchläuft den Kernablauf von der Registrierung bis zur geprüften Originalstelle ohne fremde Hilfe in unter 10 Minuten.
-- **SC-002**: In 100 % der Prüfversuche erhält weder ein fremder noch ein anonymer Zugriff Inhalte eines fremden Notebooks, einschließlich direkter Zugriffe auf Kennungen und Dateiadressen.
-- **SC-003**: In 100 % der geprüften Antworten lässt sich jeder Verweis auf eine vorhandene Originalstelle auflösen.
-- **SC-004**: Im Referenzdatensatz stützt die verwiesene Passage die zugeordnete Aussage in mindestens 90 % der Fälle inhaltlich (*Vorschlag*).
-- **SC-005**: Fragen ohne Beleglage im Referenzdatensatz führen in mindestens 95 % der Fälle zu einer erklärten Einschränkung statt zu einer Antwort mit Verweisen (*Vorschlag*).
+- **SC-001**: In der vorbereiteten Demo-Umgebung führt der Maintainer den Kernablauf von der Registrierung bis zur geprüften Originalstelle in unter 10 Minuten vor.
+- **SC-002**: In 100 % der Fälle der festgelegten Zugriffsmatrix erhält weder ein fremder noch ein anonymer Zugriff geschützte Inhalte; berechtigte Zugriffe funktionieren.
+- **SC-003**: In 100 % der geprüften Antworten lässt sich jeder Verweis auf eine noch vorhandene Quelle zur Originalstelle auflösen. Nach Quellenlöschung bleiben gespeicherter Wortlaut, Quellenname und Seite mit dem Hinweis „Quelle entfernt“ sichtbar; ein Dokumentsprung wird nicht angeboten.
+- **SC-005**: Fragen, für die der Referenzdatensatz keine inhaltlich ausreichende Beleglage enthält, führen in mindestens 95 % der Fälle zu einer erklärten Einschränkung statt zu einer Antwort mit Verweisen. Das Ergebnis ist eine berichtete Qualitätsmetrik und kein Freigabetor.
 - **SC-006**: Kein Anweisungsversuch aus einem Dokument des Referenzdatensatzes verändert Antwortverhalten oder Zugriffsgrenzen.
 - **SC-007**: Beschädigte, leere, passwortgeschützte und nicht unterstützte Dateien führen in 100 % der Fälle zu einem sichtbaren Fehler- oder Ablehnungszustand und nie zu einer scheinbar bereiten Quelle.
 - **SC-008**: Erneute Verarbeitung derselben Quelle verändert die Anzahl ihrer Textabschnitte nicht.
 - **SC-009**: Der Kernablauf ist vollständig per Tastatur durchführbar, ohne dass der Fokus unsichtbar wird oder in einem Bereich gefangen bleibt.
 - **SC-010**: Bei Ausfall der Dokumentverarbeitung oder des Modellanbieters sieht der Benutzer in 100 % der Fälle einen Fehlerzustand mit Wiederholungsmöglichkeit und nie eine als erfolgreich dargestellte Teilausgabe.
-- **SC-011**: Der erste Teil einer Antwort wird in höchstens 3 Sekunden sichtbar (*Vorschlag*).
-- **SC-012**: Ein Dokument mit bis zu 50 Seiten erreicht in mindestens 90 % der Fälle innerhalb von 60 Sekunden den Zustand „bereit" (*Vorschlag*).
+- **SC-011**: Der erste Teil einer Antwort wird in mindestens vier von fünf dokumentierten Läufen der vorbereiteten Demo-Umgebung innerhalb von 5 Sekunden sichtbar. Das Ergebnis ist ein Performance-Smoke-Wert und kein Freigabetor.
 - **SC-013**: Jeder ausgelöste Fehlerfall lässt sich über Korrelationsmerkmal, Phase und Ursache einem Vorgang zuordnen, ohne dass Dokumentinhalte, personenbezogene Daten oder Geheimnisse in der Diagnoseausgabe erscheinen.
 
-### Vorgeschlagene Grenzwerte
+### Grenzwerte
 
-Alle Werte sind *Vorschläge* und vom Maintainer zu bestätigen. Sie erfüllen die Pflicht aus Prinzip VII, Grenzen in `spec.md` festzulegen.
+Die Werte sind durch den Maintainer am 2026-09-19 bestätigt und erfüllen die Pflicht aus Prinzip VII, Grenzen in `spec.md` festzulegen.
 
-| Größe | Vorschlag |
+| Größe | Wert |
 |---|---|
-| Dateigröße je PDF | 25 MB |
-| Seiten je PDF | 300 |
-| Quellen je Notebook | 50 |
+| Dateigröße je PDF | 10 MB |
+| Seiten je PDF | 50 |
+| Quellen je Notebook | 30 |
 | Ausgewählte Quellen je Frage | 10 |
 | Fragelänge | 2.000 Zeichen |
 | Herangezogene Textmenge je Antwort | 60.000 Zeichen |
@@ -257,20 +271,21 @@ Deterministische und probabilistische Prüfungen werden getrennt ausgewiesen (Pr
 
 - Zugriffsgrenzen mit eigenem, fremdem und anonymem Benutzer (SC-002).
 - Dateiannahme und -ablehnung, Zustandswechsel, Wiederholung ohne Duplikate (SC-007, SC-008).
-- Auflösbarkeit jedes Verweises auf eine vorhandene Originalstelle (SC-003).
+- Auflösbarkeit jedes Verweises auf eine vorhandene Quelle sowie der historische Belegfall nach Quellenlöschung (SC-003).
 - Verhalten bei entfernten Quellen, ohne Auswahl, ohne bereite Quelle.
 - Ausfall von Dokumentverarbeitung und Modellanbieter, simuliert (SC-010).
 - Tastaturbedienbarkeit des Kernablaufs (SC-009).
 - Diagnostizierbarkeit ausgelöster Fehler ohne Preisgabe von Inhalten, Personenbezug oder Geheimnissen (SC-013).
 
-**Probabilistisch** — bewertet gegen den Referenzdatensatz, Schwankung erwartet:
+**Probabilistisch und beobachtend** — kein Freigabetor, Schwankung erwartet:
 
-- Belegtreue: stützt die verwiesene Passage die Aussage (SC-004).
+- Belegtreue: stützt die verwiesene Passage die Aussage; als Berichtsmetrik ohne eigenes Erfolgskriterium.
 - Ehrliche Einschränkung bei fehlender Beleglage (SC-005).
 - Kenntlichmachung von Widersprüchen.
 - Widerstand gegen Anweisungen in Dokumenten (SC-006) — das Ergebnis wird probabilistisch bewertet, die Zugriffsgrenze dahinter bleibt deterministisch geprüft.
+- Zeit bis zum ersten sichtbaren Antwortteil in fünf Läufen der Demo-Umgebung (SC-011).
 
-**Referenzdatensatz**: klein, manuell geprüft, versioniert. Enthält Dokumente mit bekannten Aussagen, ein widersprüchliches Paar, ein Dokument mit eingebetteten Anweisungsversuchen sowie Fragen mit erwarteten Belegstellen und Fragen ohne Beleglage. Zusammensetzung und Bewertungskriterien werden mit dem Datensatz dokumentiert.
+**Referenzdatensatz**: vier selbst erstellte oder vom Maintainer ausdrücklich freigegebene, versionierte PDF-Dokumente und zwölf Fragen. Enthalten sind bekannte Aussagen, ein widersprüchliches Paar, ein eingebetteter Anweisungsversuch, sechs beantwortbare, drei unbeantwortbare, zwei widersprüchliche und eine auf den Anweisungsversuch zielende Frage. Erwartete Belegstellen, Bewertungskriterien und der daraus kalibrierte Mindestwert für die Ähnlichkeit werden mit dem Datensatz dokumentiert.
 
 ## Out of Scope
 
@@ -286,6 +301,7 @@ Folgendes ist nicht Teil dieses MVP und DARF keine Voraussetzung für ihn werden
 - Andere Dateiarten als PDF
 - Widerspruchsanalyse über den Quellenbestand außerhalb einer konkreten Frage, etwa beim Hochladen oder als eigene Prüffunktion
 - Vollständige Funktionsparität mit NotebookLM
+- Physische Bereinigung möglicher verwaister Storage-Objekte nach Upload-Abbruch oder vollständiger Notebook-Löschung. Für das Demo bleiben sie privat und werden beim Zurücksetzen des Demo-Projekts entfernt; die Quelllöschung nach FR-031 bleibt davon unberührt.
 
 ## Assumptions
 
@@ -298,14 +314,13 @@ Getroffene Vorfestlegungen, wo das Briefing keine Vorgabe macht. Jede ist ohne A
 - **A-05**: Löschen entfernt Datei und Textabschnitte endgültig; kein Papierkorb, keine Wiederherstellung, weil Demonstrationsprojekt. Ausgenommen sind die bei bereits erteilten Verweisen gespeicherten Wortlaute (FR-028a); sie verschwinden mit dem Gesprächsverlauf oder dem Notebook.
 - **A-06**: Die Antwort erfolgt in der Sprache der Frage.
 - **A-07**: Ein Gesprächsverlauf je Notebook, keine parallelen Unterhaltungen.
-- **A-08**: Der Referenzdatensatz besteht aus Dokumenten, die der Maintainer bereitstellt und deren Verwendung zulässig ist.
+- **A-08**: Der Referenzdatensatz besteht aus selbst erstellten oder vom Maintainer ausdrücklich freigegebenen Dokumenten, deren Verwendung zulässig ist.
 - **A-09**: Nutzung durch einzelne Benutzer in einer Demonstrationsumgebung; keine Lastannahmen über gleichzeitige Benutzer.
+- **A-10**: Der Auswahlzustand einer Quelle wird persistent gespeichert und beim erneuten Öffnen wiederhergestellt.
 
-## Offene Entscheidungen
+## Maintainer-Entscheidungen vom 2026-09-19
 
-Bewusst offen gelassen, weil sie dem Maintainer gehören. Keine blockiert den Beginn der Planung.
-
-- **OD-01**: Bestätigung oder Korrektur der vorgeschlagenen Grenzwerte und der Zielwerte SC-004, SC-005, SC-011, SC-012.
-- **OD-02**: Bestätigung der Annahmen A-01 bis A-09, insbesondere A-03 (entfernte Quellen) und A-04 (Tiefe der Widerspruchserkennung).
-- **OD-03**: Umfang und Herkunft des Referenzdatensatzes (Anzahl Dokumente, Anzahl Fragen).
-- **OD-04**: Ob abgewählte Quellen beim erneuten Öffnen eines Notebooks ihren Auswahlzustand behalten.
+- **OD-01 — entschieden**: Grenzwerte sowie SC-005 und SC-011 gelten in der oben festgelegten Fassung. SC-004 und SC-012 entfallen; Belegtreue bleibt Berichtsmetrik.
+- **OD-02 — entschieden**: A-01 bis A-10 sind für das Demo bestätigt.
+- **OD-03 — entschieden**: Umfang und Herkunft des Referenzdatensatzes sind im Abschnitt Verification Approach festgelegt.
+- **OD-04 — entschieden**: Die Quellenauswahl ist persistent.

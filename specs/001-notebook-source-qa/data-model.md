@@ -34,14 +34,16 @@ Löschen entfernt Quellen, Abschnitte, Aufträge und Nachrichten des Notebooks (
 | `file_name` | text | Anzeigename aus dem Upload |
 | `storage_path` | text | `{user_id}/{notebook_id}/{source_id}.pdf` |
 | `content_hash` | text | Prüfsumme des Dateiinhalts, Grundlage der Dublettenerkennung (FR-010a) |
-| `byte_size` | bigint | ≤ 25 MB (FR-010) |
-| `page_count` | int | ≤ 300, erst nach der Extraktion bekannt |
+| `byte_size` | bigint | ≤ 10 MB (FR-010) |
+| `page_count` | int | ≤ 50, erst nach der Extraktion bekannt |
 | `status` | text | Zustandsmaschine unten |
 | `error_reason` | text, null | benutzerlesbare Ursache (FR-012) |
 | `is_selected` | boolean | für Fragen ausgewählt (FR-015) |
 | `created_at` | timestamptz | |
 
 **Index auf `(notebook_id, content_hash)` — bewusst nicht eindeutig.** FR-010a erlaubt dem Benutzer die zusätzliche Aufnahme einer inhaltsgleichen Datei. Eine Eindeutigkeitsregel würde diese Wahl technisch verhindern; die Erkennung ist eine Abfrage vor dem Upload, keine Beschränkung.
+
+`is_selected` ist persistent. Beim erneuten Öffnen eines Notebooks wird der gespeicherte Auswahlzustand wiederhergestellt (A-10).
 
 ### `ingestion_jobs`
 
@@ -116,6 +118,8 @@ uploading ──► processing ──► ready
                   └──► unusable    (kein Text extrahierbar — FR-013)
 ```
 
+`uploading` und `processing` werden in der Oberfläche einheitlich als „wird verarbeitet“ angezeigt (FR-011).
+
 `ready` ist die einzige Voraussetzung dafür, dass eine Quelle für Antworten herangezogen wird (FR-018). `failed` erlaubt einen neuen Auftrag; `unusable` ist endgültig, weil ein erneuter Lauf am selben Dokument dasselbe Ergebnis liefert.
 
 ### `ingestion_jobs.status`
@@ -161,9 +165,9 @@ Alle Werte aus spec.md liegen an einer Stelle in `lib/limits.ts` und werden sowo
 
 | Bezeichner | Wert | Anforderung |
 |---|---|---|
-| `MAX_FILE_BYTES` | 25 MB | FR-010 |
-| `MAX_PAGES` | 300 | FR-010 |
-| `MAX_SOURCES_PER_NOTEBOOK` | 50 | FR-036 |
+| `MAX_FILE_BYTES` | 10 MB | FR-010 |
+| `MAX_PAGES` | 50 | FR-010 |
+| `MAX_SOURCES_PER_NOTEBOOK` | 30 | FR-036 |
 | `MAX_SELECTED_SOURCES` | 10 | FR-036 |
 | `MAX_QUESTION_CHARS` | 2.000 | FR-036 |
 | `MAX_CONTEXT_CHARS` | 60.000 | FR-036 |

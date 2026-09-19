@@ -26,7 +26,7 @@ Jede Entscheidung nennt die verworfene Alternative (Prinzip I). **Zusätzliche A
 
 **Rationale**: `pgvector` gehört zu Supabase, kein zusätzlicher Dienst. Verweise brauchen ohnehin eine Passage mit Seitenbezug (FR-028); Abschnitte sind diese Einheit. Kosten unabhängig von der Dokumentgröße.
 
-**Alternatives**: Ganze Dokumente im Kontext — jede Frage kostet die volle Dokumentmenge, Belegstelle muss trotzdem lokalisiert werden. Zusätzliche Stichwortsuche — **Auslöser für Nachrüstung**: verfehlt der Bewertungslauf SC-004 bei Fragen nach Eigennamen, Zahlen oder Aktenzeichen.
+**Alternatives**: Ganze Dokumente im Kontext — jede Frage kostet die volle Dokumentmenge, Belegstelle muss trotzdem lokalisiert werden. Zusätzliche Stichwortsuche — **Auslöser für Nachrüstung**: Die berichtete Belegtreue fällt bei Fragen nach Eigennamen, Zahlen oder Aktenzeichen erkennbar ab.
 
 ## D-04 Modellanbieter
 
@@ -99,7 +99,7 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 **Decision**: `pdf.js` serverseitig zur seitenweisen Extraktion, clientseitig zur Anzeige. Gespeichert werden Abschnittstext, Seitenbereich und Wortlaut; die Anzeige sucht den Wortlaut in der Textebene. Wird er nicht gefunden, öffnet die Seite und zeigt den Wortlaut daneben.
 
-**Rationale**: FR-029 verlangt Sprung mit Hervorhebung. Zeichenpositionen aus der Extraktion stimmen nicht zwingend mit der gerenderten Textebene überein; die Suche nach dem Wortlaut ist robuster. Der Rückfall verhindert unbrauchbare Belege.
+**Rationale**: FR-029 verlangt den Sprung auf die belegte Seite und bevorzugt die Hervorhebung. Zeichenpositionen aus der Extraktion stimmen nicht zwingend mit der gerenderten Textebene überein; die Suche nach dem Wortlaut ist robuster. Die freigegebene Demo-Abschwächung zeigt den geprüften Wortlaut andernfalls daneben und verhindert unbrauchbare Belege.
 
 **Alternatives**: Zeichenpositionen speichern — bricht bei abweichender Textebene. Seitenbilder — verlieren die Textauswahl.
 
@@ -141,8 +141,8 @@ SC-010 braucht deshalb zwei Prüffälle, nicht einen.
 
 ## D-16 Prüfwerkzeuge — Zusätzliche Abhängigkeit
 
-**Decision**: Vitest für reine Logik, Playwright für Abläufe. Zugriffsgrenzen als eigener Integrationslauf gegen die lokale Instanz mit zwei echten Konten und anonymem Zugriff. Bewertungslauf als getrenntes Kommando.
+**Decision**: Vitest für reine Logik, Playwright für Abläufe. Zugriffsgrenzen als feste Demo-Matrix gegen die lokale Instanz: Notebook-Seite plus `renameNotebook`, Storage-Download, `POST /api/chat` und `GET /api/jobs/status` jeweils berechtigt, fremd und anonym; interne Jobs mit gültigem, fehlendem und ungültigem Geheimnis sowie einem Cross-User-Worker-Fall. Weitere Server Actions verwenden denselben zentralen Autorisierungsweg. Bewertung und Performance-Smoke-Test laufen als getrennte Kommandos.
 
-**Rationale**: Prinzip II verlangt positive und negative Prüfungen; aussagekräftig nur gegen echte Regeln, nicht gegen Attrappen. Prinzip VI verlangt getrennte Ausweisung von deterministisch und probabilistisch.
+**Rationale**: Prinzip II verlangt die benannte positive und negative Demo-Matrix; aussagekräftig nur gegen echte Regeln, nicht gegen Attrappen. Prinzip VI verlangt getrennte Ausweisung von deterministisch, probabilistisch und beobachtend.
 
 **Alternatives**: Zugriffsgrenzen mit Attrappen — prüft den Code, nicht die Regel. Antwortqualität in derselben Suite — macht das Freigabetor von schwankenden Ergebnissen abhängig.

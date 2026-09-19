@@ -1,12 +1,12 @@
 # Implementation Plan: Quellengebundenes Notebook-Frage-Antwort-System
 
-**Branch**: `001-notebook-source-qa` | **Stand**: 2026-09-15 | **Spec**: [spec.md](./spec.md)
+**Branch**: `001-notebook-source-qa` | **Stand**: 2026-09-19 | **Spec**: [spec.md](./spec.md)
 
 ## Summary
 
 Next.js-Anwendung mit privaten Notebooks, PDF-Aufnahme und quellengebundenem Chat. Vier Teile: **Supabase** (Datenbank, Authentifizierung, Dateiablage, durchgängige RLS), eine **Aufnahmestrecke** (seitenweise Zerlegung und Einbettung), eine **Abrufstrecke** (Vektorähnlichkeit über die ausgewählten Quellen) und eine **Belegprüfung**, die jedes Zitat wörtlich gegen den zitierten Abschnitt abgleicht.
 
-Die Belegprüfung ist der tragende Teil: sie macht FR-030 maschinell prüfbar statt zur Vertrauensfrage (research.md D-07).
+Die Belegprüfung ist der tragende Teil: sie prüft Herkunft, Auswahl und Wortlaut jedes angezeigten Verweises deterministisch. Ob die Passage die zugeordnete Aussage inhaltlich stützt, bleibt eine getrennte Qualitätsmetrik des Referenzdatensatzes (research.md D-07).
 
 ## Technical Context
 
@@ -22,7 +22,7 @@ Die Belegprüfung ist der tragende Teil: sie macht FR-030 maschinell prüfbar st
 
 **Project Type**: Ein Next.js-Projekt mit Server- und Clientanteil
 
-**Performance Goals**: SC-011 erster Antwortteil ≤ 3 s · SC-012 50 Seiten ≤ 60 s bereit
+**Performance Goals**: SC-011 erster Antwortteil in mindestens vier von fünf dokumentierten Demo-Läufen ≤ 5 s; beobachtender Smoke-Wert, kein Freigabetor
 
 **Constraints**: Grenzwerte aus spec.md, zentral in `lib/limits.ts`
 
@@ -35,8 +35,8 @@ Die Belegprüfung ist der tragende Teil: sie macht FR-030 maschinell prüfbar st
 | Prinzip | Einlösung |
 |---|---|
 | I Technische Verantwortung | Entscheidungen mit Alternative in research.md; Prüfkommandos unten |
-| II Sichere Zugriffsgrenzen | RLS auf jeder Tabelle, pfadgebundene Storage-Regel, Dienstrolle nur in einer Datei und zusätzlich auf den Auftragseigentümer eingeschränkt (D-10) |
-| III Quellengebundene Antworten | Belegprüfung fail-closed (D-07), Dokumenttext als Daten (D-09), Abruf auf ausgewählte Quellen begrenzt |
+| II Sichere Zugriffsgrenzen | Feste Demo-Matrix für Notebook-Seite plus `renameNotebook`, Storage-Download, Chat und Status; interne Jobs mit Geheimnisprüfung und Cross-User-Worker-Test; Dienstrolle auf den Auftragseigentümer eingeschränkt (D-10) |
+| III Quellengebundene Antworten | Herkunft und Wortlaut fail-closed geprüft (D-07), semantische Belegtreue separat berichtet, Dokumenttext als Daten (D-09), Abruf auf ausgewählte Quellen begrenzt |
 | IV Einfache Architektur | Ein Projekt, eine Datenbank, keine zusätzliche Laufzeit. Drei Abhängigkeiten in research.md begründet; drei Auslöser des Verarbeitungsauftrags unter Complexity Tracking |
 | V Vollständige Nutzerabläufe | Zustände als Zustandsmaschinen in data-model.md; Barrierefreiheit über die Primitive, geprüft in Playwright |
 | VI Verifikation | Deterministisch und probabilistisch als getrennte Kommandos; der Bewertungslauf ist kein Tor |
@@ -58,8 +58,10 @@ Verbindlich für Gate 3. Codex führt sie aus und weist das Ergebnis im Handoff 
 | Abläufe im Browser | `pnpm test:e2e` | Gate 3 |
 | Migrationen auf frischer Datenbank | `pnpm db:reset` (lokale Instanz) | Gate 3 |
 | Antwortqualität | `pnpm eval` | **kein Tor** — probabilistisch |
+| Antwortlatenz | `pnpm perf` | **kein Tor** — beobachtender Demo-Smoke-Test |
 
 - `pnpm eval` DARF NICHT als Nachweis für Gate 3 dienen (Prinzip VI).
+- `pnpm perf` DARF NICHT als Nachweis für Gate 3 dienen; Umgebung und fünf Einzelwerte werden berichtet.
 - Bei Fehlschlag wird die Ursache behoben, nicht der Prüfumfang verkleinert (Prinzip I).
 - `pnpm test:integration` setzt die laufende lokale Instanz voraus (quickstart.md).
 
@@ -106,4 +108,14 @@ eval/{dataset,run.ts}       # bewusst außerhalb tests/
 |-----------|------------|-------------------------------------|
 | Drei Auslöser des Verarbeitungsauftrags statt eines | FR-011 sichtbarer Fortschritt, FR-012 manueller Wiederholversuch, FR-037 begrenzte automatische Wiederholung mit sichtbarem Fehlerzustand | Nur der Aufruf nach dem Upload lässt einen abgestürzten Lauf dauerhaft auf `processing` stehen — der Benutzer sieht nie einen Fehler. FR-037 fällt damit |
 | Eigene Tabelle für Verarbeitungsaufträge | Versuchszähler, Phase und Ursache gehören zum Lauf, nicht zum Dokument; FR-014 braucht einen Lauf mit eigenem Schlüssel | Zustandsfelder auf der Quelle vermischen Dokument und Lauf; ein zweiter Versuch überschreibt die Vorgeschichte und FR-038 verliert die Datengrundlage |
-| Zitatprüfung als eigener Schritt | FR-030 verlangt, dass die Passage die Aussage stützt | Dem Modell zu vertrauen ist genau die Variante, die FR-030 ausschließt |
+| Zitatprüfung als eigener Schritt | FR-030 verlangt eine deterministisch prüfbare Herkunft und einen wörtlich vorhandenen Auszug | Nur der Modellmarke zu vertrauen würde Herkunft und Wortlaut ungeprüft lassen; die semantische Belegtreue wird separat berichtet |
+
+## Demo-Ausnahme: Storage-Bereinigung
+
+**Entscheidung des Maintainers vom 2026-09-19**: Die physische Bereinigung möglicher verwaister Storage-Objekte nach Upload-Abbruch oder vollständiger Notebook-Löschung ist nicht Teil der Demo-Abnahme. Datenbankobjekte werden weiterhin gelöscht; die Quelllöschung nach FR-031 entfernt weiterhin ihre Datei und Abschnitte.
+
+**Grund**: Eine robuste transaktionale Bereinigung über Datenbank und Storage würde einen zusätzlichen Wiederholungs- und Reparaturmechanismus erfordern, der für den Interview-Demoablauf keinen sichtbaren Kernnutzen liefert.
+
+**Auswirkung**: Private, nicht mehr referenzierte Objekte können bis zum Zurücksetzen des Demo-Projekts im Bucket verbleiben. Dieser Stand ist nicht produktionsreif.
+
+**Rückweg**: Vor einer produktiven Nutzung werden ein idempotenter Storage-Cleanup und ein Integrationstest für Notebook-Löschung ergänzt.

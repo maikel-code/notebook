@@ -18,15 +18,18 @@ Der Maintainer verantwortet Entscheidungen und Abnahme der KI-gestützten Entwic
 - Notebooks und zugehörige Dokumente, Textabschnitte, Einbettungen und Chats MÜSSEN gegen unberechtigten Zugriff geschützt sein.
 - Berechtigungen MÜSSEN in Datenbank (RLS), Storage, Retrieval und Hintergrundverarbeitung wirksam bleiben.
 - Privilegierte Zugriffe MÜSSEN serverseitig, begründet und auf den autorisierten Verarbeitungskontext beschränkt sein.
-- Jede Zugriffsgrenze MUSS mit berechtigtem, fremdem und anonymem Benutzer geprüft sein. Neue oder geänderte Zugriffspfade brauchen passende Tests.
+- Für das Demo MUSS eine feste Zugriffsmatrix genau die Pfade Notebook-Seite plus `renameNotebook`, Storage-Download, `POST /api/chat` und `GET /api/jobs/status` jeweils mit berechtigtem, fremdem und anonymem Zugriff prüfen.
+- Interne Verarbeitungsendpunkte MÜSSEN mit gültigem, fehlendem und ungültigem Aufrufgeheimnis geprüft sein. Ein zusätzlicher Cross-User-Test MUSS zeigen, dass der privilegierte Verarbeitungslauf im Eigentümerkontext des Auftrags bleibt.
+- Einzelne RLS-Tabellen und weitere Server Actions brauchen keine eigene Dreifachprüfung, wenn sie denselben zentralen Autorisierungsweg wie ein Matrixfall verwenden. Neue Autorisierungswege brauchen einen zusätzlichen Matrixfall.
 - Geheimnisse DÜRFEN NICHT in Client-Bundles, Repository oder Logs gelangen; ihre Bereitstellung erfolgt über serverseitig verwaltete Secret-Quellen.
 
 Nachweis: Tests zeigen erlaubte und verweigerte Zugriffe und würden einen Ausfall der geprüften Schutzmaßnahme erkennen.
 
 ### III. Quellengebundene, ehrliche Antworten
 
-- Quellenangaben MÜSSEN auf gespeicherte Originalstellen auflösbar sein und die zugeordnete Aussage inhaltlich stützen.
-- Fehlende oder unpassende Belege gelten als Qualitätsfehler. Unzureichende Belege und erkannte Widersprüche MÜSSEN sichtbar werden.
+- Angezeigte Quellenangaben MÜSSEN technisch auf die ausgewählte gespeicherte Originalstelle auflösbar sein; ihr gespeicherter Wortlaut MUSS dort vorkommen. Für entfernte Quellen gilt der ausdrücklich gekennzeichnete historische Belegfall aus der Spezifikation.
+- Die inhaltliche Stützung einer Aussage und die ehrliche Einschränkung bei fehlender Beleglage werden für das Demo probabilistisch am Referenzdatensatz gemessen und getrennt von den deterministischen Integritätsprüfungen berichtet.
+- Fehlende oder unpassende Belege gelten als Qualitätsbefund. Unzureichende Belege und erkannte Widersprüche MÜSSEN sichtbar werden.
 - Dokumentinhalte und Metadaten MÜSSEN als nicht vertrauenswürdige Daten behandelt werden; darin enthaltene Anweisungen DÜRFEN KEINE System- oder Zugriffsregeln überschreiben.
 
 Nachweis: Zitatauflösung, Belegtreue, unbeantwortbare Fragen und Anweisungsversuche in Dokumenten sind im Referenzdatensatz abgedeckt.
@@ -75,7 +78,7 @@ Nachweis: Setup in frischer Umgebung und erneute Verarbeitung derselben Eingabe 
 1. **Abgrenzung:** Änderung und zugehöriger Nutzerablauf oder Korrektur sind benannt.
 2. **Prüfkriterien:** Akzeptanzkriterien und Risiken stehen vor der Implementierung fest.
 3. **Automatisierte Prüfung:** Die vor der Implementierung in `plan.md` festgelegten Prüfkommandos für Typprüfung, Linting und Tests MÜSSEN erfolgreich durchlaufen. Geänderte Migrationen MÜSSEN geprüft werden. Der implementierende Agent DARF den Prüfumfang nicht eigenständig reduzieren. Fehlende Prüfkommandos sind vor Implementierungsbeginn festzulegen.
-4. **Zugriffsprüfung:** Neue oder geänderte Zugriffspfade haben positive und negative Tests; bestehende Schutztests bestehen weiterhin.
+4. **Zugriffsprüfung:** Die in Prinzip II festgelegte Demo-Zugriffsmatrix und die Tests der internen Verarbeitungsendpunkte bestehen. Neue oder geänderte öffentlich erreichbare Zugriffspfade erweitern die Matrix.
 5. **Review:** Maintainer oder getrennte Agenteninstanz prüft die Änderung. Der Autor ist nicht alleiniger Prüfer.
 6. **Nachweis:** Ausgeführte Prüfungen, Ergebnisse und offene Einschränkungen sind dokumentiert.
 
@@ -88,4 +91,4 @@ Nachweis: Setup in frischer Umgebung und erneute Verarbeitung derselben Eingabe 
 - Änderungen brauchen eine vorgeschlagene Fassung, Begründung, Folgenprüfung und Maintainer-Entscheidung. Betroffene Artefakte werden angepasst.
 - Versionierung: MAJOR bei Aufhebung oder Neudefinition eines Prinzips, MINOR bei Erweiterung, PATCH bei bedeutungsgleicher Klarstellung.
 
-**Version**: 2.0.0 | **Ratified**: 2026-09-14 | **Last Amended**: 2026-09-14
+**Version**: 2.1.0 | **Ratified**: 2026-09-14 | **Last Amended**: 2026-09-19

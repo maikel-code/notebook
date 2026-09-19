@@ -11,6 +11,7 @@ Zwei Arten von Schnittstellen. **Server Actions** für alles, was ein Formular a
 - Ohne Sitzung: `401`, keine Inhalte (FR-005).
 - Grenzwertverletzung: `422` mit Nennung der verletzten Bedingung (FR-010).
 - Fehlermeldungen enthalten niemals Dokumentinhalt, Zugangsdaten oder personenbezogene Daten (FR-038).
+- Solange im betroffenen Notebook eine Nachricht auf `streaming` steht, lehnen `deleteNotebook` und `deleteSource` mit `409` und einem verständlichen Konflikthinweis ab (FR-035).
 
 ## Server Actions
 
@@ -27,7 +28,7 @@ Zwei Arten von Schnittstellen. **Server Actions** für alles, was ein Formular a
 
 ### `prepareUpload` — Dublettenerkennung
 
-Wird **vor** dem Übertragen der Datei aufgerufen. Der Client berechnet die Prüfsumme des Dateiinhalts.
+Wird **vor** dem Übertragen der Datei aufgerufen. Der Client berechnet die Prüfsumme des Dateiinhalts. Bei bereits 30 Quellen im Notebook antwortet die Aktion mit `rejected` und nennt die verletzte Grenze.
 
 `decision` nimmt einen von drei Werten an:
 
@@ -58,7 +59,7 @@ Erzeugt eine Antwort und liefert sie als Strom (FR-019, FR-020).
 | keine einschlägige Passage gefunden | Erklärung, dass die Quellen dazu nichts hergeben |
 | Frage über 2.000 Zeichen | `422` mit Nennung der Grenze |
 
-**Abbruch**: Bricht der Client die Verbindung ab, endet die Erzeugung und die Nachricht erhält den Zustand `aborted` (FR-020a). Fällt der Anbieter aus, wird `failed` gesetzt und ein erneuter Versuch angeboten (FR-025). In beiden Fällen bleibt die Teilantwort sichtbar, aber als unvollständig gekennzeichnet.
+**Abbruch**: Bricht der Client die Verbindung ab, wird die Modellanforderung beendet und die Nachricht erhält den Zustand `aborted` (FR-020a). Fällt der Anbieter aus, wird `failed` gesetzt und ein erneuter Versuch angeboten (FR-025). In beiden Fällen bleibt die Teilantwort sichtbar, aber als unvollständig gekennzeichnet; die Sperre des Notebooks endet mit dem Zustandswechsel.
 
 **Sperre**: Solange eine Nachricht des Notebooks im Zustand `streaming` ist, weist ein weiterer Aufruf mit `409` ab. Die Oberfläche sperrt die Eingabe bereits vorher; die Prüfung im Server ist die verbindliche (FR-020a).
 
