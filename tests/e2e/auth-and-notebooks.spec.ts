@@ -25,7 +25,6 @@ test("register, manage an own notebook, and sign out", async ({ page }) => {
   await page.getByRole("button", { name: "Notebook anlegen" }).click()
   const createError = page.locator("#create-notebook-name-error")
   await expect(createError).toBeVisible()
-  await expect(createError).toHaveAttribute("id", "create-notebook-name-error")
   await expect(createInput).toHaveAttribute("aria-describedby", "create-notebook-name-error")
   await expect(createInput).toHaveAttribute("aria-invalid", "true")
 
@@ -41,7 +40,6 @@ test("register, manage an own notebook, and sign out", async ({ page }) => {
   await page.getByRole("button", { name: "Umbenennen" }).click()
   const renameError = page.locator("#rename-notebook-name-error")
   await expect(renameError).toBeVisible()
-  await expect(renameError).toHaveAttribute("id", "rename-notebook-name-error")
   await expect(renameInput).toHaveAttribute("aria-describedby", "rename-notebook-name-error")
   await expect(renameInput).toHaveAttribute("aria-invalid", "true")
 

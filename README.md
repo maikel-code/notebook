@@ -6,7 +6,7 @@ Der freigegebene Umfang und der vollständige Prüfweg stehen unter
 
 ## Voraussetzungen
 
-- Node.js 22 LTS (`.nvmrc`; auf diesem Rechner: `/opt/homebrew/opt/node@22/bin/node`)
+- Node.js 22 LTS (`.nvmrc`; auf diesem Rechner: `/opt/homebrew/opt/node@22/bin/node`; das versionskontrollierte Vorabskript erzwingt Node 22)
 - pnpm 11.x
 - Docker
 - Supabase CLI
@@ -29,7 +29,7 @@ versioniert.
 ## Lokale Datenbank und Cloud
 
 Entwicklung und Tests verwenden ausschließlich die lokale Supabase-Instanz.
-`pnpm db:reset` ruft ohne Remote-Option `supabase db reset` auf und leert nur
+`pnpm db:reset` ruft explizit `supabase db reset --local` auf und leert nur
 diese lokale Instanz.
 
 Die Cloud ist ausschließlich Veröffentlichungsziel:

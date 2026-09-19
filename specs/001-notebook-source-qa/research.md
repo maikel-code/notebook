@@ -110,7 +110,7 @@ SC-010 braucht deshalb drei getrennte Prüffälle, nicht einen.
 
 **Decision**: Node 22 LTS, gepinnt über `.nvmrc` und `engines`.
 
-**Rationale**: Lokal läuft v25.4.0, eine ungerade Ausgabe ohne Langzeitunterstützung. Prinzip VII verlangt benannte Voraussetzungen.
+**Rationale**: Lokal steht Node 22.14.0 bereit; der versionskontrollierte Prüfschritt verhindert Projektläufe mit einer abweichenden Hauptversion. Prinzip VII verlangt benannte Voraussetzungen.
 
 **Alternatives**: v25 nutzen — spart heute einen Schritt, kostet später die Frage, warum etwas nur auf einem Rechner läuft.
 

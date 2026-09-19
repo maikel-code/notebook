@@ -99,6 +99,11 @@ Voraussetzungen; die ACL-Prüfung ermittelt den Datenbankcontainer aus
 PATH=/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/usr/local/bin:$PATH pnpm test:integration
 ```
 
+`scripts/check-node-version.mjs` läuft vor Installationen und allen
+Projektbefehlen. Es verweigert Node-Versionen außerhalb der in `.nvmrc` und
+`package.json` festgelegten Node-22-Linie. `pnpm db:reset` nutzt ebenfalls
+ausschließlich `supabase db reset --local`.
+
 `pnpm eval`, `pnpm calibrate:retrieval` und `pnpm perf` gehören bewusst nicht zu den Toren. Ihre Ergebnisse hängen von externen Modellen oder der Umgebung ab. Der Kalibrierlauf erzeugt nur einen Vorschlag; erst der vom Maintainer freigegebene Wert wird mit Modell-, Datensatz- und Chunk-Fingerprint in `eval/dataset/retrieval-calibration.json` versioniert. `pnpm test` prüft danach deterministisch Schema, Fingerprints sowie Scores unterhalb, auf und oberhalb dieses Werts (D-17).
 
 Neu kalibriert wird nur bei Änderungen an Einbettungsmodell, Distanzmaß, Chunk-Konfiguration oder Referenzdatensatz. Die Laufzeit schreibt das Artefakt nie selbst um.

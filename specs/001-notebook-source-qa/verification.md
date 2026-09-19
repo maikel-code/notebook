@@ -107,3 +107,41 @@ Supabase-Datenbank und benötigt deshalb Docker CLI, lokale Supabase-Instanz und
 `.env.local`. Die Default-ACLs der Supabase-internen Rollen bleiben unverändert,
 weil Projektmigrationen diese Rollen nicht verwalten dürfen; dafür bleibt die
 bereits genannte Plattformrichtlinie erforderlich.
+
+## Dritte Korrekturschleife zu ec98f84 — 2026-09-19
+
+**Umfang:** Re-Review-Befunde ausschließlich in T001–T040. T041 und spätere
+Aufgaben blieben unverändert.
+
+| Befund | Korrektur | Nachweis |
+| --- | --- | --- |
+| P1 | Bestehende Trigger-Funktion wird mit `has_function_privilege` für `public`, `anon` und `authenticated` geprüft. | transaktionaler simulierte-PUBLIC-Grant-Test |
+| P2 | Default-ACLs erkennen auch die leere PUBLIC-Grantee-Schreibweise `=X/...`. | transaktionaler simulierte-PUBLIC-Default-Grant-Test |
+| P3 | Veraltete Node-25-Abweichung im Plan entfernt; Vorabskript erzwingt Node 22 vor Installationen und Projektbefehlen. | Node 25 lehnt ab, Node 22.14.0 führt Gates aus |
+| P4 | Reset-Lock übernimmt nur atomar umbenannte verwaiste Lock-Verzeichnisse; Warte- und Stale-Schwellen sind getrennt. API-URL, DB-Port und Projekt-ID werden vor und nach `--local` validiert. | vollständiger Integrationslauf |
+| P5 | E2E prüft nur die Wirkung der Fehler-ID über `aria-describedby` und `aria-invalid`. | Chromium-E2E |
+
+**Regressionsnachweis P1/P2:** Innerhalb zurückgerollter Transaktionen erzeugen
+`GRANT ... TO PUBLIC` und ein PUBLIC-Default-Grant nachweisbar `true` für alle
+drei Funktionsprüfungen beziehungsweise `=X/postgres` in der Funktions-ACL.
+Ein Rückbau der zugehörigen REVOKEs lässt damit die produktiven ACL-Tests rot
+werden, ohne die lokale Datenbank dauerhaft zu verändern.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| Node-22-Vorabskript unter System-Node 25.4.0 | erwartete Ablehnung |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich; 55 Dateien geprüft |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm test:integration` | erfolgreich; lokaler Reset mit Projekt-/Port-/URL-Validierung, 8 Dateien, 34 Tests |
+| `pnpm test:e2e` | erfolgreich; 1 Chromium-Ablauf |
+| `pnpm build` | erfolgreicher Next.js-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
+
+**Offene Risiken:** Der Reset bleibt absichtlich auf die lokale Instanz
+beschränkt und benötigt Docker CLI, lokale Supabase-Instanz und `.env.local`.
+Die Default-ACLs Supabase-interner Rollen liegen weiterhin außerhalb des
+Änderungsrechts von Projektmigrationen. Ein erster Chromium-Lauf unmittelbar
+nach einem lokalen Dienst-Neustart erhielt eine transiente Registrierungs-
+ablehnung; der unveränderte Wiederholungslauf bestand. Bei parallelen lokalen
+Prüfungen sollte deshalb kein weiterer Supabase-Reset neben dem E2E-Lauf starten.
