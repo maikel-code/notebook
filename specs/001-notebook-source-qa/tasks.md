@@ -107,38 +107,38 @@ Ein Next.js-Projekt im Wurzelverzeichnis: `app/`, `components/`, `lib/`, `supaba
 
 ### Tests for User Story 2
 
-- [ ] T041 [P] [US2] Ablehnung für beschädigtes, leeres, passwortgeschütztes oder Nicht-PDF, über 10 MB, über 50 Seiten und 31. zusätzliche Quelle in `tests/integration/ingestion-rejects.test.ts` zuerst fehlschlagend abbilden
-- [ ] T042 [P] [US2] Scan ohne extrahierbaren Text endet `unusable` und nie `ready` in `tests/integration/ingestion-scan.test.ts` zuerst fehlschlagend abbilden
-- [ ] T043 [P] [US2] Wiederholte Verarbeitung ersetzt Chunks atomar und erzeugt weder doppelte Chunks noch Quellen in `tests/integration/ingestion-idempotent.test.ts` zuerst fehlschlagend abbilden
-- [ ] T044 [P] [US2] Drei automatische Versuche, sichtbarer Endzustand `failed` und manueller Neustart bei Versuch 0 in `tests/integration/ingestion-retries.test.ts` zuerst fehlschlagend abbilden
-- [ ] T045 [P] [US2] `/api/jobs/run` und `/api/jobs/sweep` mit gültigem, fehlendem und ungültigem Geheimnis sowie Cross-User-Dienstrollenlauf in `tests/integration/ingestion-job-access.test.ts` zuerst fehlschlagend abbilden
-- [ ] T046 [P] [US2] `GET /api/jobs/status` für Eigentümer, fremdes Konto, anonymen Zugriff und nicht vorhandene Notebook-ID in `tests/integration/access-job-status.test.ts` zuerst fehlschlagend abbilden
-- [ ] T047 [P] [US2] Storage-Zugriffe in `tests/integration/access-storage.test.ts` als deterministischen Verifikationsnachweis für T021 abbilden: Eigentümer darf ein PDF mit exakt `MAX_FILE_BYTES` unter eigenem Pfad neu anlegen und abrufen; fremdes Konto und anonymer Client dürfen denselben bekannten Pfad weder schreiben noch lesen; ein nicht vorhandener Pfad liefert dieselbe negative Antwort; direkte Browser-Updates und -Löschungen, Dateien mit `MAX_FILE_BYTES + 1` und andere MIME-Arten werden abgelehnt
-- [ ] T048 [P] [US2] `prepareUpload`, `confirmUpload` und `cancelUpload` für Eigentümer, fremdes Konto, anonymen Zugriff und nicht vorhandene Notebook-/Source-ID sowie Dublettenoptionen `replace · add · cancel`, fremde und fehlende `replaceSourceId`, Ersatz bei 30 Quellen und unveränderte Altquelle bei Upload-Abbruch in `tests/integration/upload-replacement.test.ts` zuerst fehlschlagend abbilden
-- [ ] T049 [P] [US2] `confirmUpload` prüft Existenz, Größe und Hash, wechselt Quelle und Auftrag atomar und erzeugt bei Wiederholung keinen zweiten Auftrag in `tests/integration/upload-confirmation.test.ts` zuerst fehlschlagend abbilden
-- [ ] T050 [P] [US2] Upload, Statuswechsel ohne Reload, verständliche Fehlerursache und Retry in `tests/e2e/source-ingestion.spec.ts` zuerst fehlschlagend abbilden
+- [X] T041 [P] [US2] Ablehnung für beschädigtes, leeres, passwortgeschütztes oder Nicht-PDF, über 10 MB, über 50 Seiten und 31. zusätzliche Quelle in `tests/integration/ingestion-rejects.test.ts` zuerst fehlschlagend abbilden
+- [X] T042 [P] [US2] Scan ohne extrahierbaren Text endet `unusable` und nie `ready` in `tests/integration/ingestion-scan.test.ts` zuerst fehlschlagend abbilden
+- [X] T043 [P] [US2] Wiederholte Verarbeitung ersetzt Chunks atomar und erzeugt weder doppelte Chunks noch Quellen in `tests/integration/ingestion-idempotent.test.ts` zuerst fehlschlagend abbilden
+- [X] T044 [P] [US2] Drei automatische Versuche, sichtbarer Endzustand `failed` und manueller Neustart bei Versuch 0 in `tests/integration/ingestion-retries.test.ts` zuerst fehlschlagend abbilden
+- [X] T045 [P] [US2] `/api/jobs/run` und `/api/jobs/sweep` mit gültigem, fehlendem und ungültigem Geheimnis sowie Cross-User-Dienstrollenlauf in `tests/integration/ingestion-job-access.test.ts` zuerst fehlschlagend abbilden
+- [X] T046 [P] [US2] `GET /api/jobs/status` für Eigentümer, fremdes Konto, anonymen Zugriff und nicht vorhandene Notebook-ID in `tests/integration/access-job-status.test.ts` zuerst fehlschlagend abbilden
+- [X] T047 [P] [US2] Storage-Zugriffe in `tests/integration/access-storage.test.ts` als deterministischen Verifikationsnachweis für T021 abbilden: Eigentümer darf ein PDF mit exakt `MAX_FILE_BYTES` unter eigenem Pfad neu anlegen und abrufen; fremdes Konto und anonymer Client dürfen denselben bekannten Pfad weder schreiben noch lesen; ein nicht vorhandener Pfad liefert dieselbe negative Antwort; direkte Browser-Updates und -Löschungen, Dateien mit `MAX_FILE_BYTES + 1` und andere MIME-Arten werden abgelehnt
+- [X] T048 [P] [US2] `prepareUpload`, `confirmUpload` und `cancelUpload` für Eigentümer, fremdes Konto, anonymen Zugriff und nicht vorhandene Notebook-/Source-ID sowie Dublettenoptionen `replace · add · cancel`, fremde und fehlende `replaceSourceId`, Ersatz bei 30 Quellen und unveränderte Altquelle bei Upload-Abbruch in `tests/integration/upload-replacement.test.ts` zuerst fehlschlagend abbilden
+- [X] T049 [P] [US2] `confirmUpload` prüft Existenz, Größe und Hash, wechselt Quelle und Auftrag atomar und erzeugt bei Wiederholung keinen zweiten Auftrag in `tests/integration/upload-confirmation.test.ts` zuerst fehlschlagend abbilden
+- [X] T050 [P] [US2] Upload, Statuswechsel ohne Reload, verständliche Fehlerursache und Retry in `tests/e2e/source-ingestion.spec.ts` zuerst fehlschlagend abbilden
 
 ### Implementation for User Story 2
 
-- [ ] T051 [P] [US2] SHA-256-Prüfsumme des Dateiinhalts statt des Dateinamens in `lib/upload/hash.ts` implementieren
-- [ ] T052 [P] [US2] PDF serverseitig nach Dateisignatur, Passwortschutz, Beschädigung, 10-MB-Grenze und 50-Seiten-Grenze in `lib/ingestion/validate-pdf.ts` prüfen
-- [ ] T053 [P] [US2] Seitenweisen Text mit pdf.js und Seitenzahl in `lib/ingestion/extract.ts` extrahieren
-- [ ] T054 [P] [US2] Chunks mit `ordinal`, `page_start`, `page_end`, `content` und `char_count` in `lib/ingestion/chunk.ts` erzeugen; Seitenwerte unterscheiden sich nur beim Seitenumbruch
-- [ ] T055 [P] [US2] Einbettungen über OpenAI `text-embedding-3-small` in `lib/ingestion/embed.ts` erzeugen
-- [ ] T056 [US2] `prepareUpload` mit `ok · duplicate · rejected`, Limit 30, `intent: add | replace`, Eigentümer-/Hash-Prüfung und Ersatz-Entwurf mit `replaces_source_id` in `app/notebooks/[notebookId]/actions.ts` implementieren; bei `ok` nur `sourceId` und den eigentümergebundenen Storage-Pfad `{user_id}/{notebook_id}/{source_id}.pdf` zurückgeben
-- [ ] T057 [US2] `cancelUpload` nur für eigene `uploading`-Entwürfe ohne Auftrag und ohne Änderung der Altquelle in `app/notebooks/[notebookId]/actions.ts` implementieren
-- [ ] T058 [US2] `confirmUpload` idempotent mit serverseitiger Existenz-, Größen- und Hash-Prüfung sowie gesperrter Transaktion für Quellenwechsel und genau einen Auftrag in `app/notebooks/[notebookId]/actions.ts` implementieren
-- [ ] T059 [US2] Alten Storage-Pfad aus `cleanup_storage_path` idempotent löschen und „nicht vorhanden“ als Erfolg behandeln in `lib/ingestion/cleanup.ts`
-- [ ] T060 [US2] Chunks einer Quelle in derselben Transaktion löschen und neu schreiben in `lib/ingestion/persist.ts`
-- [ ] T061 [US2] Auftrag mit `FOR UPDATE SKIP LOCKED` im Eigentümerkontext beanspruchen und Phasen `cleanup → extract → chunk → embed → finalize` in `lib/ingestion/run-job.ts` implementieren
-- [ ] T062 [US2] Internen, nur mit `JOB_TRIGGER_SECRET` erreichbaren Aufruf in `app/api/jobs/run/route.ts` implementieren
-- [ ] T063 [US2] Hängende Jobs über 5 Minuten sowie vorgemerkte Wiederholungen im Eigentümerkontext in `app/api/jobs/sweep/route.ts` einsammeln
-- [ ] T064 [US2] Lokalen einmaligen und wiederkehrenden Sweep-Aufruf in `scripts/sweep.ts` implementieren
-- [ ] T065 [US2] Eigentümergebundene Statusausgabe ohne `cleanup_storage_path` oder Dokumentinhalt in `app/api/jobs/status/route.ts` implementieren
-- [ ] T066 [US2] `retryIngestion` nur für eigene Quelle im Zustand `failed` mit neuem Auftrag und Versuch 0 in `app/notebooks/[notebookId]/actions.ts` implementieren
-- [ ] T067 [US2] Quellenliste mit `wird verarbeitet · bereit · fehlgeschlagen · nicht nutzbar`, wobei `uploading` und `processing` beide „wird verarbeitet“ heißen, in `components/notebook/source-list.tsx` implementieren
-- [ ] T068 [P] [US2] Polling nur solange ein Auftrag offen ist in `components/notebook/use-job-status.ts` implementieren
-- [ ] T069 [US2] Uploadfeld und Dublettenentscheidung in `components/notebook/source-upload.tsx` implementieren; die Datei über den authentifizierten Supabase-Browser-Client unter Storage-RLS in den privaten Bucket laden, danach `confirmUpload` aufrufen und Lade-, Abbruch-, Erfolgs- und Fehlerzustände darstellen; keine öffentliche URL erzeugen, Upload-Abbruch ruft `cancelUpload` auf und lässt die Altquelle unverändert
+- [X] T051 [P] [US2] SHA-256-Prüfsumme des Dateiinhalts statt des Dateinamens in `lib/upload/hash.ts` implementieren
+- [X] T052 [P] [US2] PDF serverseitig nach Dateisignatur, Passwortschutz, Beschädigung, 10-MB-Grenze und 50-Seiten-Grenze in `lib/ingestion/validate-pdf.ts` prüfen
+- [X] T053 [P] [US2] Seitenweisen Text mit pdf.js und Seitenzahl in `lib/ingestion/extract.ts` extrahieren
+- [X] T054 [P] [US2] Chunks mit `ordinal`, `page_start`, `page_end`, `content` und `char_count` in `lib/ingestion/chunk.ts` erzeugen; Seitenwerte unterscheiden sich nur beim Seitenumbruch
+- [X] T055 [P] [US2] Einbettungen über OpenAI `text-embedding-3-small` in `lib/ingestion/embed.ts` erzeugen
+- [X] T056 [US2] `prepareUpload` mit `ok · duplicate · rejected`, Limit 30, `intent: add | replace`, Eigentümer-/Hash-Prüfung und Ersatz-Entwurf mit `replaces_source_id` in `app/notebooks/[notebookId]/actions.ts` implementieren; bei `ok` nur `sourceId` und den eigentümergebundenen Storage-Pfad `{user_id}/{notebook_id}/{source_id}.pdf` zurückgeben
+- [X] T057 [US2] `cancelUpload` nur für eigene `uploading`-Entwürfe ohne Auftrag und ohne Änderung der Altquelle in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [X] T058 [US2] `confirmUpload` idempotent mit serverseitiger Existenz-, Größen- und Hash-Prüfung sowie gesperrter Transaktion für Quellenwechsel und genau einen Auftrag in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [X] T059 [US2] Alten Storage-Pfad aus `cleanup_storage_path` idempotent löschen und „nicht vorhanden“ als Erfolg behandeln in `lib/ingestion/cleanup.ts`
+- [X] T060 [US2] Chunks einer Quelle in derselben Transaktion löschen und neu schreiben in `lib/ingestion/persist.ts`
+- [X] T061 [US2] Auftrag mit `FOR UPDATE SKIP LOCKED` im Eigentümerkontext beanspruchen und Phasen `cleanup → extract → chunk → embed → finalize` in `lib/ingestion/run-job.ts` implementieren
+- [X] T062 [US2] Internen, nur mit `JOB_TRIGGER_SECRET` erreichbaren Aufruf in `app/api/jobs/run/route.ts` implementieren
+- [X] T063 [US2] Hängende Jobs über 5 Minuten sowie vorgemerkte Wiederholungen im Eigentümerkontext in `app/api/jobs/sweep/route.ts` einsammeln
+- [X] T064 [US2] Lokalen einmaligen und wiederkehrenden Sweep-Aufruf in `scripts/sweep.ts` implementieren
+- [X] T065 [US2] Eigentümergebundene Statusausgabe ohne `cleanup_storage_path` oder Dokumentinhalt in `app/api/jobs/status/route.ts` implementieren
+- [X] T066 [US2] `retryIngestion` nur für eigene Quelle im Zustand `failed` mit neuem Auftrag und Versuch 0 in `app/notebooks/[notebookId]/actions.ts` implementieren
+- [X] T067 [US2] Quellenliste mit `wird verarbeitet · bereit · fehlgeschlagen · nicht nutzbar`, wobei `uploading` und `processing` beide „wird verarbeitet“ heißen, in `components/notebook/source-list.tsx` implementieren
+- [X] T068 [P] [US2] Polling nur solange ein Auftrag offen ist in `components/notebook/use-job-status.ts` implementieren
+- [X] T069 [US2] Uploadfeld und Dublettenentscheidung in `components/notebook/source-upload.tsx` implementieren; die Datei über den authentifizierten Supabase-Browser-Client unter Storage-RLS in den privaten Bucket laden, danach `confirmUpload` aufrufen und Lade-, Abbruch-, Erfolgs- und Fehlerzustände darstellen; keine öffentliche URL erzeugen, Upload-Abbruch ruft `cancelUpload` auf und lässt die Altquelle unverändert
 
 **Checkpoint**: US2 nimmt Dokumente verlässlich auf und zeigt alle Fehler- und Ersatzpfade.
 

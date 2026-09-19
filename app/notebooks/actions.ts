@@ -6,6 +6,14 @@ import { notFound, redirect } from "next/navigation"
 import { requireUser } from "@/lib/auth/authorize"
 import { HttpError } from "@/lib/http/errors"
 import {
+  cancelUploadForContext,
+  confirmUploadForContext,
+  type PrepareUploadInput,
+  type PrepareUploadResult,
+  prepareUploadForContext,
+  retryIngestionForContext,
+} from "@/lib/ingestion/upload"
+import {
   createNotebookForContext,
   deleteNotebookForContext,
   renameNotebookForContext,
@@ -90,4 +98,27 @@ export async function deleteNotebookAction(
 
   revalidatePath("/notebooks")
   redirect("/notebooks")
+}
+
+export async function prepareUpload(input: PrepareUploadInput): Promise<PrepareUploadResult> {
+  const { userId } = await requireUser()
+  return prepareUploadForContext({ userId }, input, createServiceSupabaseClient())
+}
+
+export async function confirmUpload(sourceId: string): Promise<void> {
+  const { userId } = await requireUser()
+  await confirmUploadForContext({ userId }, sourceId, createServiceSupabaseClient())
+  revalidatePath(`/notebooks`)
+}
+
+export async function cancelUpload(sourceId: string): Promise<void> {
+  const { userId } = await requireUser()
+  await cancelUploadForContext({ userId }, sourceId, createServiceSupabaseClient())
+  revalidatePath(`/notebooks`)
+}
+
+export async function retryIngestion(sourceId: string): Promise<void> {
+  const { userId } = await requireUser()
+  await retryIngestionForContext({ userId }, sourceId, createServiceSupabaseClient())
+  revalidatePath(`/notebooks`)
 }

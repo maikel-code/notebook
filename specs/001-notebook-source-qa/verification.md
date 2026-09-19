@@ -145,3 +145,36 @@ Die Default-ACLs Supabase-interner Rollen liegen weiterhin außerhalb des
 nach einem lokalen Dienst-Neustart erhielt eine transiente Registrierungs-
 ablehnung; der unveränderte Wiederholungslauf bestand. Bei parallelen lokalen
 Prüfungen sollte deshalb kein weiterer Supabase-Reset neben dem E2E-Lauf starten.
+
+## Phase 4 — Quellenaufnahme und Verarbeitungszustand — 2026-09-19
+
+**Umfang:** T041–T069. Die Aufnahme prüft serverseitig Signatur, Größe,
+Lesbarkeit, Passwortschutz und Seitenzahl. `confirm_source_upload`,
+`replace_source_chunks` und der Job-Claim laufen als versionierte,
+dienstrollenexklusive Datenbankfunktionen; jede Verarbeitung bleibt auf die
+`user_id` des beanspruchten Auftrags eingeschränkt. Diagnose protokolliert nur
+Korrelationskennung, Phase und stabilen Fehlercode.
+
+**Test-first:** Die zehn neuen Phase-4-Testdateien wurden vor den jeweiligen
+Modulen angelegt. Der erste Lauf scheiterte erwartungsgemäß an fehlenden
+Ingestion-Modulen; danach decken die Integrationstests die Zugriffsmatrix für
+Upload, Jobstatus, Storage und interne Auslöser, Dubletten/Quellenlimit und
+atomaren Chunk-Ersatz ab.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; zehn Migrationen frisch angewendet |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich; 86 Dateien geprüft |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm test:integration` | erfolgreich; frischer lokaler Reset, 17 Dateien, 48 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm build` | erfolgreich; Next-16-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer |
+| `pnpm dev` | erfolgreich; keine `middleware`-Deprecation |
+
+**Next 16:** `middleware.ts` wurde gemäß offiziellem Vertrag nach `proxy.ts`
+migriert und exportiert nun `proxy`. TypeScript bleibt bei 5.9.x: Der
+freigegebene Plan schreibt TypeScript 5.x vor; ein Upgrade auf TypeScript 7
+wäre eine unfreigegebene Stackänderung und benötigt in Next 16.3 zusätzlich
+den experimentellen TypeScript-CLI-Schalter.
