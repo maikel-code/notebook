@@ -48,8 +48,8 @@ begin
     return new;
   end if;
 
-  if (current_chunk_id is null) <> (current_source_id is null) then
-    raise exception 'citation chunk and source must both be present or both be historical';
+  if current_source_id is null and current_chunk_id is not null then
+    raise exception 'a cited chunk requires its source reference';
   end if;
 
   if current_chunk_id is not null then

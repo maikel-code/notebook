@@ -1,11 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
-import { conflictError, notFoundError, unauthorizedError, validationError } from "@/lib/http/errors"
+import { type RequestContext, requireOwnedNotebook } from "@/lib/auth/ownership"
+import { conflictError, unauthorizedError, validationError } from "@/lib/http/errors"
 
-export interface RequestContext {
-  userId: string
-}
+export type { RequestContext } from "@/lib/auth/ownership"
 
 export interface NotebookRecord {
   created_at: string
@@ -52,16 +51,7 @@ export async function getNotebookForContext(
   notebookId: string,
   service: SupabaseClient,
 ): Promise<NotebookRecord> {
-  const { userId } = requireContext(context)
-  const { data, error } = await service
-    .from("notebooks")
-    .select("id, user_id, name, created_at, updated_at")
-    .eq("id", notebookId)
-    .eq("user_id", userId)
-    .maybeSingle()
-
-  if (error || !data) throw notFoundError()
-  return data as NotebookRecord
+  return (await requireOwnedNotebook(context, notebookId, service)) as NotebookRecord
 }
 
 export async function createNotebookForContext(

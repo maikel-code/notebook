@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useActionState, useEffect, useState } from "react"
 
+import { deleteNotebookAction, type NotebookActionState } from "@/app/notebooks/actions"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,24 +16,22 @@ import {
 } from "@/components/ui/dialog"
 
 interface ConfirmDeleteDialogProps {
-  deleteAction: (formData: FormData) => Promise<never>
   notebookId: string
   notebookName: string
 }
 
-export function ConfirmDeleteDialog({
-  deleteAction,
-  notebookId,
-  notebookName,
-}: ConfirmDeleteDialogProps) {
+const initialState: NotebookActionState = {}
+
+export function ConfirmDeleteDialog({ notebookId, notebookName }: ConfirmDeleteDialogProps) {
   const [mounted, setMounted] = useState(false)
+  const [state, formAction, pending] = useActionState(deleteNotebookAction, initialState)
 
   useEffect(() => setMounted(true), [])
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button type="button" variant="destructive" disabled={!mounted}>
+        <Button type="button" variant="destructive" data-hydrated={mounted}>
           Notebook löschen
         </Button>
       </DialogTrigger>
@@ -49,11 +48,16 @@ export function ConfirmDeleteDialog({
               Abbrechen
             </Button>
           </DialogClose>
-          <form action={deleteAction}>
+          <form action={formAction} data-hydrated={mounted}>
             <input type="hidden" name="id" value={notebookId} />
             <input type="hidden" name="confirmed" value="true" />
-            <Button type="submit" variant="destructive">
-              Endgültig löschen
+            {state.error ? (
+              <p role="alert" className="mb-2 text-sm font-medium text-destructive">
+                {state.error}
+              </p>
+            ) : null}
+            <Button type="submit" variant="destructive" disabled={pending}>
+              {pending ? "Wird gelöscht…" : "Endgültig löschen"}
             </Button>
           </form>
         </DialogFooter>

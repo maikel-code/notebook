@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 import { z } from "zod"
 
+import { safeNotebookReturnPath } from "@/lib/auth/return-path"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 const credentialsSchema = z.object({
@@ -57,7 +58,7 @@ export async function signUpAction(
     return { error: "Das Konto konnte nicht angelegt werden." }
   }
 
-  redirect("/notebooks")
+  redirect(safeNotebookReturnPath(formData.get("next")))
 }
 
 export async function signInAction(
@@ -73,7 +74,7 @@ export async function signInAction(
     return { error: "E-Mail-Adresse oder Passwort ist falsch." }
   }
 
-  redirect("/notebooks")
+  redirect(safeNotebookReturnPath(formData.get("next")))
 }
 
 export async function signOutAction(): Promise<never> {

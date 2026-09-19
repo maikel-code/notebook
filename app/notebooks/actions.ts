@@ -1,9 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
 import { requireUser } from "@/lib/auth/authorize"
+import { HttpError } from "@/lib/http/errors"
 import {
   createNotebookForContext,
   deleteNotebookForContext,
@@ -11,43 +12,82 @@ import {
 } from "@/lib/notebooks/service"
 import { createServiceSupabaseClient } from "@/lib/supabase/service"
 
+export interface NotebookActionState {
+  error?: string
+}
+
 function stringField(formData: FormData, name: string): string {
   const value = formData.get(name)
   return typeof value === "string" ? value : ""
 }
 
-export async function createNotebook(formData: FormData): Promise<void> {
-  const { userId } = await requireUser()
-  await createNotebookForContext(
-    { userId },
-    stringField(formData, "name"),
-    createServiceSupabaseClient(),
-  )
-  revalidatePath("/notebooks")
+function actionError(error: unknown): NotebookActionState {
+  if (error instanceof HttpError) {
+    if (error.status === 401) redirect("/sign-in")
+    if (error.status === 404) notFound()
+    if (error.status === 409 || error.status === 422) return { error: error.message }
+  }
+
+  throw error
 }
 
-export async function renameNotebook(formData: FormData): Promise<void> {
-  const { userId } = await requireUser()
-  const notebookId = stringField(formData, "id")
-  await renameNotebookForContext(
-    { userId },
-    notebookId,
-    stringField(formData, "name"),
-    createServiceSupabaseClient(),
-  )
-  revalidatePath(`/notebooks/${notebookId}`)
-  revalidatePath("/notebooks")
+export async function createNotebookAction(
+  _previousState: NotebookActionState,
+  formData: FormData,
+): Promise<NotebookActionState> {
+  try {
+    const { userId } = await requireUser()
+    await createNotebookForContext(
+      { userId },
+      stringField(formData, "name"),
+      createServiceSupabaseClient(),
+    )
+    revalidatePath("/notebooks")
+    return {}
+  } catch (error) {
+    return actionError(error)
+  }
 }
 
-export async function deleteNotebook(formData: FormData): Promise<never> {
-  const { userId } = await requireUser()
+export async function renameNotebookAction(
+  _previousState: NotebookActionState,
+  formData: FormData,
+): Promise<NotebookActionState> {
   const notebookId = stringField(formData, "id")
-  await deleteNotebookForContext(
-    { userId },
-    notebookId,
-    stringField(formData, "confirmed") === "true",
-    createServiceSupabaseClient(),
-  )
+
+  try {
+    const { userId } = await requireUser()
+    await renameNotebookForContext(
+      { userId },
+      notebookId,
+      stringField(formData, "name"),
+      createServiceSupabaseClient(),
+    )
+    revalidatePath(`/notebooks/${notebookId}`)
+    revalidatePath("/notebooks")
+    return {}
+  } catch (error) {
+    return actionError(error)
+  }
+}
+
+export async function deleteNotebookAction(
+  _previousState: NotebookActionState,
+  formData: FormData,
+): Promise<NotebookActionState> {
+  try {
+    const { userId } = await requireUser()
+    const notebookId = stringField(formData, "id")
+    await deleteNotebookForContext(
+      { userId },
+      notebookId,
+      stringField(formData, "confirmed") === "true",
+      createServiceSupabaseClient(),
+    )
+  } catch (error) {
+    return actionError(error)
+  }
+
   revalidatePath("/notebooks")
   redirect("/notebooks")
 }

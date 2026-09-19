@@ -2,30 +2,14 @@ import "server-only"
 
 import type { User } from "@supabase/supabase-js"
 
-import { notFoundError, unauthorizedError } from "@/lib/http/errors"
+import { unauthorizedError } from "@/lib/http/errors"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { createServiceSupabaseClient } from "@/lib/supabase/service"
+
+export { type OwnedNotebook, type RequestContext, requireOwnedNotebook } from "@/lib/auth/ownership"
 
 export interface AuthorizationContext {
   user: User
   userId: string
-}
-
-export interface AuthorizedNotebook extends AuthorizationContext {
-  notebook: {
-    id: string
-    name: string
-    user_id: string
-  }
-}
-
-export interface AuthorizedSource extends AuthorizationContext {
-  source: {
-    id: string
-    notebook_id: string
-    status: string
-    user_id: string
-  }
 }
 
 export async function requireUser(): Promise<AuthorizationContext> {
@@ -40,38 +24,4 @@ export async function requireUser(): Promise<AuthorizationContext> {
   }
 
   return { user, userId: user.id }
-}
-
-export async function authorizeNotebook(notebookId: string): Promise<AuthorizedNotebook> {
-  const context = await requireUser()
-  const service = createServiceSupabaseClient()
-  const { data, error } = await service
-    .from("notebooks")
-    .select("id, name, user_id")
-    .eq("id", notebookId)
-    .eq("user_id", context.userId)
-    .maybeSingle()
-
-  if (error || !data) {
-    throw notFoundError()
-  }
-
-  return { ...context, notebook: data }
-}
-
-export async function authorizeSource(sourceId: string): Promise<AuthorizedSource> {
-  const context = await requireUser()
-  const service = createServiceSupabaseClient()
-  const { data, error } = await service
-    .from("sources")
-    .select("id, notebook_id, status, user_id")
-    .eq("id", sourceId)
-    .eq("user_id", context.userId)
-    .maybeSingle()
-
-  if (error || !data) {
-    throw notFoundError()
-  }
-
-  return { ...context, source: data }
 }

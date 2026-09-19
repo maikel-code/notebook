@@ -14,6 +14,7 @@ interface AuthFormProps {
   alternateHref: string
   alternateLabel: string
   description: string
+  nextPath?: string
   submitLabel: string
   title: string
 }
@@ -25,6 +26,7 @@ export function AuthForm({
   alternateHref,
   alternateLabel,
   description,
+  nextPath,
   submitLabel,
   title,
 }: AuthFormProps) {
@@ -41,7 +43,8 @@ export function AuthForm({
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={formAction} className="grid gap-5" noValidate>
+          <form action={formAction} className="grid gap-5" data-hydrated={mounted} noValidate>
+            {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
             <div className="grid gap-2">
               <Label htmlFor="email">E-Mail-Adresse</Label>
               <Input
@@ -84,7 +87,7 @@ export function AuthForm({
                 {state.error}
               </p>
             ) : null}
-            <Button type="submit" disabled={!mounted || pending}>
+            <Button type="submit" disabled={pending}>
               {pending ? "Bitte warten…" : submitLabel}
             </Button>
             <Button asChild variant="link">

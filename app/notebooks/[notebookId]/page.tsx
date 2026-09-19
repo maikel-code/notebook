@@ -1,12 +1,10 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 
-import { deleteNotebook, renameNotebook } from "@/app/notebooks/actions"
 import { ConfirmDeleteDialog } from "@/components/notebook/confirm-delete-dialog"
+import { RenameNotebookForm } from "@/components/notebook/notebook-forms"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { requireUser } from "@/lib/auth/authorize"
 import { HttpError } from "@/lib/http/errors"
 import { getNotebookForContext } from "@/lib/notebooks/service"
@@ -42,21 +40,7 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
             <CardDescription>Der Name ist nur für dich sichtbar.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={renameNotebook} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <input type="hidden" name="id" value={notebook.id} />
-              <div className="grid flex-1 gap-2">
-                <Label htmlFor="new-notebook-name">Neuer Notebook-Name</Label>
-                <Input
-                  id="new-notebook-name"
-                  name="name"
-                  defaultValue={notebook.name}
-                  minLength={1}
-                  maxLength={200}
-                  required
-                />
-              </div>
-              <Button type="submit">Umbenennen</Button>
-            </form>
+            <RenameNotebookForm notebookId={notebook.id} notebookName={notebook.name} />
           </CardContent>
         </Card>
 
@@ -66,11 +50,7 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
             <CardDescription>Diese Aktion entfernt alle zugehörigen Daten.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ConfirmDeleteDialog
-              deleteAction={deleteNotebook}
-              notebookId={notebook.id}
-              notebookName={notebook.name}
-            />
+            <ConfirmDeleteDialog notebookId={notebook.id} notebookName={notebook.name} />
           </CardContent>
         </Card>
       </main>

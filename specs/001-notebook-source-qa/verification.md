@@ -25,9 +25,48 @@ alte geschützte URL und die erneute Anmeldung ab. Die Integrationssuite deckt d
 Zugriffsmatrix, neutrale `404`-Antworten, direkte RLS-Grenzen aller sechs Tabellen,
 fremde Elternbeziehungen und die Löschkaskade ab.
 
-**Umgebungshinweise:** Das Projekt ist auf Node 22 festgeschrieben; die lokale
-Ausführungsumgebung verwendete Node 25.4.0 und meldete deshalb bei pnpm-Befehlen
-eine Engine-Warnung. Next.js 16.3.5 warnt, dass `middleware.ts` künftig `proxy.ts`
-heißt; T035 verlangt für diese Phase ausdrücklich `middleware.ts`. Die Supabase-
-CLI warnt vor dem künftig umzubenennenden lokalen Abschnitt `[inbucket]`. Keine
-dieser Warnungen hat einen Prüfablauf blockiert.
+## Korrekturschleife zu d72456f — 2026-09-19
+
+**Umfang:** Review-Befunde F1–F10 ausschließlich innerhalb von T001–T040.
+T041 und spätere Aufgaben blieben unverändert.
+
+| Befund | Korrektur | Nachweis |
+| --- | --- | --- |
+| F1 | Notebook-Aktionen verwenden `useActionState`, behandeln erwartete HTTP-Fehler und haben eine App-Fehlergrenze. | `notebook-server-actions.test.ts` |
+| F2 | Zitate behalten beim Chunk-Löschen die `source_id`; beim Source-Löschen werden beide Referenzen geleert. | `citation-reingestion.test.ts` |
+| F3 | Echte Server-Aktionen prüfen anonyme, eigene und fremde Zugriffe; manipulierte `user_id`-Formfelder werden ignoriert. | `notebook-server-actions.test.ts` |
+| F4 | `requireOwnedNotebook` ist die gemeinsame Eigentumsprüfung für Seite und Service. | `notebook-server-actions.test.ts` |
+| F5 | Neue Tabellen und Funktionen des Projekt-Migrations-Grantors starten mit widerrufenen Browser-Privilegien. | `default-privileges.test.ts` |
+| F6 | RLS-Schreibtests verwenden je Tabelle gültige, miteinander verknüpfte Datensätze. | `rls-write-boundaries.test.ts` |
+| F7 | `next` ist auf `/notebooks` und Notebook-UUID-Routen beschränkt. | `auth-return-path.test.ts`, E2E-Ablauf |
+| F8 | `agentRules: false` verhindert die AGENTS-Generierung durch `next dev`. | E2E-Lauf und leerer `git diff -- AGENTS.md` |
+| F9 | Hydrationsmarker blockieren keine Aktionen; nur tatsächlich ausstehende Übermittlungen sperren Buttons. | E2E-Ablauf |
+| F10 | Quickstart nennt `ANTHROPIC_API_KEY` und `OPENAI_API_KEY` getrennt. | Dokumentationsprüfung |
+
+**Test-first-Nachweis F2:** Vor der Trigger-Änderung schlug
+`pnpm test:integration -- tests/integration/citation-reingestion.test.ts` mit
+`P0001: citation chunk and source must both be present or both be historical`
+fehl. Nach der Änderung prüft derselbe Test den Chunk- und den anschließenden
+Source-Löschpfad erfolgreich.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich; 53 Dateien geprüft |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; neun Migrationen frisch angewendet |
+| `pnpm test:integration` | erfolgreich; 8 Dateien, 31 Tests |
+| `pnpm test:e2e` | erfolgreich; 1 Chromium-Ablauf |
+| `pnpm build` | erfolgreicher Next.js-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
+
+**Offen / Plattformgrenze F5:** Die Migration kann die Default-ACLs des
+Projekt-Migrations-Grantors `postgres` ändern. Supabase-interne Rollen wie
+`supabase_admin` dürfen aus einer Projektmigration nicht verändert werden
+(`must be member of role`). Tabellen oder Funktionen, die künftig unter solchen
+Rollen erstellt würden, benötigen deshalb eine platformseitige Privilegienrichtlinie.
+
+**Umgebungshinweise:** Next.js 16.3.5 warnt, dass `middleware.ts` künftig
+`proxy.ts` heißt; T035 verlangt für diese Phase ausdrücklich `middleware.ts`.
+Die Supabase-CLI warnt vor dem künftig umzubenennenden lokalen Abschnitt
+`[inbucket]`. Keine der Warnungen hat einen Prüfablauf blockiert.

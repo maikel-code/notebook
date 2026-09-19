@@ -37,10 +37,11 @@ Prüfläufe setzen die lokale Instanz zurück und leeren dabei den Entwicklungss
 | `NEXT_PUBLIC_SUPABASE_URL` | Adresse der Instanz | Browser |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Schlüssel für Zugriffe unter Zugriffsregeln | Browser |
 | `SUPABASE_SERVICE_ROLE_KEY` | erhöhte Rechte für den Verarbeitungslauf | **nur Server** |
-| `MODEL_PROVIDER_API_KEY` | Einbettungen und Antworten | **nur Server** |
+| `ANTHROPIC_API_KEY` | Antworterzeugung | **nur Server** |
+| `OPENAI_API_KEY` | Einbettungen | **nur Server** |
 | `JOB_TRIGGER_SECRET` | schützt `/api/jobs/run` und `/api/jobs/sweep` | **nur Server** |
 
-`MODEL_PROVIDER_API_KEY` steht für **zwei** Schlüssel: einen für die Antworterzeugung, einen für die Einbettungen (D-04).
+Antworterzeugung und Einbettungen nutzen getrennte Anbieter-Schlüssel (D-04).
 
 Die als „nur Server" markierten Werte dürfen weder im Browser-Bündel noch in Protokollen erscheinen (Prinzip II). Ein Name ohne das Präfix `NEXT_PUBLIC_` erreicht den Browser nicht — Variablen also nicht umbenennen.
 

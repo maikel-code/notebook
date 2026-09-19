@@ -2,11 +2,9 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { signOutAction } from "@/app/(auth)/actions"
-import { createNotebook } from "@/app/notebooks/actions"
+import { CreateNotebookForm } from "@/components/notebook/notebook-forms"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { requireUser } from "@/lib/auth/authorize"
 import { HttpError } from "@/lib/http/errors"
 import { listNotebooksForContext } from "@/lib/notebooks/service"
@@ -43,13 +41,7 @@ export default async function NotebooksPage() {
           <CardDescription>Ein eigener Bereich für Quellen und Fragen.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={createNotebook} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="grid flex-1 gap-2">
-              <Label htmlFor="notebook-name">Notebook-Name</Label>
-              <Input id="notebook-name" name="name" minLength={1} maxLength={200} required />
-            </div>
-            <Button type="submit">Notebook anlegen</Button>
-          </form>
+          <CreateNotebookForm />
         </CardContent>
       </Card>
 
