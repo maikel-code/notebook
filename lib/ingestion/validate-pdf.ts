@@ -25,7 +25,7 @@ export async function validatePdf(bytes: Uint8Array, _fileName: string): Promise
   }
 
   try {
-    const document = await getDocument({ data: bytes }).promise
+    const document = await getDocument({ data: bytes.slice() }).promise
     const pageCount = document.numPages
     document.cleanup()
     if (pageCount > MAX_PAGES) rejected("Die PDF-Datei darf höchstens 50 Seiten haben.")

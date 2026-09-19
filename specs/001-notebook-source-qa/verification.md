@@ -60,6 +60,16 @@ Source-Löschpfad erfolgreich.
 | `pnpm build` | erfolgreicher Next.js-Produktions-Build |
 | Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
 
+## Phase 4 — Zweite Review-Korrektur — 2026-09-19
+
+`prepare_source_upload` erlaubt pro Altquelle nur einen Ersatz-Entwurf; der
+Bestätigungsweg kann damit keinen per FK entkoppelten zweiten Entwurf als Zusatz
+verarbeiten. `ingestion_jobs.created_at` bestimmt die sichtbare aktuelle Phase
+explizit. Neue Integrationsfälle prüfen konkurrierenden Ersatz, textlosen Scan
+(`unusable`), drei Worker-Fehler mit Retry bei Versuch 0 und die neueste
+Jobphase. T041, T046, T047 und T050 sind wieder offen markiert, weil ihre
+vollständigen ausdrücklich geforderten Fälle noch nicht vorliegen.
+
 **Offen / Plattformgrenze F5:** Die Migration kann die Default-ACLs des
 Projekt-Migrations-Grantors `postgres` ändern. Supabase-interne Rollen wie
 `supabase_admin` dürfen aus einer Projektmigration nicht verändert werden

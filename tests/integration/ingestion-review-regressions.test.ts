@@ -215,4 +215,48 @@ trailer
     if (activeSourcesError) throw activeSourcesError
     expect(activeSources).toHaveLength(30)
   })
+
+  it("keeps one replacement draft under concurrent confirmations", async () => {
+    const notebookId = await createNotebookForContext(
+      testContext(fixture.owner),
+      "Concurrent replacement",
+      fixture.service,
+    )
+    const oldSourceId = crypto.randomUUID()
+    const { error: sourceError } = await fixture.service.from("sources").insert({
+      byte_size: 1,
+      content_hash: "d".repeat(64),
+      file_name: "old.pdf",
+      id: oldSourceId,
+      notebook_id: notebookId,
+      status: "ready",
+      storage_path: sourceStoragePath(fixture.owner.id, notebookId, oldSourceId),
+      user_id: fixture.owner.id,
+    })
+    if (sourceError) throw sourceError
+    const input = () => ({
+      byteSize: 1,
+      contentHash: "d".repeat(64),
+      fileName: "replacement.pdf",
+      intent: "replace",
+      notebookId,
+      replaceSourceId: oldSourceId,
+    })
+    const results = await Promise.all([
+      prepareUploadForContext(testContext(fixture.owner), input(), fixture.service),
+      prepareUploadForContext(testContext(fixture.owner), input(), fixture.service),
+    ])
+    expect(results.filter((result) => result.decision === "ok")).toHaveLength(1)
+    expect(results.filter((result) => result.decision === "rejected")).toHaveLength(1)
+    const { data, error } = await fixture.service
+      .from("sources")
+      .select("id, replaces_source_id")
+      .eq("notebook_id", notebookId)
+      .order("created_at")
+    if (error) throw error
+    expect(data).toEqual([
+      expect.objectContaining({ id: oldSourceId, replaces_source_id: null }),
+      expect.objectContaining({ replaces_source_id: oldSourceId }),
+    ])
+  })
 })
