@@ -13,11 +13,11 @@ import { Label } from "@/components/ui/label"
 
 const initialState: NotebookActionState = {}
 
-function ActionError({ error }: NotebookActionState) {
+function ActionError({ error, id }: NotebookActionState & { id: string }) {
   if (!error) return null
 
   return (
-    <p role="alert" className="text-sm font-medium text-destructive">
+    <p id={id} role="alert" className="text-sm font-medium text-destructive">
       {error}
     </p>
   )
@@ -26,6 +26,7 @@ function ActionError({ error }: NotebookActionState) {
 export function CreateNotebookForm() {
   const [state, formAction, pending] = useActionState(createNotebookAction, initialState)
   const [mounted, setMounted] = useState(false)
+  const errorId = "create-notebook-name-error"
 
   useEffect(() => setMounted(true), [])
 
@@ -37,8 +38,16 @@ export function CreateNotebookForm() {
     >
       <div className="grid flex-1 gap-2">
         <Label htmlFor="notebook-name">Notebook-Name</Label>
-        <Input id="notebook-name" name="name" minLength={1} maxLength={200} required />
-        <ActionError error={state.error} />
+        <Input
+          aria-describedby={state.error ? errorId : undefined}
+          aria-invalid={Boolean(state.error)}
+          id="notebook-name"
+          name="name"
+          minLength={1}
+          maxLength={200}
+          required
+        />
+        <ActionError error={state.error} id={errorId} />
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Wird angelegt…" : "Notebook anlegen"}
@@ -55,6 +64,7 @@ interface RenameNotebookFormProps {
 export function RenameNotebookForm({ notebookId, notebookName }: RenameNotebookFormProps) {
   const [state, formAction, pending] = useActionState(renameNotebookAction, initialState)
   const [mounted, setMounted] = useState(false)
+  const errorId = "rename-notebook-name-error"
 
   useEffect(() => setMounted(true), [])
 
@@ -68,6 +78,8 @@ export function RenameNotebookForm({ notebookId, notebookName }: RenameNotebookF
       <div className="grid flex-1 gap-2">
         <Label htmlFor="new-notebook-name">Neuer Notebook-Name</Label>
         <Input
+          aria-describedby={state.error ? errorId : undefined}
+          aria-invalid={Boolean(state.error)}
           id="new-notebook-name"
           name="name"
           defaultValue={notebookName}
@@ -75,7 +87,7 @@ export function RenameNotebookForm({ notebookId, notebookName }: RenameNotebookF
           maxLength={200}
           required
         />
-        <ActionError error={state.error} />
+        <ActionError error={state.error} id={errorId} />
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Wird gespeichert…" : "Umbenennen"}

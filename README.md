@@ -6,7 +6,7 @@ Der freigegebene Umfang und der vollständige Prüfweg stehen unter
 
 ## Voraussetzungen
 
-- Node.js 22 LTS (`.nvmrc`)
+- Node.js 22 LTS (`.nvmrc`; auf diesem Rechner: `/opt/homebrew/opt/node@22/bin/node`)
 - pnpm 11.x
 - Docker
 - Supabase CLI
@@ -54,8 +54,12 @@ pnpm test:e2e
 pnpm db:reset
 ```
 
-`test:integration` benötigt die laufende lokale Supabase-Instanz und
-`.env.local`. `test:e2e` startet den lokalen Next.js-Webserver selbst.
+`test:integration` führt vor den Tests einmal `supabase db reset --local` aus.
+Der Reset-Lock hält parallele Integrationsläufe bis zum jeweiligen Suite-Ende
+zurück. Die lokale Supabase-Instanz, Docker CLI und `.env.local` bleiben
+Voraussetzungen; die ACL-Prüfung leitet den Datenbankcontainer aus
+`supabase/config.toml` ab. `test:e2e` startet den lokalen Next.js-Webserver
+selbst.
 
 Die folgenden Läufe sind Berichte und keine Freigabetore:
 

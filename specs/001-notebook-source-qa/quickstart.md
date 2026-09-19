@@ -8,7 +8,7 @@ Wie das Projekt von null aufgesetzt und wie nachgewiesen wird, dass es tut, was 
 
 | Werkzeug | Version | Stand auf diesem Rechner |
 |---|---|---|
-| Node.js | 22 LTS (`.nvmrc`) | **v25.4.0 installiert** — abweichend, siehe D-12 |
+| Node.js | 22 LTS (`.nvmrc`) | v22.14.0 über `/opt/homebrew/opt/node@22/bin/node` |
 | pnpm | 11.x | 11.1.2 vorhanden |
 | Docker | läuft, für die lokale Prüf-Instanz | 29.4.0 vorhanden |
 | Supabase CLI | aktuell | 2.117.0 vorhanden |
@@ -78,7 +78,7 @@ Verbindlich, Herkunft und Torzuordnung in [plan.md](./plan.md#verification-comma
 pnpm typecheck          # Gate 3
 pnpm lint               # Gate 3 — `biome check .`, prüft Lint, Format und Imports ohne Dateien zu ändern
 pnpm test               # Gate 3 — reine Logik
-pnpm test:integration   # Gate 3 und Gate 4 — braucht laufendes `supabase start`
+pnpm test:integration   # Gate 3 und Gate 4 — setzt die lokale DB einmal mit --local zurück
 pnpm test:e2e           # Gate 3 — braucht laufendes `pnpm dev`
 pnpm db:reset           # Gate 3
 pnpm eval               # KEIN Tor — Antwortqualität, Ergebnis wird berichtet
@@ -87,6 +87,17 @@ pnpm perf               # KEIN Tor — fünf beobachtende Latenzläufe
 ```
 
 `pnpm lint` führt `biome check .` ohne Schreibzugriff aus und prüft Lint-Regeln, Format und Importorganisation gemeinsam. `pnpm format` führt `biome format --write .` als bewusste lokale Korrektur aus und ist kein eigenes Freigabetor. Die E2E-Suite läuft für das Demo ausschließlich in Chromium.
+
+`pnpm test:integration` führt vor der Suite einmal `supabase db reset --local`
+aus und hält einen lokalen Lock bis zum Suite-Ende. Dadurch können parallele
+Integrationsläufe die Datenbank nicht während eines anderen Laufs zurücksetzen.
+Die laufende lokale Supabase-Instanz, Docker CLI und `.env.local` bleiben
+Voraussetzungen; die ACL-Prüfung ermittelt den Datenbankcontainer aus
+`supabase/config.toml`. Für Node 22 auf diesem Rechner gilt reproduzierbar:
+
+```bash
+PATH=/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/usr/local/bin:$PATH pnpm test:integration
+```
 
 `pnpm eval`, `pnpm calibrate:retrieval` und `pnpm perf` gehören bewusst nicht zu den Toren. Ihre Ergebnisse hängen von externen Modellen oder der Umgebung ab. Der Kalibrierlauf erzeugt nur einen Vorschlag; erst der vom Maintainer freigegebene Wert wird mit Modell-, Datensatz- und Chunk-Fingerprint in `eval/dataset/retrieval-calibration.json` versioniert. `pnpm test` prüft danach deterministisch Schema, Fingerprints sowie Scores unterhalb, auf und oberhalb dieses Werts (D-17).
 

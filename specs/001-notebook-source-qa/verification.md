@@ -70,3 +70,40 @@ Rollen erstellt würden, benötigen deshalb eine platformseitige Privilegienrich
 `proxy.ts` heißt; T035 verlangt für diese Phase ausdrücklich `middleware.ts`.
 Die Supabase-CLI warnt vor dem künftig umzubenennenden lokalen Abschnitt
 `[inbucket]`. Keine der Warnungen hat einen Prüfablauf blockiert.
+
+## Zweite Korrekturschleife zu 575ba8e — 2026-09-19
+
+**Umfang:** Re-Review-Befunde ausschließlich in T001–T040. T041 und spätere
+Aufgaben blieben unverändert.
+
+| Befund | Korrektur | Nachweis |
+| --- | --- | --- |
+| P1 | Fremdbeziehungs-Tests verwenden eindeutige Ordinals und verlangen für jede Elternbeziehung `23503` mit dem jeweiligen Ownership-Constraint. | `rls-write-boundaries.test.ts` |
+| P2 | Standardrechte für künftige Sequenzen widerrufen. | `default-privileges.test.ts` prüft `r`, `S`, `f` |
+| P3 | Bestehende Funktion `enforce_citation_reference_consistency()` entzieht `public`, `anon` und `authenticated` explizit `EXECUTE`. | `default-privileges.test.ts` |
+| P4 | Create- und Rename-Eingaben verknüpfen ihre Fehler-ID per `aria-describedby` und setzen `aria-invalid`. | Chromium-E2E für beide Formulare |
+| P5 | ACL-Test leitet den lokalen Datenbankcontainer aus `supabase/config.toml` ab. | Docker-Label-Lookup im ACL-Test |
+| P6 | Der Integrationslauf führt einmal `supabase db reset --local` aus und hält bis zum Suite-Ende einen lokalen Lock. | `global-setup.ts`; kompletter Integrationslauf |
+| Node 22 | Tatsächlich ausgeführt mit `/opt/homebrew/opt/node@22/bin/node` (`v22.14.0`). | reproduzierbarer PATH-Befehl in Quickstart und README |
+
+**Test-first-Nachweis P2/P3:** Vor der Migrationsergänzung schlugen die neuen
+ACL-Tests fehl: Sequenzen enthielten `anon` und `authenticated`, die Trigger-
+Funktion war für beide Rollen ausführbar (`true|true`). Nach dem frischen
+lokalen Reset bestehen die erweiterten Tests.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich; 54 Dateien geprüft |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm test:integration` | erfolgreich; lokaler Reset mit `--local`, 8 Dateien, 32 Tests |
+| `pnpm test:e2e` | erfolgreich; 1 Chromium-Ablauf einschließlich Formfehler-Zugänglichkeit |
+| `pnpm build` | erfolgreicher Next.js-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
+| `git diff -- AGENTS.md` nach E2E | leer |
+
+**Offene Risiken:** Der Integrations-Reset löscht bewusst nur die lokale
+Supabase-Datenbank und benötigt deshalb Docker CLI, lokale Supabase-Instanz und
+`.env.local`. Die Default-ACLs der Supabase-internen Rollen bleiben unverändert,
+weil Projektmigrationen diese Rollen nicht verwalten dürfen; dafür bleibt die
+bereits genannte Plattformrichtlinie erforderlich.

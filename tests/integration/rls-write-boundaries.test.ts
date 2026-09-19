@@ -4,6 +4,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { createIntegrationFixture, type IntegrationFixture } from "@/tests/integration/setup"
 
+interface DatabaseErrorResult {
+  error: {
+    code?: string
+    details?: string | null
+    message: string
+  } | null
+}
+
 const applicationTables = [
   "notebooks",
   "sources",
@@ -12,6 +20,11 @@ const applicationTables = [
   "messages",
   "citations",
 ] as const
+
+function expectForeignKey(result: DatabaseErrorResult, constraint: string) {
+  expect(result.error).toMatchObject({ code: "23503" })
+  expect(`${result.error?.message}\n${result.error?.details ?? ""}`).toContain(constraint)
+}
 
 describe("Database access boundaries", () => {
   let fixture: IntegrationFixture
@@ -188,7 +201,7 @@ describe("Database access boundaries", () => {
     }
   })
 
-  it("rejects every foreign parent relation even with the caller's own user_id", async () => {
+  it("rejects every foreign parent relation by its ownership foreign key", async () => {
     const strangerNotebook = await fixture.service
       .from("notebooks")
       .insert({ name: "Stranger", user_id: fixture.stranger.id })
@@ -217,7 +230,7 @@ describe("Database access boundaries", () => {
       char_count: 4,
       content: "text",
       embedding: Array.from({ length: 1536 }, () => 0),
-      ordinal: 0,
+      ordinal: 99,
       page_end: 1,
       page_start: 1,
       source_id: ownerSourceId,
@@ -233,9 +246,23 @@ describe("Database access boundaries", () => {
       user_id: fixture.stranger.id,
     })
 
-    const foreignCitation = await fixture.service.from("citations").insert({
+    const strangerMessage = await fixture.service
+      .from("messages")
+      .insert({
+        content: "Stranger question",
+        notebook_id: strangerNotebook.data.id,
+        role: "user",
+        selected_sources_snapshot: [],
+        status: "complete",
+        user_id: fixture.stranger.id,
+      })
+      .select("id")
+      .single()
+    if (strangerMessage.error) throw strangerMessage.error
+
+    const foreignCitationMessage = await fixture.service.from("citations").insert({
       message_id: ownerMessageId,
-      ordinal: 0,
+      ordinal: 99,
       page_end: 1,
       page_start: 1,
       quote: "quote",
@@ -243,10 +270,35 @@ describe("Database access boundaries", () => {
       user_id: fixture.stranger.id,
     })
 
-    expect(foreignSource.error).toBeTruthy()
-    expect(foreignJob.error).toBeTruthy()
-    expect(foreignChunk.error).toBeTruthy()
-    expect(foreignMessage.error).toBeTruthy()
-    expect(foreignCitation.error).toBeTruthy()
+    const foreignCitationChunk = await fixture.service.from("citations").insert({
+      chunk_id: ownerChunkId,
+      message_id: strangerMessage.data.id,
+      ordinal: 99,
+      page_end: 1,
+      page_start: 1,
+      quote: "quote",
+      source_id: ownerSourceId,
+      source_name: "source.pdf",
+      user_id: fixture.stranger.id,
+    })
+
+    const foreignCitationSource = await fixture.service.from("citations").insert({
+      message_id: strangerMessage.data.id,
+      ordinal: 100,
+      page_end: 1,
+      page_start: 1,
+      quote: "quote",
+      source_id: ownerSourceId,
+      source_name: "source.pdf",
+      user_id: fixture.stranger.id,
+    })
+
+    expectForeignKey(foreignSource, "sources_notebook_owner_fk")
+    expectForeignKey(foreignJob, "ingestion_jobs_source_owner_fk")
+    expectForeignKey(foreignChunk, "chunks_source_owner_fk")
+    expectForeignKey(foreignMessage, "messages_notebook_owner_fk")
+    expectForeignKey(foreignCitationMessage, "citations_message_owner_fk")
+    expectForeignKey(foreignCitationChunk, "citations_chunk_owner_fk")
+    expectForeignKey(foreignCitationSource, "citations_source_owner_fk")
   })
 })
