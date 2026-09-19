@@ -110,7 +110,7 @@ SC-010 braucht deshalb drei getrennte Prüffälle, nicht einen.
 
 **Decision**: Node 22 LTS, gepinnt über `.nvmrc` und `engines`.
 
-**Rationale**: Lokal läuft v25.4.0, eine ungerade Ausgabe ohne Langzeitunterstützung. Prinzip VII verlangt benannte Voraussetzungen.
+**Rationale**: Lokal steht Node 22.14.0 bereit; der versionskontrollierte Prüfschritt verhindert Projektläufe mit einer abweichenden Hauptversion. Prinzip VII verlangt benannte Voraussetzungen.
 
 **Alternatives**: v25 nutzen — spart heute einen Schritt, kostet später die Frage, warum etwas nur auf einem Rechner läuft.
 
@@ -121,6 +121,14 @@ SC-010 braucht deshalb drei getrennte Prüffälle, nicht einen.
 **Rationale**: FR-034 und SC-009 verlangen Tastaturbedienung, sichtbaren Fokus, beschriftete Bedienelemente und zugeordnete Fehlermeldungen. Die Primitive bringen das mit. Die Komponenten liegen als Quelltext im Repository und unterliegen Prinzip I.
 
 **Vor Verwendung zu prüfen**: Lizenzbezeichnung der offenen Komponenten (nicht verifiziert, Aufgabe T006). Kontrastwerte und Sichtbarkeit des Fokusrings, weil die kräftige Gestaltung Umrandungen und Schatten stark verändert.
+
+**Prüfergebnis T006 (2026-09-19)**: Herkunft ist die offizielle Registry
+`https://neobrutalism.com/r/radix/`, eingebunden mit der shadcn-CLI. Das zugehörige
+Repository `neobrutalism/neobrutalism` weist die Komponenten als MIT-lizenziert aus.
+Button, Card, Input, Label und Dialog werden als Quelltext nach `components/ui/`
+kopiert; es entsteht keine Laufzeitbindung an die Registry. Der sichtbare globale
+Fokusring bleibt zusätzlich im Projekt-Theme erzwungen. Kontrast und konkrete
+Dialogbedienung bleiben Bestandteil der Story- und Abschlussprüfungen.
 
 **Alternatives**: Selbst schreiben — Aufwand in Barrierefreiheitsdetails statt Fachlichkeit. Paketabhängigkeit — weniger Kontrolle, und das Briefing nennt diese Quelle.
 

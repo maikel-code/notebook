@@ -1,0 +1,9 @@
+export const MAX_FILE_BYTES = 10_485_760
+export const MAX_FILE_DISPLAY = "10 MB"
+export const MAX_PAGES = 50
+export const MAX_SOURCES_PER_NOTEBOOK = 30
+export const MAX_SELECTED_SOURCES = 10
+export const MAX_QUESTION_CHARS = 2_000
+export const MAX_CONTEXT_CHARS = 60_000
+export const MAX_JOB_ATTEMPTS = 3
+export const JOB_TIMEOUT_MS = 5 * 60 * 1_000
