@@ -38,9 +38,13 @@ Lesbarkeit geht vor Telegrammstil.
 2. Claude: `specify` → bei Bedarf `clarify` → `plan`.
 3. Maintainer: Spezifikation und Plan freigeben.
 4. Claude: `tasks`; Codex: `analyze` vor der Implementierung.
-5. Codex: vereinbarte Aufgaben umsetzen und Verifikation ausführen.
+5. Codex: beauftragte Phase umsetzen und Verifikation ausführen.
 6. Claude: unabhängiges Review; Befunde zur Behebung an Codex zurückgeben.
 7. Maintainer: Abnahme und Merge.
+
+Die Schritte 5 und 6 wiederholen sich je Phase aus `tasks.md`. Umsetzung wird
+phasenweise beauftragt, nie als Gesamtlauf über alle Aufgaben: ein solcher Diff
+ist nicht prüfbar und bricht Gate 1 und Gate 5.
 
 Skill-Aufrufe: Claude `/speckit-<name>`, Codex `$speckit-<name>`.
 Akzeptanzkriterien stehen vor dem ersten Code-Edit fest. Aufgaben gelten nur
