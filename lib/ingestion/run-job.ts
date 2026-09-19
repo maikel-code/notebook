@@ -25,6 +25,21 @@ interface JobSource {
   user_id: string
 }
 
+export async function loadOwnedJobSource(
+  service: SupabaseClient,
+  sourceId: string,
+  userId: string,
+): Promise<JobSource> {
+  const { data: source, error } = await service
+    .from("sources")
+    .select("id, user_id, storage_path, cleanup_storage_path")
+    .eq("id", sourceId)
+    .eq("user_id", userId)
+    .maybeSingle()
+  if (error || !source) throw new Error("Auftragsquelle fehlt.")
+  return source as JobSource
+}
+
 async function updatePhase(
   service: SupabaseClient,
   job: ClaimedJob,
@@ -66,22 +81,20 @@ async function failJob(service: SupabaseClient, job: ClaimedJob, phase: string):
   })
 }
 
-export async function runNextIngestionJob(service: SupabaseClient): Promise<boolean> {
-  const { data, error } = await service.rpc("claim_next_ingestion_job")
+export async function runNextIngestionJob(
+  service: SupabaseClient,
+  sourceId?: string,
+): Promise<boolean> {
+  const { data, error } = await service.rpc("claim_next_ingestion_job", {
+    p_source_id: sourceId ?? null,
+  })
   if (error) throw new Error("Auftrag konnte nicht beansprucht werden.")
   const job = (data?.[0] ?? null) as ClaimedJob | null
   if (!job) return false
 
   let phase = "extract"
   try {
-    const { data: source, error: sourceError } = await service
-      .from("sources")
-      .select("id, user_id, storage_path, cleanup_storage_path")
-      .eq("id", job.source_id)
-      .eq("user_id", job.user_id)
-      .maybeSingle()
-    if (sourceError || !source) throw new Error("Auftragsquelle fehlt.")
-    const ownedSource = source as JobSource
+    const ownedSource = await loadOwnedJobSource(service, job.source_id, job.user_id)
 
     phase = "cleanup"
     await updatePhase(service, job, "cleanup")

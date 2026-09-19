@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import type { RequestContext } from "@/lib/auth/ownership"
-import { notFoundError, unauthorizedError, validationError } from "@/lib/http/errors"
-import { SOURCES_BUCKET, sourceStoragePath } from "@/lib/ingestion/storage"
+import { conflictError, notFoundError, unauthorizedError, validationError } from "@/lib/http/errors"
+import { SOURCES_BUCKET } from "@/lib/ingestion/storage"
 import { validatePdf } from "@/lib/ingestion/validate-pdf"
 import { MAX_FILE_BYTES, MAX_SOURCES_PER_NOTEBOOK } from "@/lib/limits"
 import { getNotebookForContext } from "@/lib/notebooks/service"
@@ -84,41 +84,43 @@ export async function prepareUploadForContext(
     return { decision: "rejected", reason: "Die PDF-Datei darf höchstens 10 MB groß sein." }
   }
 
-  const { data: sources, error } = await service
-    .from("sources")
-    .select("id, content_hash, replaces_source_id")
-    .eq("notebook_id", input.notebookId)
-    .eq("user_id", userId)
-  if (error) throw new Error("Quellen konnten nicht geprüft werden.")
-  const allSources = sources ?? []
-  const duplicate = allSources.find((source) => source.content_hash === input.contentHash)
-  if (duplicate && !input.intent) return { decision: "duplicate", existingSourceId: duplicate.id }
-
   const intent = parseUploadIntent(input.intent)
-  const activeSourceCount = allSources.filter((source) => !source.replaces_source_id).length
-  let replacesSourceId: string | null = null
-  if (intent === "replace") {
-    if (!input.replaceSourceId || input.replaceSourceId !== duplicate?.id) throw notFoundError()
-    replacesSourceId = duplicate.id
-  } else if (activeSourceCount >= MAX_SOURCES_PER_NOTEBOOK) {
-    return { decision: "rejected", reason: "Ein Notebook darf höchstens 30 Quellen enthalten." }
-  }
-
   const sourceId = randomUUID()
-  const storagePath = sourceStoragePath(userId, input.notebookId, sourceId)
-  const { error: insertError } = await service.from("sources").insert({
-    byte_size: input.byteSize,
-    content_hash: input.contentHash,
-    file_name: input.fileName.trim(),
-    id: sourceId,
-    notebook_id: input.notebookId,
-    replaces_source_id: replacesSourceId,
-    storage_path: storagePath,
-    status: "uploading",
-    user_id: userId,
+  const { data, error } = await service.rpc("prepare_source_upload", {
+    p_byte_size: input.byteSize,
+    p_content_hash: input.contentHash,
+    p_file_name: input.fileName.trim(),
+    p_intent: input.intent ? intent : null,
+    p_max_sources: MAX_SOURCES_PER_NOTEBOOK,
+    p_notebook_id: input.notebookId,
+    p_replace_source_id: input.replaceSourceId ?? null,
+    p_source_id: sourceId,
+    p_user_id: userId,
   })
-  if (insertError) throw new Error("Upload konnte nicht vorbereitet werden.")
-  return { decision: "ok", sourceId, storagePath }
+  if (error) {
+    if (/notebook not found|replacement source not found/.test(error.message)) throw notFoundError()
+    throw new Error("Upload konnte nicht vorbereitet werden.")
+  }
+  const result = data?.[0] as
+    | {
+        decision: "duplicate" | "ok" | "rejected"
+        existing_source_id: string | null
+        reason: string | null
+        source_id: string | null
+        storage_path: string | null
+      }
+    | undefined
+  if (!result) throw new Error("Upload konnte nicht vorbereitet werden.")
+  if (result.decision === "duplicate" && result.existing_source_id) {
+    return { decision: "duplicate", existingSourceId: result.existing_source_id }
+  }
+  if (result.decision === "rejected" && result.reason) {
+    return { decision: "rejected", reason: result.reason }
+  }
+  if (result.decision === "ok" && result.source_id && result.storage_path) {
+    return { decision: "ok", sourceId: result.source_id, storagePath: result.storage_path }
+  }
+  throw new Error("Upload konnte nicht vorbereitet werden.")
 }
 
 export async function verifyUploadedObject(
@@ -158,7 +160,12 @@ export async function confirmUploadForContext(
     p_source_id: sourceId,
     p_user_id: userId,
   })
-  if (confirmError) throw new Error("Upload konnte nicht bestätigt werden.")
+  if (confirmError) {
+    if (confirmError.code === "P0001") {
+      throw conflictError("Die laufende Antwort muss zuerst beendet oder abgebrochen werden.")
+    }
+    throw new Error("Upload konnte nicht bestätigt werden.")
+  }
 }
 
 export async function cancelUploadForContext(

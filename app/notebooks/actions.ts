@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation"
 
 import { requireUser } from "@/lib/auth/authorize"
 import { HttpError } from "@/lib/http/errors"
+import { runNextIngestionJob } from "@/lib/ingestion/run-job"
 import {
   cancelUploadForContext,
   confirmUploadForContext,
@@ -107,7 +108,9 @@ export async function prepareUpload(input: PrepareUploadInput): Promise<PrepareU
 
 export async function confirmUpload(sourceId: string): Promise<void> {
   const { userId } = await requireUser()
-  await confirmUploadForContext({ userId }, sourceId, createServiceSupabaseClient())
+  const service = createServiceSupabaseClient()
+  await confirmUploadForContext({ userId }, sourceId, service)
+  await runNextIngestionJob(service, sourceId)
   revalidatePath(`/notebooks`)
 }
 

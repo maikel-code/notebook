@@ -178,3 +178,36 @@ migriert und exportiert nun `proxy`. TypeScript bleibt bei 5.9.x: Der
 freigegebene Plan schreibt TypeScript 5.x vor; ein Upgrade auf TypeScript 7
 wäre eine unfreigegebene Stackänderung und benötigt in Next 16.3 zusätzlich
 den experimentellen TypeScript-CLI-Schalter.
+
+## Phase 4 — Review-Korrekturen zu 2aa7c70 — 2026-09-19
+
+**Umfang:** Ausschließlich die fünf Review-Befunde innerhalb T041–T069:
+Ersatz bei laufender Antwort, sofortiger serverseitiger Jobstart,
+eigentümergebundener Dienstrollenlauf, paralleles Quellenlimit und T049.
+Keine Radix-, Base-UI- oder TypeScript-Änderung.
+
+| Befund | Korrektur | Nachweis |
+| --- | --- | --- |
+| Ersatz während Streaming | `confirm_source_upload` sperrt den Ersatzpfad vor jeder Mutation; der Serverpfad übersetzt den Konflikt zu `409`. | `ingestion-review-regressions.test.ts` prüft Storage-bestätigten Ersatz, `409`, unveränderte Alt-/Entwurfsquelle und keinen Auftrag. |
+| Unmittelbarer Start | `confirmUpload` beansprucht den gerade bestätigten Auftrag serverseitig nach dessen atomarer Anlage. | `upload-immediate-job.test.ts` prüft den Aufruf ohne Browser-Geheimnis. |
+| Dienstrollen-Kontext | Der Worker lädt die Auftragsquelle immer mit `source_id` und beanspruchter `user_id`; der Integrationsfall führt einen echten Dienstrollenauftrag neben einer fremden Quelle aus. | `ingestion-job-access.test.ts` |
+| Quellenlimit | `prepare_source_upload` sperrt das Notebook und entscheidet Dublette, Zusatz und Ersatz innerhalb einer Datenbanktransaktion. Ein Ersatz-Entwurf zählt nicht als weitere aktive Quelle. | parallele 29→30-Zusätze sowie Zusatz plus Ersatz bei 30 Quellen in `ingestion-review-regressions.test.ts` |
+| T049 | Bestätigung prüft fehlendes Objekt, Größe und Hash; der erfolgreiche Ersatz prüft den atomaren Wechsel, `cleanup_storage_path` und genau einen Auftrag bei Wiederholung. | `upload-confirmation.test.ts` |
+
+**Test-first-Nachweis:** Nach einem lokalen Reset bis `202609190010` (ohne
+Review-Migration) schlugen die neuen T049-/Regressionstests erwartungsgemäß
+fehl: 2 Dateien, 5 fehlgeschlagene Tests, weil `prepare_source_upload` fehlte.
+Nach dem frischen Reset mit `202609190011_ingestion_review_hardening.sql`
+bestehen die gezielten Fälle: 4 Dateien, 11 Tests. Damit würden das Fehlen der
+atomaren Vorbereitungs- und Konfliktlogik sowie die T049-Sicherungen erkannt.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; elf Migrationen frisch angewendet |
+| Frischer Integrationslauf | erfolgreich; 19 Dateien, 56 Tests |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm build` | erfolgreicher Next-16-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
