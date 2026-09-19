@@ -50,5 +50,16 @@ coverage/
 .claude/settings.local.json
 
 # --- Stackabhängig ------------------------------------------------------------
-# Wird nach der Stack-Entscheidung ergänzt (plan.md). Für Node wären das
-# node_modules/, Build-Ausgaben und Framework-Caches.
+node_modules/
+.pnpm-store/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
+.supabase/
+supabase/.temp/
+supabase/.branches/

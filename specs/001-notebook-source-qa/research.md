@@ -122,6 +122,14 @@ SC-010 braucht deshalb drei getrennte Prüffälle, nicht einen.
 
 **Vor Verwendung zu prüfen**: Lizenzbezeichnung der offenen Komponenten (nicht verifiziert, Aufgabe T006). Kontrastwerte und Sichtbarkeit des Fokusrings, weil die kräftige Gestaltung Umrandungen und Schatten stark verändert.
 
+**Prüfergebnis T006 (2026-09-19)**: Herkunft ist die offizielle Registry
+`https://neobrutalism.com/r/radix/`, eingebunden mit der shadcn-CLI. Das zugehörige
+Repository `neobrutalism/neobrutalism` weist die Komponenten als MIT-lizenziert aus.
+Button, Card, Input, Label und Dialog werden als Quelltext nach `components/ui/`
+kopiert; es entsteht keine Laufzeitbindung an die Registry. Der sichtbare globale
+Fokusring bleibt zusätzlich im Projekt-Theme erzwungen. Kontrast und konkrete
+Dialogbedienung bleiben Bestandteil der Story- und Abschlussprüfungen.
+
 **Alternatives**: Selbst schreiben — Aufwand in Barrierefreiheitsdetails statt Fachlichkeit. Paketabhängigkeit — weniger Kontrolle, und das Briefing nennt diese Quelle.
 
 ## D-14 Betriebsumgebung — gedreht 2026-09-19
