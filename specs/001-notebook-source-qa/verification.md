@@ -70,6 +70,11 @@ explizit. Neue Integrationsfälle prüfen konkurrierenden Ersatz, textlosen Scan
 Jobphase. T041, T046, T047 und T050 sind wieder offen markiert, weil ihre
 vollständigen ausdrücklich geforderten Fälle noch nicht vorliegen.
 
+Passwortgeschützte und 51-seitige PDFs werden jetzt mit echten PDF-Strukturen
+durch `pdfjs` abgelehnt. Storage prüft die exakte 10-MB-Grenze sowie fremde,
+anonyme, fehlende, MIME-, Übergrößen-, Update- und Löschpfade. Beide Läufe
+bestanden lokal unter Node 22.
+
 **Offen / Plattformgrenze F5:** Die Migration kann die Default-ACLs des
 Projekt-Migrations-Grantors `postgres` ändern. Supabase-interne Rollen wie
 `supabase_admin` dürfen aus einer Projektmigration nicht verändert werden

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { sourceStoragePath } from "@/lib/ingestion/storage"
+import { MAX_FILE_BYTES } from "@/lib/limits"
 import { createIntegrationFixture, type IntegrationFixture } from "@/tests/integration/setup"
 
 describe("storage access boundary", () => {
@@ -51,5 +52,47 @@ describe("storage access boundary", () => {
     ).resolves.toMatchObject({
       error: null,
     })
+  })
+
+  it("enforces size, MIME, owner path and missing-object boundaries", async () => {
+    const exactPath = sourceStoragePath(fixture.owner.id, crypto.randomUUID(), crypto.randomUUID())
+    await expect(
+      fixture.owner.client.storage
+        .from("sources")
+        .upload(
+          exactPath,
+          new Blob([new Uint8Array(MAX_FILE_BYTES)], { type: "application/pdf" }),
+          {
+            contentType: "application/pdf",
+          },
+        ),
+    ).resolves.toMatchObject({ error: null })
+    await expect(
+      fixture.stranger.client.storage.from("sources").upload(exactPath, new Blob(["x"])),
+    ).resolves.toMatchObject({ data: null })
+    await expect(
+      fixture.anonymous.storage.from("sources").upload(exactPath, new Blob(["x"])),
+    ).resolves.toMatchObject({ data: null })
+    await expect(
+      fixture.owner.client.storage.from("sources").download("missing/path.pdf"),
+    ).resolves.toMatchObject({ data: null })
+    await expect(
+      fixture.owner.client.storage
+        .from("sources")
+        .upload(
+          sourceStoragePath(fixture.owner.id, crypto.randomUUID(), crypto.randomUUID()),
+          new Blob([new Uint8Array(MAX_FILE_BYTES + 1)], { type: "application/pdf" }),
+          { contentType: "application/pdf" },
+        ),
+    ).resolves.toMatchObject({ data: null })
+    await expect(
+      fixture.owner.client.storage
+        .from("sources")
+        .upload(
+          sourceStoragePath(fixture.owner.id, crypto.randomUUID(), crypto.randomUUID()),
+          new Blob(["image"], { type: "image/png" }),
+          { contentType: "image/png" },
+        ),
+    ).resolves.toMatchObject({ data: null })
   })
 })
