@@ -71,6 +71,19 @@ export function createStarterQuestions(_sourceName: string): string[] {
   ]
 }
 
+function fallbackOrientation(chunk: RetrievedCitationChunk): GeneratedAnswer {
+  const excerpt = chunk.content.replaceAll(/\s+/g, " ").trim().slice(0, 480)
+  return {
+    claims: [
+      {
+        citations: [{ chunkNumber: chunk.chunkNumber, quote: excerpt }],
+        text: `Der erste Abschnitt der Quelle nennt: ${excerpt}`,
+      },
+    ],
+    kind: "answer",
+  }
+}
+
 export function verifySourceOrientation(
   generated: unknown,
   _sourceName: string,
@@ -224,19 +237,24 @@ export async function createSourceOrientationIfEligible(input: {
   const generator =
     input.generate ??
     (process.env.NOTEBOOK_E2E_INGESTION_MODE === "1" ? localE2EGenerator : defaultGenerator)
-  const generated = await generator({
-    context: buildUntrustedContext(
-      chunks.map((chunk) => ({
-        ...chunk,
-        notebookId: input.notebookId,
-        similarity: 1,
-        sourceSelected: true,
-        sourceStatus: "ready" as const,
-        userId: input.userId,
-      })),
-    ),
-    sourceName: sourceRow.file_name,
-  })
+  let generated: GeneratedAnswer
+  try {
+    generated = await generator({
+      context: buildUntrustedContext(
+        chunks.map((chunk) => ({
+          ...chunk,
+          notebookId: input.notebookId,
+          similarity: 1,
+          sourceSelected: true,
+          sourceStatus: "ready" as const,
+          userId: input.userId,
+        })),
+      ),
+      sourceName: sourceRow.file_name,
+    })
+  } catch {
+    generated = fallbackOrientation(firstChunk)
+  }
   const verification = verifySourceOrientation(
     generated,
     sourceRow.file_name,
