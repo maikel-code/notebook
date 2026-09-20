@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState, useTransition } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
 export function QuestionInput({
   notebookId,
@@ -90,7 +91,7 @@ export function QuestionInput({
     >
       <label className="grid gap-1" htmlFor="question">
         <span className="font-medium">Frage an das Notebook</span>
-        <textarea
+        <Textarea
           id="question"
           value={question}
           disabled={pending || streaming}

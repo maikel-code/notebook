@@ -143,7 +143,7 @@ describe("source orientation persistence", () => {
       .single()
     expect(error).toBeNull()
     expect(orientation).toMatchObject({
-      citations: [{ quote: "Die Freigabe erfolgt am Montag." }],
+      citations: [{ quote: "Die Freigabe erfolgt am Montag. Die Anmeldung endet am Freitag." }],
       content:
         "Die automatische Zusammenfassung ist derzeit nicht verfügbar. Der folgende belegte Auszug hilft beim Einstieg.",
       suggested_questions: expect.arrayContaining([expect.any(String)]),

@@ -19,6 +19,51 @@ export interface RetrievalCandidate {
 
 export class RetrievalFailure extends Error {}
 
+const IGNORED_QUERY_TERMS = new Set([
+  "das",
+  "dem",
+  "den",
+  "der",
+  "des",
+  "die",
+  "ein",
+  "eine",
+  "einer",
+  "für",
+  "mit",
+  "und",
+  "was",
+  "wie",
+  "welche",
+  "zu",
+])
+
+const QUERY_SYNONYMS: Record<string, string[]> = {
+  beitrag: ["beitrag", "gebühr", "jahresbeitrag", "kosten", "preis"],
+  kosten: ["beitrag", "gebühr", "jahresbeitrag", "kosten", "preis"],
+  kündigung: ["kündigung", "frist", "vertrag"],
+  mitgliedschaft: ["mitglied", "mitgliedschaft", "vereinsmitglied"],
+}
+
+function queryTermGroups(question: string): string[][] {
+  const terms =
+    question
+      .toLocaleLowerCase("de-DE")
+      .match(/[\p{L}\p{N}]{3,}/gu)
+      ?.filter((term) => !IGNORED_QUERY_TERMS.has(term)) ?? []
+  return terms.map((term) => QUERY_SYNONYMS[term] ?? [term])
+}
+
+export function lexicalSimilarity(question: string, content: string): number {
+  const groups = queryTermGroups(question)
+  if (!groups.length) return 0
+  const normalizedContent = content.toLocaleLowerCase("de-DE")
+  return (
+    groups.filter((terms) => terms.some((term) => normalizedContent.includes(term))).length /
+    groups.length
+  )
+}
+
 function cosineSimilarity(left: number[], right: number[]): number {
   if (left.length !== right.length || left.length === 0) return 0
   let dot = 0
@@ -36,17 +81,33 @@ function cosineSimilarity(left: number[], right: number[]): number {
 
 export function retrieveSelectedReadyChunks(
   candidates: RetrievalCandidate[],
-  options: { minimumSimilarity: number; notebookId: string; topK: number; userId: string },
+  options: {
+    minimumSimilarity: number
+    notebookId: string
+    question?: string
+    topK: number
+    userId: string
+  },
 ): RetrievalCandidate[] {
-  return candidates
-    .filter(
-      (candidate) =>
-        candidate.userId === options.userId &&
-        candidate.notebookId === options.notebookId &&
-        candidate.sourceSelected &&
-        candidate.sourceStatus === "ready" &&
-        candidate.similarity >= options.minimumSimilarity,
-    )
+  const eligible = candidates.filter(
+    (candidate) =>
+      candidate.userId === options.userId &&
+      candidate.notebookId === options.notebookId &&
+      candidate.sourceSelected &&
+      candidate.sourceStatus === "ready",
+  )
+  const semanticMatches = eligible
+    .filter((candidate) => candidate.similarity >= options.minimumSimilarity)
+    .toSorted((left, right) => right.similarity - left.similarity)
+    .slice(0, options.topK)
+  if (semanticMatches.length || !options.question) return semanticMatches
+
+  return eligible
+    .map((candidate) => ({
+      ...candidate,
+      similarity: lexicalSimilarity(options.question ?? "", candidate.content),
+    }))
+    .filter((candidate) => candidate.similarity > 0)
     .toSorted((left, right) => right.similarity - left.similarity)
     .slice(0, options.topK)
 }
@@ -145,7 +206,7 @@ export async function retrieveForQuestion(
         ...candidate,
         similarity: cosineSimilarity(questionEmbedding, embeddings.get(candidate.chunkId) ?? []),
       })),
-      { ...calibration, notebookId, userId },
+      { ...calibration, notebookId, question, userId },
     )
   } catch (error) {
     if (error instanceof RetrievalFailure) throw error

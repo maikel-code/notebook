@@ -28,3 +28,24 @@ pnpm lint
 - Die Services liefern nur eigentümergebundene Datenbasis und Notizpersistenz.
 - Vollständiger Quelltext, Webimport, Orientierungs-Generierung sowie Studio-UI
   folgen in den jeweiligen Story-Phasen.
+
+## Phase 5.1: Orientierungsqualität und Providerwahl
+
+```text
+pnpm test -- source-orientation.test.ts retrieval.test.ts chat-provider.test.ts
+pnpm typecheck
+pnpm lint
+pnpm exec playwright test tests/e2e/workspace-orientation.spec.ts --workers=1
+```
+
+- Die fokussierten Unit-Suiten bestehen mit 34 Tests; Typprüfung und Biome bestehen.
+- Der Chromium-Erstuploadtest besteht auf isoliertem Port mit lokaler Ingestion.
+- Ein echter UI-Lauf mit `Mitgliedantrag.pdf`, `NOTEBOOK_CHAT_PROVIDER=openai`
+  und `gpt-4.1-mini` erzeugte fünf KI-Fragen sowie eine 794 Zeichen lange,
+  belegte Orientierung. Die Folgefrage „Kosten der Mitgliedschaft“ erhielt
+  eine Antwort mit den Beitragswerten 90 € und 180 €.
+- Die native PDF-Extraktion lieferte auf den drei Seiten Text; die erste Seite
+  enthält die Beitragswerte. Der Parser verwendet dafür PDF.js, keine externe
+  Modellübertragung. Anthropic oder OpenAI steuern Chat, Zusammenfassung und
+  Fragen. OpenAI bleibt für Einbettungen und Websuche erforderlich, weil
+  Anthropic keine Embedding-API anbietet.

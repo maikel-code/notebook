@@ -3,7 +3,7 @@ import { generateObject } from "ai"
 import { z } from "zod"
 
 import { MAX_ORIENTATION_QUESTIONS, MIN_ORIENTATION_QUESTIONS } from "@/lib/limits"
-import { claimSchema } from "@/lib/rag/claim-schema"
+import { claimSchema, generatedAnswerSchema } from "@/lib/rag/claim-schema"
 import { buildUntrustedContext } from "@/lib/rag/context"
 import type { RetrievedCitationChunk, VerifiedCitation } from "@/lib/rag/verify-claims"
 import { verifyClaims } from "@/lib/rag/verify-claims"
@@ -107,13 +107,29 @@ export function verifySourceOrientation(
   chunks: RetrievedCitationChunk[],
 ): OrientationVerification {
   if (!validQuestions(suggestedQuestions)) return { kind: "invalid", reason: "invalid_questions" }
-
-  const verification = verifyClaims(generated, chunks)
-  if (verification.kind === "invalid") return verification
+  const answer = generatedAnswerSchema.safeParse(generated)
+  if (!answer.success || answer.data.kind !== "answer") {
+    return { kind: "invalid", reason: "invalid_citations" }
+  }
+  const citations: VerifiedCitation[] = []
+  const claims: string[] = []
+  for (const claim of answer.data.claims) {
+    const verification = verifyClaims({ claims: [claim], kind: "answer" }, chunks)
+    if (verification.kind === "invalid") continue
+    claims.push(...verification.claims)
+    const citationOffset = citations.length
+    citations.push(
+      ...verification.citations.map((citation, index) => ({
+        ...citation,
+        ordinal: citationOffset + index,
+      })),
+    )
+  }
+  if (!claims.length) return { kind: "invalid", reason: "invalid_citations" }
 
   return {
-    citations: verification.citations,
-    content: verification.claims.join("\n\n"),
+    citations,
+    content: claims.join("\n\n"),
     kind: "valid",
     suggestedQuestions: suggestedQuestions.map(normalizeQuestion),
   }
@@ -282,12 +298,21 @@ export async function createSourceOrientationIfEligible(input: {
   } catch {
     generated = fallbackOrientation(firstChunk)
   }
-  const verification = verifySourceOrientation(
+  let verification = verifySourceOrientation(
     { claims: generated.claims, kind: generated.kind },
     sourceRow.file_name,
     generated.suggestedQuestions,
     chunks,
   )
+  if (verification.kind === "invalid") {
+    const fallback = fallbackOrientation(firstChunk)
+    verification = verifySourceOrientation(
+      { claims: fallback.claims, kind: fallback.kind },
+      sourceRow.file_name,
+      fallback.suggestedQuestions,
+      chunks,
+    )
+  }
   if (verification.kind === "invalid") return { kind: "skipped", reason: verification.reason }
 
   const persisted = await persistSourceOrientation(input.service, {

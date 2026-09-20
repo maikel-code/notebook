@@ -55,7 +55,9 @@ test("the first ready source creates one cited orientation, while failures and l
 
   await page.getByRole("button", { name: starterQuestion }).click()
   await expect(page.getByRole("button", { name: starterQuestion })).toHaveCount(0)
-  await expect(page.getByText(starterQuestion, { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole("list", { name: "Antwortversuche" }).getByText(starterQuestion, { exact: true }),
+  ).toBeVisible()
 
   await sourceInput.setInputFiles({
     buffer: textPdf("Eine weitere bereite Quelle."),

@@ -85,4 +85,30 @@ describe("source orientation", () => {
       ),
     ).toEqual({ kind: "invalid", reason: "invalid_questions" })
   })
+
+  it("keeps supported summary claims when a model returns one unverifiable claim", () => {
+    expect(
+      verifySourceOrientation(
+        {
+          claims: [
+            {
+              citations: [{ chunkNumber: 1, quote: "Freigabe erfolgt am Montag" }],
+              text: "Die Freigabe erfolgt am Montag.",
+            },
+            {
+              citations: [{ chunkNumber: 1, quote: "Freigabe erfolgt am Dienstag" }],
+              text: "Die Freigabe erfolgt am Dienstag.",
+            },
+          ],
+          kind: "answer",
+        },
+        orientationChunk.sourceName,
+        createFallbackStarterQuestions(orientationChunk.sourceName),
+        [orientationChunk],
+      ),
+    ).toMatchObject({
+      content: "Die Freigabe erfolgt am Montag.",
+      kind: "valid",
+    })
+  })
 })
