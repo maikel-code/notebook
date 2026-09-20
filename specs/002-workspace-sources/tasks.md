@@ -69,15 +69,15 @@
 
 **Independent Test**: Search a term through the controlled adapter, preview one result, import one and verify it becomes ready; leave another unconfirmed and verify it is absent.
 
-- [ ] T022 [P] [US3] Add red unit tests for result normalization, URL rejection, redirect validation and bounded HTML text extraction in `tests/unit/web-source.test.ts`
-- [ ] T023 [P] [US3] Add red route/action contract tests for search limits, ownership, confirmation-only import, duplicate URLs and per-item failures in `tests/integration/web-source.test.ts`
-- [ ] T024 [US3] Implement the server-only OpenAI web-search adapter and its Zod result contract in `lib/web/search.ts`
-- [ ] T025 [US3] Implement validated public-page fetch, manual redirect handling and readable HTML extraction in `lib/web/fetch.ts`
-- [ ] T026 [US3] Implement owner-scoped web-source preparation, canonical duplicate handling and per-item import outcomes in `lib/ingestion/web-import.ts` and `app/notebooks/actions.ts`
-- [ ] T027 [US3] Extend the ingestion job for web fetch, chunking, embedding, overview and terminal states in `lib/ingestion/run-job.ts` and `lib/ingestion/persist.ts`
-- [ ] T028 [US3] Implement authenticated search route, result preview and list/selection/import controls in `app/api/web/search/route.ts` and `components/notebook/source-search.tsx`
-- [ ] T029 [US3] Render web source provenance and external-link citations without Storage access plus den gemeinsamen Fallback „Quelle entfernt“ ohne Link in `components/notebook/source-detail.tsx`, `components/notebook/citation-chip.tsx` and `components/notebook/source-viewer.tsx`
-- [ ] T030 [US3] Add Chromium coverage for search, preview, individual/all selection, unconfirmed results, partial import and error states in `tests/e2e/web-source.spec.ts`
+- [X] T022 [P] [US3] Add red unit tests for result normalization, URL rejection, redirect validation and bounded HTML text extraction in `tests/unit/web-source.test.ts`
+- [X] T023 [P] [US3] Add red route/action contract tests for search limits, ownership, confirmation-only import, duplicate URLs and per-item failures in `tests/integration/web-source.test.ts`
+- [X] T024 [US3] Implement the server-only OpenAI web-search adapter and its Zod result contract in `lib/web/search.ts`
+- [X] T025 [US3] Implement validated public-page fetch, manual redirect handling and readable HTML extraction in `lib/web/fetch.ts`
+- [X] T026 [US3] Implement owner-scoped web-source preparation, canonical duplicate handling and per-item import outcomes in `lib/ingestion/web-import.ts` and `app/notebooks/actions.ts`
+- [X] T027 [US3] Extend the ingestion job for web fetch, chunking, embedding, overview and terminal states in `lib/ingestion/run-job.ts` and `lib/ingestion/persist.ts`
+- [X] T028 [US3] Implement authenticated search route, result preview and list/selection/import controls in `app/api/web/search/route.ts` and `components/notebook/source-search.tsx`
+- [X] T029 [US3] Render web source provenance and external-link citations without Storage access plus den gemeinsamen Fallback „Quelle entfernt“ ohne Link in `components/notebook/source-detail.tsx`, `components/notebook/citation-chip.tsx` and `components/notebook/source-viewer.tsx`
+- [X] T030 [US3] Add Chromium coverage for search, preview, individual/all selection, unconfirmed results, partial import and error states in `tests/e2e/web-source.spec.ts`
 
 **Checkpoint**: Web sources are explicitly imported, bounded, owner-scoped and citation-compatible.
 

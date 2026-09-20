@@ -58,7 +58,20 @@ export function SourceDetail({
         </div>
         <div className="sm:col-span-2">
           <dt className="font-medium">Herkunft</dt>
-          <dd>{detail.source.originUrl ?? "Hochgeladene PDF-Datei"}</dd>
+          <dd>
+            {detail.source.originUrl ? (
+              <a
+                className="break-all underline"
+                href={detail.source.originUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {detail.source.originUrl}
+              </a>
+            ) : (
+              "Hochgeladene PDF-Datei"
+            )}
+          </dd>
         </div>
       </dl>
 
