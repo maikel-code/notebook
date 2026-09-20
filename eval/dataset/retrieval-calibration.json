@@ -1,0 +1,9 @@
+{
+  "algorithmVersion": "1",
+  "chunkConfigFingerprint": "e74cd52984cf4ec97659816a716fab18e7d4de530b24b601309f3d8ef505507e",
+  "datasetFingerprint": "015df4d5c833f864b12b7517cc0c464a2169538cb44df543533ef5f999e1e9a2",
+  "distanceMetric": "cosine",
+  "embeddingModel": "text-embedding-3-small",
+  "minimumSimilarity": 0.39988621688088577,
+  "topK": 8
+}

@@ -1,8 +1,9 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-
+import { type ChatMessage, ChatThread } from "@/components/notebook/chat-thread"
 import { ConfirmDeleteDialog } from "@/components/notebook/confirm-delete-dialog"
 import { RenameNotebookForm } from "@/components/notebook/notebook-forms"
+import { QuestionInput } from "@/components/notebook/question-input"
 import { type NotebookSource, SourceList } from "@/components/notebook/source-list"
 import { SourceUpload } from "@/components/notebook/source-upload"
 import { Button } from "@/components/ui/button"
@@ -46,6 +47,56 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
       id: source.id,
       status: source.status as NotebookSource["status"],
     }))
+    const { data: messageRows, error: messageError } = await service
+      .from("messages")
+      .select(
+        "id, role, content, status, unsupported_reason, attempt_no, created_at, citations(id, source_id, source_name, quote, page_start)",
+      )
+      .eq("notebook_id", notebook.id)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+    if (messageError) throw new Error("Antworten konnten nicht geladen werden.")
+    const rawMessageRows = (messageRows ?? []) as unknown as Array<{
+      attempt_no: number | null
+      citations: Array<{
+        id: string
+        page_start: number
+        quote: string
+        source_id: string | null
+        source_name: string
+      }> | null
+      content: string
+      id: string
+      role: string
+      status: string
+      unsupported_reason: string | null
+    }>
+    const messages: ChatMessage[] = rawMessageRows.map((message) => ({
+      attemptNo: message.attempt_no,
+      citations: (
+        (message.citations ?? []) as Array<{
+          id: string
+          page_start: number
+          quote: string
+          source_id: string | null
+          source_name: string
+        }>
+      ).map((citation) => ({
+        id: citation.id,
+        pageStart: citation.page_start,
+        quote: citation.quote,
+        sourceId: citation.source_id,
+        sourceName: citation.source_name,
+      })),
+      content: message.content,
+      id: message.id,
+      role: message.role as ChatMessage["role"],
+      status: message.status,
+      unsupportedReason: message.unsupported_reason,
+    }))
+    const streaming = messages.some(
+      (message) => message.role === "assistant" && message.status === "streaming",
+    )
 
     return (
       <main className="mx-auto grid min-h-screen max-w-4xl content-start gap-8 px-4 py-10">
@@ -64,6 +115,19 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
           </CardHeader>
           <CardContent>
             <RenameNotebookForm notebookId={notebook.id} notebookName={notebook.name} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Fragen und Antworten</CardTitle>
+            <CardDescription>
+              Antworten erscheinen erst mit vollständig geprüften Belegen.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            <ChatThread messages={messages} notebookId={notebook.id} />
+            <QuestionInput notebookId={notebook.id} streaming={streaming} />
           </CardContent>
         </Card>
 

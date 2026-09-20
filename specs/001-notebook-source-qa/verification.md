@@ -1,5 +1,27 @@
 # Verifikation: 001-notebook-source-qa
 
+## Phase 5 / US3 — 2026-09-20
+
+**Umfang:** T070–T100. Der Abruf ist auf den freigegebenen Kalibrierwert
+(`cosine`, `text-embedding-3-small`, Top-8) und eigene ausgewählte, bereite
+Quellen begrenzt. Antwortabschluss und Citations laufen in einer einzigen
+Datenbankfunktion; Fehlversuch, Abbruch, Invalidierung und Retry bleiben als
+getrennte Versuche erhalten. Der PDF-Beleg wird ausschließlich als
+authentifizierter Storage-Blob geladen.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `pnpm db:reset` | erfolgreich; eine verdichtete Baseline-Migration |
+| `pnpm lint`, `pnpm typecheck`, `pnpm test` | erfolgreich; 22 Unit-Tests |
+| `pnpm test:integration` | erfolgreich; lokaler Gesamtlauf |
+| `tests/integration/answer-persistence.test.ts` | erfolgreich; 2 atomare Persistenzfälle |
+| `pnpm build` | erfolgreich, ohne pdf.js-Externalisierungswarnung |
+| `pnpm test:e2e` | Chromium-Abläufe zuvor erfolgreich; der Wiederholungslauf scheiterte ausschließlich am vollen Turbopack-Cache des Hosts (`ENOSPC`) |
+
+**Kalibrierung:** Der Maintainer gab den Vorschlag mit Mindestwert
+`0.39988621688088577` frei. Der Referenzlauf erzielte bei zwölf Fragen eine
+Balanced Accuracy von `0.875` (TP 8, TN 3, FN 0, FP 1).
+
 ## Phase 1–3 / US1 — 2026-09-19
 
 **Umfang:** T001–T040. T041 und spätere Aufgaben wurden nicht bearbeitet.

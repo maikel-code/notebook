@@ -166,26 +166,26 @@ Ein Next.js-Projekt im Wurzelverzeichnis: `app/`, `components/`, `lib/`, `supaba
 
 - [X] T079 [P] [US3] Vier freigegebene Demo-PDFs und zwölf Fragen mit sechs beantwortbaren, drei unbeantwortbaren, zwei widersprüchlichen und einer Injection-Frage samt erwarteten Stellen, erwarteter Antwortsprache, erwarteter Claim-Anzahl und manueller Rubrik für genau eine quellenbasierte Aussage je Claim-Absatz in `eval/dataset/questions.json` und `eval/dataset/documents/` anlegen; mindestens eine beantwortbare Frage ist deutsch und eine englisch
 - [X] T080 [US3] Kandidatenschwellen aus dem Referenzdatensatz bewerten, Balanced Accuracy maximieren und bei Gleichstand fail-closed den höheren Wert wählen in `eval/calibrate-retrieval.ts`
-- [ ] T081 [US3] Kalibriervorschlag mit Modell-, Distanz-, Datensatz- und Chunk-Fingerprint erzeugen, Maintainer-Freigabe einholen und erst danach den freigegebenen Wert mit `topK = 8` in `eval/dataset/retrieval-calibration.json` versionieren
-- [ ] T082 [US3] Kalibrierartefakt mit Zod laden, Fingerprint-Abweichungen ablehnen und nie zur Laufzeit umschreiben in `lib/rag/retrieval-config.ts`
-- [ ] T083 [US3] Top-8-Cosine-Suche mit Mindestwert ausschließlich über eigene ausgewählte `ready`-Quellen in `lib/rag/retrieve.ts` implementieren; Ausfälle der Frageeinbettung oder Suche als typisierten Fehler weitergeben und nie als leere Treffermenge behandeln
-- [ ] T084 [US3] Treffer in Rangfolge als nummerierte Blöcke mit Quellennamen, Seitenbereich und höchstens 60.000 Zeichen in `lib/rag/context.ts` packen
-- [ ] T085 [US3] Systemanweisung für untrusted Dokumentblöcke, Antwort in der Sprache der Benutzerfrage und das Ergebnis `{ kind: "answer", claims[] } | { kind: "unsupported" }` in `lib/rag/prompt.ts` implementieren
-- [ ] T086 [US3] Strukturierte Claim-Einheiten über Anthropic und das Vercel AI SDK vollständig je Einheit puffern in `lib/rag/generate-answer.ts`
-- [ ] T087 [US3] Claim-Schema mit einzeiligem, nichtleerem `text`, mindestens einer Citation und ausschließlich bekannten Feldern in `lib/rag/claim-schema.ts` definieren
-- [ ] T088 [US3] Auswahl, Chunkherkunft und whitespace-normalisierten Wortlaut jedes Belegs prüfen und bei einem Fehler den gesamten Entwurf als `invalid` ohne gültige Citations markieren in `lib/rag/verify-claims.ts`
-- [ ] T089 [US3] Erfolgreiche Antwort, vollständige Citations und Zustand `complete` atomar speichern; bei `invalid_citations` vollständigen Entwurf, Zustand `invalid` und Grund atomar ohne Citations speichern in `lib/rag/persist-answer.ts`
-- [ ] T090 [US3] Neue Frage mit User-Nachricht, Auswahl-Snapshot und Assistant-Versuch `attempt_no = 1` über `POST /api/chat` in `app/api/chat/route.ts` implementieren; typisierte Frageeinbettungs-/Suchfehler als neutralen `failed`-Versuch ohne Aussage über die Quellenlage speichern
-- [ ] T091 [US3] `retryOfMessageId` in `app/api/chat/route.ts` implementieren: fehlgeschlagenen eigenen Versuch und zugehörige Frage sperren, nächste `attempt_no` anhängen, gespeicherten Fragetext und Snapshot verwenden und frühere Versuche nicht verändern
-- [ ] T092 [US3] Verbindungsabbruch an den Modellaufruf weitergeben, provisorische Antwortinhalte verwerfen, einen festen Abbruchhinweis ohne Citations als `aborted` speichern und die Notebook-Sperre zuverlässig lösen in `app/api/chat/route.ts`
-- [ ] T093 [US3] Keine-Auswahl-, Keine-Ready-, Unter-Grenzwert- und Modell-`unsupported`-Fälle ohne Citations als feste Texte in `lib/rag/unsupported.ts` abbilden; technische Suchfehler ausdrücklich nicht als fehlende Beleglage behandeln
-- [ ] T094 [P] [US3] Chatverlauf mit provisorischem Zustand „wird geprüft“, Claim-Einheit je Absatz und nicht interaktiven Verweisen bis zum Gesamtabschluss sowie persistiertem `invalid`-Entwurf mit textlicher Kennzeichnung, Einschränkung darunter und ohne anklickbare Verweise in `components/notebook/chat-thread.tsx` implementieren
-- [ ] T095 [P] [US3] Frageeingabe während `streaming` sperren und Abbrechen anbieten in `components/notebook/question-input.tsx`
-- [ ] T096 [P] [US3] „Erneut versuchen“ ausschließlich an fehlgeschlagenen Assistant-Versuchen anzeigen und `retryOfMessageId` senden in `components/notebook/retry-answer-button.tsx`
-- [ ] T097 [P] [US3] Feste Einschränkungstexte ohne Verweise in `components/notebook/unsupported-answer.tsx` darstellen
-- [ ] T098 [P] [US3] Terminale Verweise mit Wortlaut, Quellenname und Seite in `components/notebook/citation-chip.tsx` rendern
-- [ ] T099 [US3] PDF über den authentifizierten Supabase-Browser-Client unter Storage-RLS als Blob aus dem privaten Bucket laden, mit pdf.js auf der belegten Seite öffnen, Wortlaut hervorheben und bei fehlender Textebenenstelle den geprüften Wortlaut daneben anzeigen in `components/notebook/source-viewer.tsx`; keine öffentliche URL erzeugen
-- [ ] T100 [US3] Quellenliste, Chatverlauf, Fragefeld und Belegansicht in `app/notebooks/[notebookId]/page.tsx` zum vollständigen Kernablauf integrieren
+- [X] T081 [US3] Kalibriervorschlag mit Modell-, Distanz-, Datensatz- und Chunk-Fingerprint erzeugen, Maintainer-Freigabe einholen und erst danach den freigegebenen Wert mit `topK = 8` in `eval/dataset/retrieval-calibration.json` versionieren
+- [X] T082 [US3] Kalibrierartefakt mit Zod laden, Fingerprint-Abweichungen ablehnen und nie zur Laufzeit umschreiben in `lib/rag/retrieval-config.ts`
+- [X] T083 [US3] Top-8-Cosine-Suche mit Mindestwert ausschließlich über eigene ausgewählte `ready`-Quellen in `lib/rag/retrieve.ts` implementieren; Ausfälle der Frageeinbettung oder Suche als typisierten Fehler weitergeben und nie als leere Treffermenge behandeln
+- [X] T084 [US3] Treffer in Rangfolge als nummerierte Blöcke mit Quellennamen, Seitenbereich und höchstens 60.000 Zeichen in `lib/rag/context.ts` packen
+- [X] T085 [US3] Systemanweisung für untrusted Dokumentblöcke, Antwort in der Sprache der Benutzerfrage und das Ergebnis `{ kind: "answer", claims[] } | { kind: "unsupported" }` in `lib/rag/prompt.ts` implementieren
+- [X] T086 [US3] Strukturierte Claim-Einheiten über Anthropic und das Vercel AI SDK vollständig je Einheit puffern in `lib/rag/generate-answer.ts`
+- [X] T087 [US3] Claim-Schema mit einzeiligem, nichtleerem `text`, mindestens einer Citation und ausschließlich bekannten Feldern in `lib/rag/claim-schema.ts` definieren
+- [X] T088 [US3] Auswahl, Chunkherkunft und whitespace-normalisierten Wortlaut jedes Belegs prüfen und bei einem Fehler den gesamten Entwurf als `invalid` ohne gültige Citations markieren in `lib/rag/verify-claims.ts`
+- [X] T089 [US3] Erfolgreiche Antwort, vollständige Citations und Zustand `complete` atomar speichern; bei `invalid_citations` vollständigen Entwurf, Zustand `invalid` und Grund atomar ohne Citations speichern in `lib/rag/persist-answer.ts`
+- [X] T090 [US3] Neue Frage mit User-Nachricht, Auswahl-Snapshot und Assistant-Versuch `attempt_no = 1` über `POST /api/chat` in `app/api/chat/route.ts` implementieren; typisierte Frageeinbettungs-/Suchfehler als neutralen `failed`-Versuch ohne Aussage über die Quellenlage speichern
+- [X] T091 [US3] `retryOfMessageId` in `app/api/chat/route.ts` implementieren: fehlgeschlagenen eigenen Versuch und zugehörige Frage sperren, nächste `attempt_no` anhängen, gespeicherten Fragetext und Snapshot verwenden und frühere Versuche nicht verändern
+- [X] T092 [US3] Verbindungsabbruch an den Modellaufruf weitergeben, provisorische Antwortinhalte verwerfen, einen festen Abbruchhinweis ohne Citations als `aborted` speichern und die Notebook-Sperre zuverlässig lösen in `app/api/chat/route.ts`
+- [X] T093 [US3] Keine-Auswahl-, Keine-Ready-, Unter-Grenzwert- und Modell-`unsupported`-Fälle ohne Citations als feste Texte in `lib/rag/unsupported.ts` abbilden; technische Suchfehler ausdrücklich nicht als fehlende Beleglage behandeln
+- [X] T094 [P] [US3] Chatverlauf mit provisorischem Zustand „wird geprüft“, Claim-Einheit je Absatz und nicht interaktiven Verweisen bis zum Gesamtabschluss sowie persistiertem `invalid`-Entwurf mit textlicher Kennzeichnung, Einschränkung darunter und ohne anklickbare Verweise in `components/notebook/chat-thread.tsx` implementieren
+- [X] T095 [P] [US3] Frageeingabe während `streaming` sperren und Abbrechen anbieten in `components/notebook/question-input.tsx`
+- [X] T096 [P] [US3] „Erneut versuchen“ ausschließlich an fehlgeschlagenen Assistant-Versuchen anzeigen und `retryOfMessageId` senden in `components/notebook/retry-answer-button.tsx`
+- [X] T097 [P] [US3] Feste Einschränkungstexte ohne Verweise in `components/notebook/unsupported-answer.tsx` darstellen
+- [X] T098 [P] [US3] Terminale Verweise mit Wortlaut, Quellenname und Seite in `components/notebook/citation-chip.tsx` rendern
+- [X] T099 [US3] PDF über den authentifizierten Supabase-Browser-Client unter Storage-RLS als Blob aus dem privaten Bucket laden, mit pdf.js auf der belegten Seite öffnen, Wortlaut hervorheben und bei fehlender Textebenenstelle den geprüften Wortlaut daneben anzeigen in `components/notebook/source-viewer.tsx`; keine öffentliche URL erzeugen
+- [X] T100 [US3] Quellenliste, Chatverlauf, Fragefeld und Belegansicht in `app/notebooks/[notebookId]/page.tsx` zum vollständigen Kernablauf integrieren
 
 **Checkpoint**: US3 liefert den vollständigen vorführbaren Kernablauf.
 
