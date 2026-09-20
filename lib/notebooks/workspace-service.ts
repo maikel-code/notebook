@@ -100,7 +100,9 @@ function toOrientation(row: OrientationRow): WorkspaceOrientation {
     id: row.id,
     sourceId: row.orientation_source_id,
     suggestedQuestions: Array.isArray(row.suggested_questions)
-      ? row.suggested_questions.filter((question): question is string => typeof question === "string")
+      ? row.suggested_questions.filter(
+          (question): question is string => typeof question === "string",
+        )
       : [],
   }
 }

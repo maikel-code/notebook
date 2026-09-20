@@ -11,6 +11,7 @@ import { nextRetryState } from "@/lib/ingestion/retry"
 import { SOURCES_BUCKET } from "@/lib/ingestion/storage"
 import { validatePdf } from "@/lib/ingestion/validate-pdf"
 import { MAX_JOB_ATTEMPTS } from "@/lib/limits"
+import { createSourceOrientationIfEligible } from "@/lib/rag/source-orientation"
 
 interface ClaimedJob {
   attempt: number
@@ -23,6 +24,7 @@ interface ClaimedJob {
 interface JobSource {
   cleanup_storage_path: string | null
   id: string
+  notebook_id: string
   storage_path: string
   user_id: string
 }
@@ -34,7 +36,7 @@ export async function loadOwnedJobSource(
 ): Promise<JobSource> {
   const { data: source, error } = await service
     .from("sources")
-    .select("id, user_id, storage_path, cleanup_storage_path")
+    .select("id, notebook_id, user_id, storage_path, cleanup_storage_path")
     .eq("id", sourceId)
     .eq("user_id", userId)
     .maybeSingle()
@@ -170,6 +172,20 @@ export async function runNextIngestionJob(
       .eq("id", ownedSource.id)
       .eq("user_id", job.user_id)
     if (sourceFinishError) throw new Error("Quelle konnte nicht abgeschlossen werden.")
+    try {
+      await createSourceOrientationIfEligible({
+        notebookId: ownedSource.notebook_id,
+        service,
+        sourceId: ownedSource.id,
+        userId: job.user_id,
+      })
+    } catch {
+      writeDiagnostic({
+        cause: "SOURCE_ORIENTATION_FAILED",
+        correlationId: job.correlation_id,
+        phase: "finalize",
+      })
+    }
     return true
   } catch (error) {
     await failJob(service, job, phase, error instanceof LocalE2EIngestionFailure)

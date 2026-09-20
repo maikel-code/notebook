@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button"
 
 export function QuestionInput({
   notebookId,
+  starterQuestions = [],
   streaming = false,
 }: {
   notebookId: string
+  starterQuestions?: string[]
   streaming?: boolean
 }) {
   const router = useRouter()
@@ -93,6 +95,24 @@ export function QuestionInput({
           onChange={(event) => setQuestion(event.target.value)}
         />
       </label>
+      {starterQuestions.length ? (
+        <fieldset className="grid gap-2">
+          <legend className="font-medium">Erste Fragen übernehmen und bearbeiten</legend>
+          <div className="flex flex-wrap gap-2">
+            {starterQuestions.map((starterQuestion) => (
+              <Button
+                key={starterQuestion}
+                disabled={pending || streaming}
+                type="button"
+                variant="outline"
+                onClick={() => setQuestion(starterQuestion)}
+              >
+                {starterQuestion}
+              </Button>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
       {error ? <p role="alert">{error}</p> : null}
       {terminalMessage ? <p role="status">{terminalMessage}</p> : null}
       {streamedClaims.map((claim) => (
