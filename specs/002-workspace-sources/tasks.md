@@ -52,11 +52,11 @@
 
 **Independent Test**: Select a ready PDF, inspect its metadata and all extracted text, return to chat, and verify a foreign source cannot be read.
 
-- [ ] T016 [P] [US2] Add red unit tests for complete page/section text assembly and absent-text states in `tests/unit/source-detail.test.ts`
+- [X] T016 [P] [US2] Add red unit tests for complete page/section text assembly and absent-text states in `tests/unit/source-detail.test.ts`
 - [ ] T017 [P] [US2] Add red integration tests for owner-only detail data and removed-source behavior in `tests/integration/source-detail.test.ts`
-- [ ] T018 [US2] Implement source-detail query, neutralen Überblick aus Metadaten/Textvorschau und vollständige extracted-text assembly in `lib/notebooks/workspace-service.ts`
-- [ ] T019 [US2] Implement list selection, metadata, overview, text navigation and return affordance in `components/notebook/source-list.tsx` and `components/notebook/source-detail.tsx`
-- [ ] T020 [US2] Compose the responsive sources/chat/studio workspace and selected-detail state in `components/notebook/workspace.tsx` and `app/notebooks/[notebookId]/page.tsx`
+- [X] T018 [US2] Implement source-detail query, neutralen Überblick aus Metadaten/Textvorschau und vollständige extracted-text assembly in `lib/notebooks/workspace-service.ts`
+- [X] T019 [US2] Implement list selection, metadata, overview, text navigation and return affordance in `components/notebook/source-list.tsx` and `components/notebook/source-detail.tsx`
+- [X] T020 [US2] Compose the responsive sources/chat/studio workspace and selected-detail state in `components/notebook/workspace.tsx` and `app/notebooks/[notebookId]/page.tsx`
 - [ ] T021 [US2] Add Chromium keyboard, detail-read, error-state and return-flow coverage in `tests/e2e/source-detail.spec.ts`
 
 **Checkpoint**: US1 and US2 work with local PDFs; selected source text remains private.
