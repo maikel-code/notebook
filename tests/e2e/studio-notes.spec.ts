@@ -37,17 +37,17 @@ test("a complete answer can be saved and opened as a studio note", async ({ page
   await page.getByRole("button", { name: "Notebook anlegen" }).click()
   await page.getByRole("link", { name: "Studio notes" }).click()
 
-  await page.getByLabel("PDF-Quelle hinzufügen").setInputFiles({
+  await page.getByLabel("PDF hinzufügen").setInputFiles({
     buffer: textPdf("Die Mitgliedschaft kostet jährlich 180 Euro."),
     mimeType: "application/pdf",
     name: "mitgliedschaft.pdf",
   })
   await expect(page.getByRole("list", { name: "Quellen" })).toContainText("bereit")
-  await page.getByLabel("Frage an das Notebook").fill("Welche Regel gilt?")
-  await page.getByRole("button", { name: "Frage senden" }).click()
+  const question = "Welche zentrale Regel nennt diese Quelle?"
+  await page.getByRole("button", { name: question }).click()
   await expect(page.getByRole("button", { name: "In Notiz speichern" })).toBeVisible()
   await page.getByRole("button", { name: "In Notiz speichern" }).click()
-  await expect(page.getByLabel("Studio-Notizen")).toContainText("Welche Regel gilt?")
-  await page.getByRole("button", { name: "Welche Regel gilt?" }).click()
-  await expect(page.getByLabel("Studio-Notiz")).toContainText("Welche Regel gilt?")
+  await expect(page.getByLabel("Studio-Notizen")).toContainText(question)
+  await page.getByRole("button", { name: question }).click()
+  await expect(page.getByLabel("Studio-Notiz")).toContainText(question)
 })
