@@ -84,14 +84,14 @@ export function SourceSearch({
   return (
     <section aria-label="Webquellen suchen" className="grid gap-2  ">
         <Label className="font-medium" htmlFor="webquellen">Webquellen suchen</Label>
-      <InputGroup className="py-4">
+      <InputGroup className="py-5.5">
         <InputGroupInput id="webquellen" placeholder="Suchbegriff eingeben..."   aria-label="Webquellen durchsuchen"
           maxLength={200}
           value={query}
           onKeyDown={(event) => { if (event.key === "Enter") runSearch()}}
           onChange={(event) => setQuery(event.target.value)} />
         <InputGroupAddon align="inline-end">
-          <InputGroupButton variant="secondary" disabled={searching} onClick={runSearch}>
+          <InputGroupButton size="sm" variant="default" disabled={searching} onClick={runSearch}>
           {searching ? "Suche läuft" : "Suchen"}
           </InputGroupButton>
         </InputGroupAddon>

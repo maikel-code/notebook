@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
 import { type ChatMessage, ChatThread } from "@/components/notebook/chat-thread"
 import { QuestionInput } from "@/components/notebook/question-input"
@@ -8,9 +9,15 @@ import { SourceDetail } from "@/components/notebook/source-detail"
 import { type NotebookSource, SourceList } from "@/components/notebook/source-list"
 import { SourceSearch } from "@/components/notebook/source-search"
 import { SourceUpload } from "@/components/notebook/source-upload"
+import { StudioNotes } from "@/components/notebook/studio-notes"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import type { WorkspaceSource, WorkspaceSourceDetail } from "@/lib/notebooks/workspace-service"
-import {Separator} from "@/components/ui/separator";
+import { Separator } from "@/components/ui/separator"
+import type {
+  WorkspaceNotePreview,
+  WorkspaceSource,
+  WorkspaceSourceDetail,
+} from "@/lib/notebooks/workspace-service"
+import type { StudioNote } from "@/lib/studio/service"
 
 function toNotebookSource(source: WorkspaceSource): NotebookSource {
   return {
@@ -25,6 +32,8 @@ function toNotebookSource(source: WorkspaceSource): NotebookSource {
 export function Workspace({
   messages,
   notebookId,
+  notes,
+  selectedNote,
   selectedDetail,
   sources,
   starterQuestions,
@@ -32,12 +41,45 @@ export function Workspace({
 }: {
   messages: ChatMessage[]
   notebookId: string
+  notes: WorkspaceNotePreview[]
+  selectedNote: StudioNote | null
   selectedDetail: WorkspaceSourceDetail | null
   sources: WorkspaceSource[]
   starterQuestions: string[]
   streaming: boolean
 }) {
   const router = useRouter()
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([])
+  useEffect(() => {
+    setOptimisticMessages((current) =>
+      current.filter(
+        (optimistic) =>
+          !messages.some(
+            (message) => message.role === "user" && message.content === optimistic.content,
+          ),
+      ),
+    )
+  }, [messages])
+  const addOptimisticQuestion = (content: string) => {
+    const id = `optimistic-${crypto.randomUUID()}`
+    setOptimisticMessages((current) => [
+      ...current,
+      {
+        attemptNo: null,
+        citations: [],
+        content,
+        id,
+        messageKind: "answer",
+        role: "user",
+        status: "complete",
+        suggestedQuestions: [],
+        unsupportedReason: null,
+      },
+    ])
+    return id
+  }
+  const removeOptimisticQuestion = (id: string) =>
+    setOptimisticMessages((current) => current.filter((message) => message.id !== id))
   const selectSource = (sourceId: string) =>
     router.replace(`/notebooks/${notebookId}?source=${sourceId}`, { scroll: false })
   const returnToWorkspace = () => router.replace(`/notebooks/${notebookId}`, { scroll: false })
@@ -84,9 +126,11 @@ export function Workspace({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
-          <ChatThread messages={messages} notebookId={notebookId} />
+          <ChatThread messages={[...messages, ...optimisticMessages]} notebookId={notebookId} />
           <QuestionInput
             notebookId={notebookId}
+            onQuestionRejected={removeOptimisticQuestion}
+            onQuestionSubmitted={addOptimisticQuestion}
             starterQuestions={starterQuestions}
             streaming={streaming}
           />
@@ -99,7 +143,14 @@ export function Workspace({
           <CardDescription>Gesicherte Antworten erscheinen hier.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Noch keine Studio-Notizen vorhanden.</p>
+          <StudioNotes
+            notebookId={notebookId}
+            notes={notes}
+            selectedNote={selectedNote}
+            onSelect={(noteId) =>
+              router.replace(`/notebooks/${notebookId}?note=${noteId}`, { scroll: false })
+            }
+          />
         </CardContent>
       </Card>
     </section>

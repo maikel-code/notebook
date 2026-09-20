@@ -102,10 +102,10 @@ export function RenameNotebookForm({ notebookId, notebookName }: RenameNotebookF
         />
         <ActionError error={state.error} id={errorId} />
       </div>
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} size="sm">
         {pending ? "Wird gespeichert…" : "Umbenennen"}
       </Button>
-      <Button type="button" variant="outline" onClick={() => setEditName(false)}>Abbrechen</Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => setEditName(false)}>Abbrechen</Button>
     </form>
   )
 }

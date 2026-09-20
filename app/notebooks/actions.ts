@@ -20,6 +20,7 @@ import {
   deleteNotebookForContext,
   renameNotebookForContext,
 } from "@/lib/notebooks/service"
+import { saveStudioNoteForContext } from "@/lib/studio/service"
 import { createServiceSupabaseClient } from "@/lib/supabase/service"
 
 export interface NotebookActionState {
@@ -145,4 +146,14 @@ export async function importWebSources(
   }
   revalidatePath(`/notebooks/${notebookId}`)
   return result
+}
+
+export async function saveStudioNote(messageId: string, notebookId: string): Promise<void> {
+  const { userId } = await requireUser()
+  await saveStudioNoteForContext(
+    { userId },
+    { messageId, notebookId },
+    createServiceSupabaseClient(),
+  )
+  revalidatePath(`/notebooks/${notebookId}`)
 }

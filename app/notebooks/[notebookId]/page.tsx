@@ -5,24 +5,26 @@ import { ConfirmDeleteDialog } from "@/components/notebook/confirm-delete-dialog
 import { RenameNotebookForm } from "@/components/notebook/notebook-forms"
 import { Workspace } from "@/components/notebook/workspace"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireUser } from "@/lib/auth/authorize"
 import { HttpError } from "@/lib/http/errors"
 import {
   getSourceDetailForContext,
   getWorkspaceSnapshotForContext,
 } from "@/lib/notebooks/workspace-service"
+import { getStudioNoteForContext } from "@/lib/studio/service"
 import { createServiceSupabaseClient } from "@/lib/supabase/service"
 
 interface NotebookPageProps {
   params: Promise<{ notebookId: string }>
-  searchParams: Promise<{ source?: string | string[] }>
+  searchParams: Promise<{ note?: string | string[]; source?: string | string[] }>
 }
 
 export default async function NotebookPage({ params, searchParams }: NotebookPageProps) {
   const { notebookId } = await params
   const selectedSourceParam = (await searchParams).source
+  const selectedNoteParam = (await searchParams).note
   const selectedSourceId = typeof selectedSourceParam === "string" ? selectedSourceParam : null
+  const selectedNoteId = typeof selectedNoteParam === "string" ? selectedNoteParam : null
   try {
     const { userId } = await requireUser()
     const service = createServiceSupabaseClient()
@@ -30,6 +32,9 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
     const notebook = workspace.notebook
     const selectedDetail = selectedSourceId
       ? await getSourceDetailForContext({ userId }, notebookId, selectedSourceId, service)
+      : null
+    const selectedNote = selectedNoteId
+      ? await getStudioNoteForContext({ userId }, notebookId, selectedNoteId, service)
       : null
     const { data: messageRows, error: messageError } = await service
       .from("messages")
@@ -95,7 +100,7 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
       unsupportedReason: message.unsupported_reason,
     }))
     const starterQuestions =
-      messages.filter((message) =>  message.role === "assistant").pop()?.suggestedQuestions || []
+      messages.filter((message) => message.role === "assistant").pop()?.suggestedQuestions || []
 
     const streaming = messages.some(
       (message) => message.role === "assistant" && message.status === "streaming",
@@ -105,7 +110,9 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
       <main className="mx-auto grid min-h-screen max-w-full content-start gap-6 px-4 py-4">
         <div className="flex flex-wrap items-center gap-4">
           <Button asChild variant="outline" className="w-fit px-2  ">
-            <Link href="/notebooks" title="Alle Notebooks">←</Link>
+            <Link href="/notebooks" title="Alle Notebooks">
+              ←
+            </Link>
           </Button>
           <header>
             <RenameNotebookForm notebookId={notebook.id} notebookName={notebook.name} />
@@ -118,6 +125,8 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
         <Workspace
           messages={messages}
           notebookId={notebook.id}
+          notes={workspace.notes}
+          selectedNote={selectedNote}
           selectedDetail={selectedDetail}
           sources={workspace.sources}
           starterQuestions={starterQuestions}
