@@ -205,143 +205,138 @@ export async function POST(request: Request) {
       return NextResponse.json({ id: answer?.id, status: "failed" })
     }
     if (process.env.NOTEBOOK_E2E_INGESTION_MODE !== "1") {
+      const question = questionText ?? ""
+      const notebookId = input.notebookId ?? ""
       const attempt = await startAnswerAttempt(service, {
-        notebookId: input.notebookId,
-        questionContent: questionText,
+        notebookId,
+        questionContent: question,
         questionMessageId,
         selectedSourceIds: selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
         userId,
       })
-      let retrieved: Awaited<ReturnType<typeof retrieveForQuestion>>
-      try {
-        retrieved = await retrieveForQuestion(
-          service,
-          input.notebookId,
-          questionText,
-          userId,
-          selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
-        )
-      } catch {
-        return NextResponse.json(
-          await persistVerifiedAnswer(
-            {
-              citations: [],
-              content: request.signal.aborted ? abortedAnswerMessage : failedAnswerMessage,
-              answerMessageId: attempt.answerId,
-              notebookId: input.notebookId,
-              questionContent: questionText,
-              questionMessageId,
-              selectedSourceIds: selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
-              status: request.signal.aborted ? "aborted" : "failed",
+      const encoder = new TextEncoder()
+      const snapshot = selectedSourceIds ?? selectedForAttempt.map((item) => item.id)
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const send = (payload: object) =>
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
+          const finish = () => {
+            send({ type: "done" })
+            controller.close()
+          }
+          try {
+            const retrieved = await retrieveForQuestion(
+              service,
+              notebookId,
+              question,
               userId,
-            },
-            service,
-          ),
-        )
-      }
-      if (!retrieved.length) {
-        return NextResponse.json(
-          await persistVerifiedAnswer(
-            {
-              answerMessageId: attempt.answerId,
-              citations: [],
-              content: unsupportedMessages.below_similarity_threshold,
-              notebookId: input.notebookId,
-              questionContent: questionText,
-              questionMessageId,
-              selectedSourceIds: selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
-              unsupportedReason: "below_similarity_threshold",
-              userId,
-            },
-            service,
-          ),
-        )
-      }
-      let generated: Awaited<ReturnType<typeof generateAnswer>>
-      try {
-        generated = await generateAnswer(
-          questionText,
-          buildUntrustedContext(retrieved),
-          request.signal,
-        )
-      } catch {
-        return NextResponse.json(
-          await persistVerifiedAnswer(
-            {
-              citations: [],
-              content: request.signal.aborted ? abortedAnswerMessage : failedAnswerMessage,
-              answerMessageId: attempt.answerId,
-              notebookId: input.notebookId,
-              questionContent: questionText,
-              questionMessageId,
-              selectedSourceIds: selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
-              status: request.signal.aborted ? "aborted" : "failed",
-              userId,
-            },
-            service,
-          ),
-        )
-      }
-      if (generated.kind === "unsupported") {
-        return NextResponse.json(
-          await persistVerifiedAnswer(
-            {
-              answerMessageId: attempt.answerId,
-              citations: [],
-              content: unsupportedMessages.unsupported,
-              notebookId: input.notebookId,
-              questionContent: questionText,
-              questionMessageId,
-              selectedSourceIds: selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
-              unsupportedReason: "unsupported",
-              userId,
-            },
-            service,
-          ),
-        )
-      }
-      const verification = verifyClaims(
-        generated,
-        retrieved.map((chunk, index) => ({
-          ...chunk,
-          chunkNumber: index + 1,
-          selected: chunk.sourceSelected,
-        })),
-      )
-      if (verification.kind === "invalid") {
-        return NextResponse.json(
-          await persistVerifiedAnswer(
-            {
-              citations: [],
-              content: generated.claims.map((claim) => claim.text).join("\n\n"),
-              answerMessageId: attempt.answerId,
-              notebookId: input.notebookId,
-              questionContent: questionText,
-              questionMessageId,
-              selectedSourceIds: selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
-              status: "invalid",
-              unsupportedReason: "invalid_citations",
-              userId,
-            },
-            service,
-          ),
-        )
-      }
-      return NextResponse.json(
-        await persistVerifiedAnswer(
-          {
-            citations: verification.citations,
-            content: verification.claims.join("\n\n"),
-            answerMessageId: attempt.answerId,
-            notebookId: input.notebookId,
-            questionContent: questionText,
-            questionMessageId,
-            selectedSourceIds: selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
-            userId,
-          },
-          service,
-        ),
-      )
+              snapshot,
+            )
+            if (!retrieved.length) {
+              await persistVerifiedAnswer(
+                {
+                  answerMessageId: attempt.answerId,
+                  citations: [],
+                  content: unsupportedMessages.below_similarity_threshold,
+                  notebookId,
+                  questionContent: question,
+                  questionMessageId,
+                  selectedSourceIds: snapshot,
+                  unsupportedReason: "below_similarity_threshold",
+                  userId,
+                },
+                service,
+              )
+              send({ text: unsupportedMessages.below_similarity_threshold, type: "terminal" })
+              finish()
+              return
+            }
+            const generated = await generateAnswer(
+              question,
+              buildUntrustedContext(retrieved),
+              request.signal,
+              (claim) => send({ text: claim.text, type: "claim" }),
+            )
+            if (generated.kind === "unsupported") {
+              await persistVerifiedAnswer(
+                {
+                  answerMessageId: attempt.answerId,
+                  citations: [],
+                  content: unsupportedMessages.unsupported,
+                  notebookId,
+                  questionContent: question,
+                  questionMessageId,
+                  selectedSourceIds: snapshot,
+                  unsupportedReason: "unsupported",
+                  userId,
+                },
+                service,
+              )
+              send({ text: unsupportedMessages.unsupported, type: "terminal" })
+              finish()
+              return
+            }
+            const verification = verifyClaims(
+              generated,
+              retrieved.map((chunk, index) => ({
+                ...chunk,
+                chunkNumber: index + 1,
+                selected: chunk.sourceSelected,
+              })),
+            )
+            if (verification.kind === "invalid") {
+              await persistVerifiedAnswer(
+                {
+                  answerMessageId: attempt.answerId,
+                  citations: [],
+                  content: generated.claims.map((claim) => claim.text).join("\n\n"),
+                  notebookId,
+                  questionContent: question,
+                  questionMessageId,
+                  selectedSourceIds: snapshot,
+                  status: "invalid",
+                  unsupportedReason: "invalid_citations",
+                  userId,
+                },
+                service,
+              )
+            } else {
+              await persistVerifiedAnswer(
+                {
+                  answerMessageId: attempt.answerId,
+                  citations: verification.citations,
+                  content: verification.claims.join("\n\n"),
+                  notebookId,
+                  questionContent: question,
+                  questionMessageId,
+                  selectedSourceIds: snapshot,
+                  userId,
+                },
+                service,
+              )
+            }
+          } catch {
+            const aborted = request.signal.aborted
+            await persistVerifiedAnswer(
+              {
+                answerMessageId: attempt.answerId,
+                citations: [],
+                content: aborted ? abortedAnswerMessage : failedAnswerMessage,
+                notebookId,
+                questionContent: question,
+                questionMessageId,
+                selectedSourceIds: snapshot,
+                status: aborted ? "aborted" : "failed",
+                userId,
+              },
+              service,
+            )
+            send({ text: aborted ? abortedAnswerMessage : failedAnswerMessage, type: "error" })
+          }
+          finish()
+        },
+      })
+      return new Response(stream, { headers: { "content-type": "text/event-stream" } })
     }
     if (!first || !source) throw new Error("Quelle konnte nicht zugeordnet werden.")
     const result = await persistVerifiedAnswer(
