@@ -8,9 +8,9 @@
 
 **Purpose**: Establish fixed demo limits, dependencies and fixtures without changing existing behavior.
 
-- [ ] T001 Add the selected HTML extraction dependency and lockfile entry in `package.json` and `pnpm-lock.yaml`
-- [ ] T002 [P] Add search-result, web-response and orientation limits in `lib/limits.ts`
-- [ ] T003 [P] Add deterministic public HTML, redirect, private-address and web-search fixtures in `tests/fixtures/workspace-sources.ts`
+- [X] T001 Add the selected HTML extraction dependency and lockfile entry in `package.json` and `pnpm-lock.yaml`
+- [X] T002 [P] Add search-result, web-response and orientation limits in `lib/limits.ts`
+- [X] T003 [P] Add deterministic public HTML, redirect, private-address and web-search fixtures in `tests/fixtures/workspace-sources.ts`
 
 ---
 
@@ -18,7 +18,7 @@
 
 **Purpose**: Add one additive migration and owner-scoped domain services that all stories need.
 
-- [ ] T004 Add `pdf`/`web` source shape, web uniqueness, `fetch` ingestion phase, orientation message shape and immutable `studio_notes` RLS schema in `supabase/migrations/202609200002_workspace_sources.sql`
+- [X] T004 Add `pdf`/`web` source shape, web uniqueness, `fetch` ingestion phase, orientation message shape and immutable `studio_notes` RLS schema in `supabase/migrations/202609200002_workspace_sources.sql`
 - [ ] T005 Add reset-safe migration and RLS boundary tests for source kinds, orientation messages and studio notes in `tests/integration/workspace-schema-access.test.ts`
 - [ ] T006 Add owner-scoped source detail, workspace snapshot and studio-note persistence/read services in `lib/notebooks/workspace-service.ts` and `lib/studio/service.ts`
 - [ ] T007 Add direct owner, foreign and anonymous service/action tests for detail reads, imports and note operations in `tests/integration/workspace-access.test.ts`
