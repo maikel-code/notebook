@@ -46,7 +46,10 @@ trailer
     ).join("\n")
     const overlong = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [${pages}] /Count ${MAX_PAGES + 1} >>\nendobj\n${pageObjects}\ntrailer\n<< /Root 1 0 R >>\n%%EOF`
     await expect(validatePdf(new TextEncoder().encode(overlong), "long.pdf")).rejects.toMatchObject(
-      { status: 422 },
+      {
+        message: "Die PDF-Datei darf höchstens 50 Seiten haben.",
+        status: 422,
+      },
     )
   })
 })

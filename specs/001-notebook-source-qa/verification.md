@@ -175,6 +175,25 @@ gültigem, fehlendem und ungültigem Geheimnis.
 | `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
 | `pnpm build` und Secret-Check | erfolgreich; keine Secret-Namen in `.next/static` |
 
+## Phase 4 — Claude-Review-Korrekturen — 2026-09-20
+
+Ein unabhängiges Claude-Review prüfte den Phase-4-Diff. Der Upload-Abbruch
+sperrt und löscht seinen Entwurf nun in einer Datenbankoperation; erst danach
+wird das zugehörige Storage-Objekt entfernt. Das Seitenlimit behält seinen
+`422`-Fehler, Extraktionsressourcen werden freigegeben und die gespeicherte
+Diagnose enthält einen phasenbezogenen Fehlercode. Die Duplikatentscheidung ist
+als Dialog mit drei expliziten Aktionen umgesetzt. Der Sweep läuft einmalig;
+`--watch` aktiviert die Wiederholung.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; vierzehn Migrationen |
+| `pnpm format`, `pnpm lint`, `pnpm typecheck` | erfolgreich; 89 Dateien geprüft |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm test:integration` | erfolgreich; 19 Dateien, 59 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm build` | erfolgreicher Next-16-Produktions-Build |
+
 ## Phase 4 — Quellenaufnahme und Verarbeitungszustand — 2026-09-19
 
 **Umfang:** T041–T069. Die Aufnahme prüft serverseitig Signatur, Größe,

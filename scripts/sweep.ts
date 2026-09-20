@@ -16,10 +16,13 @@ async function sweep(): Promise<void> {
   if (!response.ok) throw new Error(`Sweep failed with HTTP ${response.status}`)
 }
 
-async function runWorker(): Promise<never> {
+async function runWorker(): Promise<void> {
   await sweep()
-  await setTimeout(intervalMilliseconds)
-  return runWorker()
+  while (true) {
+    await setTimeout(intervalMilliseconds)
+    await sweep()
+  }
 }
 
-await runWorker()
+if (process.argv.includes("--watch")) await runWorker()
+else await sweep()

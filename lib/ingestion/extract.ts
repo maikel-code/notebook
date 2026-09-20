@@ -10,8 +10,9 @@ export interface ExtractedPage {
 export async function extractPdfText(bytes: Uint8Array): Promise<ExtractedPage[]> {
   const fixturePages = localE2EPages(bytes)
   if (fixturePages) return fixturePages
-  const document = await getDocument({ data: bytes }).promise
+  const loadingTask = getDocument({ data: bytes })
   try {
+    const document = await loadingTask.promise
     const pages: ExtractedPage[] = []
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber)
@@ -23,8 +24,9 @@ export async function extractPdfText(bytes: Uint8Array): Promise<ExtractedPage[]
         .trim()
       pages.push({ page: pageNumber, text })
     }
+    document.cleanup()
     return pages
   } finally {
-    document.cleanup()
+    await loadingTask.destroy()
   }
 }

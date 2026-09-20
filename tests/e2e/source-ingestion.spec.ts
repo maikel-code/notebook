@@ -55,13 +55,25 @@ test("source upload changes status without reload and offers a working retry wit
   await expect(page).toHaveURL(/\/notebooks\/[0-9a-f-]+$/i)
 
   await sourceInput.setInputFiles({
+    buffer: textPdf("Deterministic local E2E source"),
+    mimeType: "application/pdf",
+    name: "ready.pdf",
+  })
+  const duplicateDialog = page.getByRole("dialog")
+  await expect(duplicateDialog).toContainText("Datei bereits vorhanden")
+  await duplicateDialog.getByRole("button", { name: "Abbrechen" }).click()
+  await expect(duplicateDialog).toHaveCount(0)
+
+  await sourceInput.setInputFiles({
     buffer: textPdf("NOTEBOOK_E2E_FAIL_ONCE"),
     mimeType: "application/pdf",
     name: "retry.pdf",
   })
   await expect(sources).toContainText("retry.pdf")
   await expect(sources).toContainText("fehlgeschlagen")
-  await expect(sources).toContainText("Die PDF-Verarbeitung ist fehlgeschlagen.")
+  await expect(sources).toContainText(
+    "Die Einbettungen für die PDF-Datei konnten nicht erstellt werden.",
+  )
 
   await page.getByRole("button", { name: "Erneut versuchen" }).click()
   await expect(sources).toContainText("bereit")

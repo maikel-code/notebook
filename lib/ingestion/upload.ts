@@ -174,11 +174,19 @@ export async function cancelUploadForContext(
   service: SupabaseClient,
 ): Promise<void> {
   const { userId } = requireContext(context)
-  const source = await ownedSource(service, sourceId, userId)
-  if (source.status !== "uploading")
-    throw validationError("Dieser Upload kann nicht abgebrochen werden.")
-  await service.from("sources").delete().eq("id", source.id).eq("user_id", userId)
-  await service.storage.from(SOURCES_BUCKET).remove([source.storage_path])
+  const { data: storagePath, error } = await service.rpc("cancel_source_upload", {
+    p_source_id: sourceId,
+    p_user_id: userId,
+  })
+  if (error) {
+    if (/source not found/.test(error.message)) throw notFoundError()
+    if (/upload draft/.test(error.message))
+      throw validationError("Dieser Upload kann nicht abgebrochen werden.")
+    throw new Error("Upload konnte nicht abgebrochen werden.")
+  }
+  if (typeof storagePath !== "string") throw new Error("Upload konnte nicht abgebrochen werden.")
+  const { error: storageError } = await service.storage.from(SOURCES_BUCKET).remove([storagePath])
+  if (storageError) throw new Error("Upload konnte nicht vollständig abgebrochen werden.")
 }
 
 export async function retryIngestionForContext(

@@ -1,5 +1,5 @@
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import { validationError } from "@/lib/http/errors"
+import { HttpError, validationError } from "@/lib/http/errors"
 import { localE2EPages } from "@/lib/ingestion/local-e2e"
 import { MAX_FILE_BYTES, MAX_PAGES } from "@/lib/limits"
 
@@ -27,16 +27,20 @@ export async function validatePdf(bytes: Uint8Array, _fileName: string): Promise
 
   if (localE2EPages(bytes)) return { pageCount: 1 }
 
+  const loadingTask = getDocument({ data: bytes.slice() })
   try {
-    const document = await getDocument({ data: bytes.slice() }).promise
+    const document = await loadingTask.promise
     const pageCount = document.numPages
     document.cleanup()
     if (pageCount > MAX_PAGES) rejected("Die PDF-Datei darf höchstens 50 Seiten haben.")
     return { pageCount }
   } catch (error) {
+    if (error instanceof HttpError) throw error
     const name = error instanceof Error ? error.name : ""
     if (name === "PasswordException")
       rejected("Passwortgeschützte PDF-Dateien werden nicht unterstützt.")
     rejected("Die PDF-Datei ist beschädigt oder kann nicht gelesen werden.")
+  } finally {
+    await loadingTask.destroy()
   }
 }

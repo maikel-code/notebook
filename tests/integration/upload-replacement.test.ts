@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { sourceStoragePath } from "@/lib/ingestion/storage"
-import { parseUploadIntent, prepareUploadForContext } from "@/lib/ingestion/upload"
+import {
+  cancelUploadForContext,
+  parseUploadIntent,
+  prepareUploadForContext,
+} from "@/lib/ingestion/upload"
 import { createNotebookForContext } from "@/lib/notebooks/service"
 import {
   createIntegrationFixture,
@@ -100,5 +104,61 @@ describe("upload replacement", () => {
         fixture.service,
       ),
     ).resolves.toMatchObject({ decision: "ok" })
+  })
+
+  it("cancels only an upload draft and keeps a processing file intact", async () => {
+    const bytes = new TextEncoder().encode("%PDF-1.4")
+    const draft = await prepareUploadForContext(
+      testContext(fixture.owner),
+      {
+        byteSize: bytes.byteLength,
+        contentHash: "c".repeat(64),
+        fileName: "cancel.pdf",
+        notebookId,
+      },
+      fixture.service,
+    )
+    if (draft.decision !== "ok") throw new Error("Expected upload draft")
+    const { error: uploadError } = await fixture.owner.client.storage
+      .from("sources")
+      .upload(draft.storagePath, new Blob([bytes], { type: "application/pdf" }), {
+        contentType: "application/pdf",
+      })
+    if (uploadError) throw uploadError
+
+    await cancelUploadForContext(testContext(fixture.owner), draft.sourceId, fixture.service)
+    await expect(
+      fixture.service.from("sources").select("id").eq("id", draft.sourceId).maybeSingle(),
+    ).resolves.toMatchObject({ data: null })
+
+    const processing = await prepareUploadForContext(
+      testContext(fixture.owner),
+      {
+        byteSize: bytes.byteLength,
+        contentHash: "d".repeat(64),
+        fileName: "processing.pdf",
+        notebookId,
+      },
+      fixture.service,
+    )
+    if (processing.decision !== "ok") throw new Error("Expected processing draft")
+    const { error: processingUploadError } = await fixture.owner.client.storage
+      .from("sources")
+      .upload(processing.storagePath, new Blob([bytes], { type: "application/pdf" }), {
+        contentType: "application/pdf",
+      })
+    if (processingUploadError) throw processingUploadError
+    const { error: processingError } = await fixture.service
+      .from("sources")
+      .update({ status: "processing" })
+      .eq("id", processing.sourceId)
+    if (processingError) throw processingError
+
+    await expect(
+      cancelUploadForContext(testContext(fixture.owner), processing.sourceId, fixture.service),
+    ).rejects.toMatchObject({ status: 422 })
+    await expect(
+      fixture.owner.client.storage.from("sources").download(processing.storagePath),
+    ).resolves.toMatchObject({ error: null })
   })
 })

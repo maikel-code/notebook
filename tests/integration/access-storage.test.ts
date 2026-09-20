@@ -67,12 +67,22 @@ describe("storage access boundary", () => {
           },
         ),
     ).resolves.toMatchObject({ error: null })
+    const blockedPath = sourceStoragePath(
+      fixture.owner.id,
+      crypto.randomUUID(),
+      crypto.randomUUID(),
+    )
+    const validPdf = new Blob(["%PDF-1.4"], { type: "application/pdf" })
     await expect(
-      fixture.stranger.client.storage.from("sources").upload(exactPath, new Blob(["x"])),
-    ).resolves.toMatchObject({ data: null })
+      fixture.stranger.client.storage.from("sources").upload(blockedPath, validPdf, {
+        contentType: "application/pdf",
+      }),
+    ).resolves.toMatchObject({ data: null, error: expect.anything() })
     await expect(
-      fixture.anonymous.storage.from("sources").upload(exactPath, new Blob(["x"])),
-    ).resolves.toMatchObject({ data: null })
+      fixture.anonymous.storage.from("sources").upload(blockedPath, validPdf, {
+        contentType: "application/pdf",
+      }),
+    ).resolves.toMatchObject({ data: null, error: expect.anything() })
     await expect(
       fixture.owner.client.storage.from("sources").download("missing/path.pdf"),
     ).resolves.toMatchObject({ data: null })

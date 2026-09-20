@@ -65,15 +65,39 @@ describe("internal job access", () => {
     )
     const ownerSourceId = crypto.randomUUID()
     const strangerSourceId = crypto.randomUUID()
+    const ownerBytes = new TextEncoder().encode(
+      [
+        "%PDF-1.4",
+        "1 0 obj",
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "endobj",
+        "2 0 obj",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "endobj",
+        "3 0 obj",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1 1] >>",
+        "endobj",
+        "trailer",
+        "<< /Root 1 0 R >>",
+        "%%EOF",
+      ].join("\n"),
+    )
+    const ownerStoragePath = sourceStoragePath(fixture.owner.id, ownerNotebookId, ownerSourceId)
+    const { error: uploadError } = await fixture.owner.client.storage
+      .from("sources")
+      .upload(ownerStoragePath, new Blob([ownerBytes], { type: "application/pdf" }), {
+        contentType: "application/pdf",
+      })
+    if (uploadError) throw uploadError
     const { error: sourceError } = await fixture.service.from("sources").insert([
       {
-        byte_size: 1,
+        byte_size: ownerBytes.byteLength,
         content_hash: "a".repeat(64),
         file_name: "owner.pdf",
         id: ownerSourceId,
         notebook_id: ownerNotebookId,
         status: "processing",
-        storage_path: sourceStoragePath(fixture.owner.id, ownerNotebookId, ownerSourceId),
+        storage_path: ownerStoragePath,
         user_id: fixture.owner.id,
       },
       {
@@ -96,6 +120,17 @@ describe("internal job access", () => {
     if (jobError) throw jobError
 
     await expect(runNextIngestionJob(fixture.service, ownerSourceId)).resolves.toBe(true)
+    await expect(
+      loadOwnedJobSource(fixture.service, ownerSourceId, fixture.stranger.id),
+    ).rejects.toThrow("Auftragsquelle fehlt")
+    const { data: ownerSource, error: ownerCheckError } = await fixture.service
+      .from("sources")
+      .select("status")
+      .eq("id", ownerSourceId)
+      .eq("user_id", fixture.owner.id)
+      .single()
+    if (ownerCheckError) throw ownerCheckError
+    expect(ownerSource.status).toBe("unusable")
     const { data: strangerSource, error: checkError } = await fixture.service
       .from("sources")
       .select("status")
@@ -104,31 +139,5 @@ describe("internal job access", () => {
       .single()
     if (checkError) throw checkError
     expect(strangerSource.status).toBe("ready")
-  })
-
-  it("requests the claimed source with its owner filter", async () => {
-    const filters: Array<[string, string]> = []
-    const service = {
-      from: () => ({
-        select: () => ({
-          eq: (column: string, value: string) => {
-            filters.push([column, value])
-            return {
-              eq: (nextColumn: string, nextValue: string) => {
-                filters.push([nextColumn, nextValue])
-                return { maybeSingle: async () => ({ data: null, error: null }) }
-              },
-            }
-          },
-        }),
-      }),
-    }
-    await expect(loadOwnedJobSource(service as never, "source-id", "owner-id")).rejects.toThrow(
-      "Auftragsquelle fehlt",
-    )
-    expect(filters).toEqual([
-      ["id", "source-id"],
-      ["user_id", "owner-id"],
-    ])
   })
 })

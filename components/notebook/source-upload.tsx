@@ -5,22 +5,52 @@ import { type ChangeEvent, useRef, useState } from "react"
 
 import { cancelUpload, confirmUpload, prepareUpload } from "@/app/notebooks/actions"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SOURCES_BUCKET } from "@/lib/ingestion/storage"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { sha256Hex } from "@/lib/upload/hash"
 
-type UploadStage = "error" | "idle" | "processing" | "uploading"
+type UploadStage = "duplicate" | "error" | "idle" | "processing" | "uploading"
+
+interface DuplicateUpload {
+  existingSourceId: string
+  file: File
+}
 
 export function SourceUpload({ notebookId }: { notebookId: string }) {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const [activeSourceId, setActiveSourceId] = useState<string | null>(null)
+  const [duplicate, setDuplicate] = useState<DuplicateUpload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stage, setStage] = useState<UploadStage>("idle")
 
-  async function completeUpload(file: File, intent?: "add" | "replace", replaceSourceId?: string) {
+  function finishUpload() {
+    setActiveSourceId(null)
+    setStage("idle")
+    if (inputRef.current) inputRef.current.value = ""
+  }
+
+  function failUpload(uploadError: unknown) {
+    setStage("error")
+    setActiveSourceId(null)
+    setError(uploadError instanceof Error ? uploadError.message : "Upload fehlgeschlagen.")
+  }
+
+  async function completeUpload(
+    file: File,
+    intent?: "add" | "replace",
+    replaceSourceId?: string,
+  ): Promise<boolean> {
     const contentHash = await sha256Hex(await file.arrayBuffer())
     const prepared = await prepareUpload({
       byteSize: file.size,
@@ -32,11 +62,9 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
     })
     if (prepared.decision === "rejected") throw new Error(prepared.reason)
     if (prepared.decision === "duplicate") {
-      const replace = window.confirm("Die Datei ist bereits vorhanden. Diese Quelle ersetzen?")
-      if (replace) return completeUpload(file, "replace", prepared.existingSourceId)
-      const add = window.confirm("Als zusätzliche Quelle aufnehmen?")
-      if (add) return completeUpload(file, "add")
-      return
+      setDuplicate({ existingSourceId: prepared.existingSourceId, file })
+      setStage("duplicate")
+      return false
     }
     setActiveSourceId(prepared.sourceId)
     router.refresh()
@@ -48,6 +76,7 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
       if (storageError) throw new Error("Die Datei konnte nicht hochgeladen werden.")
       setStage("processing")
       await confirmUpload(prepared.sourceId)
+      return true
     } catch (uploadError) {
       await cancelUpload(prepared.sourceId).catch(() => undefined)
       router.refresh()
@@ -61,17 +90,36 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
     setStage("uploading")
     setError(null)
     try {
-      await completeUpload(file)
+      const completed = await completeUpload(file)
+      if (!completed) return
       router.refresh()
     } catch (uploadError) {
-      setStage("error")
-      setActiveSourceId(null)
-      setError(uploadError instanceof Error ? uploadError.message : "Upload fehlgeschlagen.")
+      failUpload(uploadError)
       return
     }
-    setStage("idle")
-    setActiveSourceId(null)
-    if (inputRef.current) inputRef.current.value = ""
+    finishUpload()
+  }
+
+  async function resolveDuplicate(intent: "add" | "replace") {
+    if (!duplicate) return
+    const selection = duplicate
+    setDuplicate(null)
+    setStage("uploading")
+    try {
+      const completed = await completeUpload(
+        selection.file,
+        intent,
+        intent === "replace" ? selection.existingSourceId : undefined,
+      )
+      if (completed) finishUpload()
+    } catch (uploadError) {
+      failUpload(uploadError)
+    }
+  }
+
+  function dismissDuplicate() {
+    setDuplicate(null)
+    finishUpload()
   }
 
   async function cancelActiveUpload() {
@@ -117,6 +165,27 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
           Upload abbrechen
         </Button>
       ) : null}
+      <Dialog open={stage === "duplicate"} onOpenChange={(open) => !open && dismissDuplicate()}>
+        <DialogContent showCloseButton>
+          <DialogHeader>
+            <DialogTitle>Datei bereits vorhanden</DialogTitle>
+            <DialogDescription>
+              Soll die vorhandene Quelle ersetzt oder die Datei zusätzlich aufgenommen werden?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={dismissDuplicate}>
+              Abbrechen
+            </Button>
+            <Button type="button" variant="outline" onClick={() => resolveDuplicate("add")}>
+              Zusätzlich aufnehmen
+            </Button>
+            <Button type="button" onClick={() => resolveDuplicate("replace")}>
+              Ersetzen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

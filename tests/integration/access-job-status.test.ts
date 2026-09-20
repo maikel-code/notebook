@@ -90,13 +90,7 @@ describe("job status access matrix", () => {
     const owner = await statusRequest(fixture.owner, notebookId)
     expect(owner.status).toBe(200)
     await expect(owner.json()).resolves.toEqual({
-      sources: [
-        expect.objectContaining({
-          id: sourceId,
-          phase: "embed",
-          status: "processing",
-        }),
-      ],
+      sources: [{ errorReason: null, id: sourceId, phase: "embed", status: "processing" }],
     })
 
     const foreign = await statusRequest(fixture.stranger, notebookId)

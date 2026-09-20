@@ -61,6 +61,15 @@ async function failJob(
   phase: string,
   forceTerminalFailure = false,
 ): Promise<void> {
+  const failureCode = `INGESTION_${phase.toUpperCase()}_FAILED`
+  const failureReason =
+    phase === "extract"
+      ? "Die PDF-Datei konnte nicht gelesen werden."
+      : phase === "chunk"
+        ? "Der PDF-Text konnte nicht aufbereitet werden."
+        : phase === "embed"
+          ? "Die Einbettungen für die PDF-Datei konnten nicht erstellt werden."
+          : "Die PDF-Verarbeitung ist fehlgeschlagen."
   const retry = forceTerminalFailure
     ? { attempt: MAX_JOB_ATTEMPTS, status: "failed" as const }
     : nextRetryState(job.attempt)
@@ -69,7 +78,7 @@ async function failJob(
     .update({
       attempt: retry.attempt,
       finished_at: retry.status === "failed" ? new Date().toISOString() : null,
-      last_error: "Die PDF-Verarbeitung ist fehlgeschlagen.",
+      last_error: failureCode,
       locked_at: null,
       status: retry.status,
     })
@@ -79,12 +88,12 @@ async function failJob(
   if (retry.status === "failed") {
     await service
       .from("sources")
-      .update({ error_reason: "Die PDF-Verarbeitung ist fehlgeschlagen.", status: "failed" })
+      .update({ error_reason: failureReason, status: "failed" })
       .eq("id", job.source_id)
       .eq("user_id", job.user_id)
   }
   writeDiagnostic({
-    cause: "INGESTION_FAILED",
+    cause: failureCode,
     correlationId: job.correlation_id,
     phase: phase as never,
   })
