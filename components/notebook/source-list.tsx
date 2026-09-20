@@ -14,7 +14,7 @@ export interface NotebookSource {
   status: "failed" | "processing" | "ready" | "unusable" | "uploading"
 }
 
-function sourceStatus(status: NotebookSource["status"]): string {
+function sourceStatus(status: string): string {
   if (status === "uploading" || status === "processing") return "wird verarbeitet"
   if (status === "ready") return "bereit"
   if (status === "failed") return "fehlgeschlagen"
@@ -22,10 +22,14 @@ function sourceStatus(status: NotebookSource["status"]): string {
 }
 
 export function SourceList({
+  onSelect,
   notebookId,
+  selectedSourceId,
   sources,
 }: {
   notebookId: string
+  onSelect?: (sourceId: string) => void
+  selectedSourceId?: string | null
   sources: NotebookSource[]
 }) {
   const router = useRouter()
@@ -55,20 +59,32 @@ export function SourceList({
               {source.errorReason ? `: ${source.errorReason}` : ""}
             </p>
           </div>
-          {source.status === "failed" ? (
-            <Button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  await retryIngestion(source.id)
-                  refresh()
-                })
-              }
-            >
-              Erneut versuchen
-            </Button>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {onSelect ? (
+              <Button
+                aria-current={selectedSourceId === source.id ? "page" : undefined}
+                type="button"
+                variant="outline"
+                onClick={() => onSelect(source.id)}
+              >
+                Quelle lesen
+              </Button>
+            ) : null}
+            {source.status === "failed" ? (
+              <Button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    await retryIngestion(source.id)
+                    refresh()
+                  })
+                }
+              >
+                Erneut versuchen
+              </Button>
+            ) : null}
+          </div>
         </li>
       ))}
     </ul>
