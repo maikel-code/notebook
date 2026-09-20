@@ -23,6 +23,12 @@ authentifizierter Storage-Blob geladen.
 `0.39988621688088577` frei. Der Referenzlauf erzielte bei zwölf Fragen eine
 Balanced Accuracy von `0.875` (TP 8, TN 3, FN 0, FP 1).
 
+**Manueller UI-Lauf:** Ein lokales Testkonto lud `Mitgliedantrag.pdf` aus den
+Downloads hoch. Die echte dreiseitige PDF wurde ohne Neuladen als `bereit`
+angezeigt. Zwei semantische Fragen zeigten den provisorischen Zustand und
+endeten ohne Beleg korrekt fail-closed; nach dem Stream war die Eingabe wieder
+leer. Es wurde keine öffentliche Storage-URL erzeugt.
+
 ## Phase 1–3 / US1 — 2026-09-19
 
 **Umfang:** T001–T040. T041 und spätere Aufgaben wurden nicht bearbeitet.
