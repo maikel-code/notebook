@@ -14,7 +14,12 @@ test("keeps a failed attempt, appends the retry, and preserves both after reload
   await page.getByRole("button", { name: "Notebook anlegen" }).click()
   await page.getByRole("link", { name: "Retry" }).click()
 
-  await page.getByLabel("Frage an das Notebook").fill("Ausfall simulieren")
+  await page
+    .getByLabel("PDF-Quelle hinzufügen")
+    .setInputFiles("eval/dataset/documents/team-handbook-de.pdf")
+  await expect(page.getByRole("list", { name: "Quellen" })).toContainText("bereit")
+
+  await page.getByLabel("Frage an das Notebook").fill("NOTEBOOK_E2E_ANSWER_FAIL_ONCE")
   await page.getByRole("button", { name: "Frage senden" }).click()
   const attempts = page.getByRole("list", { name: "Antwortversuche" })
   await expect(attempts).toContainText("fehlgeschlagen")

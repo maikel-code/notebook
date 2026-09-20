@@ -26,8 +26,8 @@ export function evaluateThreshold(
   threshold: number,
 ): ThresholdScore {
   if (observations.length === 0) throw new Error("Für die Kalibrierung fehlen Retrieval-Scores.")
-  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
-    throw new Error("Der Kandidatenschwellenwert muss zwischen 0 und 1 liegen.")
+  if (!Number.isFinite(threshold) || threshold < 0) {
+    throw new Error("Der Kandidatenschwellenwert muss eine nicht negative Zahl sein.")
   }
 
   let truePositives = 0
@@ -59,15 +59,23 @@ export function evaluateThreshold(
 }
 
 export function selectFailClosedThreshold(observations: RetrievalObservation[]): ThresholdScore {
-  const candidates = [...new Set(observations.map((observation) => observation.score))]
-  if (candidates.length === 0) throw new Error("Für die Kalibrierung fehlen Retrieval-Scores.")
-  return candidates
+  if (observations.length === 0) throw new Error("Für die Kalibrierung fehlen Retrieval-Scores.")
+  const maximumScore = Math.max(...observations.map((observation) => observation.score))
+  const candidates = [
+    ...new Set([
+      ...observations.map((observation) => observation.score),
+      maximumScore + Number.EPSILON,
+    ]),
+  ]
+  const selected = candidates
     .sort((left, right) => right - left)
     .map((threshold) => evaluateThreshold(observations, threshold))
     .sort(
       (left, right) =>
         right.balancedAccuracy - left.balancedAccuracy || right.threshold - left.threshold,
     )[0]
+  if (!selected) throw new Error("Für die Kalibrierung fehlen Kandidatenschwellenwerte.")
+  return selected
 }
 
 async function main(): Promise<void> {
