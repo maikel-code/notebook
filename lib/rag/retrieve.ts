@@ -67,6 +67,7 @@ export async function loadSelectedReadyCandidates(
   service: SupabaseClient,
   notebookId: string,
   userId: string,
+  selectedSourceIds?: string[],
 ): Promise<RetrievalCandidate[]> {
   const { data, error } = await service
     .from("chunks")
@@ -77,7 +78,7 @@ export async function loadSelectedReadyCandidates(
     .eq("sources.notebook_id", notebookId)
     .eq("sources.user_id", userId)
     .eq("sources.status", "ready")
-    .eq("sources.is_selected", true)
+  if (selectedSourceIds && selectedSourceIds.length === 0) return []
   if (error) throw new RetrievalFailure("Die Quellensuche ist fehlgeschlagen.")
   return (data ?? []).map((row) => {
     const source = row.sources as unknown as {
@@ -96,7 +97,9 @@ export async function loadSelectedReadyCandidates(
       similarity: 0,
       sourceId: row.source_id,
       sourceName: source.file_name,
-      sourceSelected: source.is_selected,
+      sourceSelected: selectedSourceIds
+        ? selectedSourceIds.includes(row.source_id)
+        : source.is_selected,
       sourceStatus: source.status,
       userId: source.user_id,
     }
@@ -108,13 +111,20 @@ export async function retrieveForQuestion(
   notebookId: string,
   question: string,
   userId: string,
+  selectedSourceIds?: string[],
 ): Promise<RetrievalCandidate[]> {
   try {
     const calibration = await loadRetrievalCalibration()
     const { embedChunks } = await import("@/lib/ingestion/embed")
     const [questionEmbedding] = await embedChunks([question])
     if (!questionEmbedding) throw new RetrievalFailure("Die Frage konnte nicht durchsucht werden.")
-    const candidates = await loadSelectedReadyCandidates(service, notebookId, userId)
+    const candidates = await loadSelectedReadyCandidates(
+      service,
+      notebookId,
+      userId,
+      selectedSourceIds,
+    )
+    if (!candidates.length) return []
     const { data, error } = await service
       .from("chunks")
       .select("id, embedding")

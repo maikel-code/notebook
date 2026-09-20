@@ -1,7 +1,7 @@
 import "server-only"
 
 import { createAnthropic } from "@ai-sdk/anthropic"
-import { generateText } from "ai"
+import { streamText } from "ai"
 
 import { getServerEnvironment } from "@/lib/env"
 import { type GeneratedAnswer, generatedAnswerSchema } from "@/lib/rag/claim-schema"
@@ -13,11 +13,13 @@ export async function generateAnswer(
   signal?: AbortSignal,
 ): Promise<GeneratedAnswer> {
   const anthropic = createAnthropic({ apiKey: getServerEnvironment().ANTHROPIC_API_KEY })
-  const result = await generateText({
+  const result = streamText({
     abortSignal: signal,
     model: anthropic("claude-sonnet-4-20250514"),
     prompt: `Frage:\n${question}\n\nQuellen:\n${context}`,
     system: RAG_SYSTEM_PROMPT,
   })
-  return generatedAnswerSchema.parse(JSON.parse(result.text))
+  let text = ""
+  for await (const delta of result.textStream) text += delta
+  return generatedAnswerSchema.parse(JSON.parse(text))
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import { requireUser } from "@/lib/auth/authorize"
 import { conflictError, HttpError, validationError } from "@/lib/http/errors"
-import { MAX_QUESTION_CHARS } from "@/lib/limits"
+import { MAX_QUESTION_CHARS, MAX_SELECTED_SOURCES } from "@/lib/limits"
 import { getNotebookForContext } from "@/lib/notebooks/service"
 import { buildUntrustedContext } from "@/lib/rag/context"
 import { generateAnswer } from "@/lib/rag/generate-answer"
@@ -36,15 +36,27 @@ function responseError(error: unknown): NextResponse {
 
 async function hasStreamingAnswer(notebookId: string, userId: string): Promise<boolean> {
   const service = createServiceSupabaseClient()
-  const { data, error } = await service
+  // biome-ignore lint/suspicious/noExplicitAny: generated Supabase database types are not available yet.
+  const database = service as unknown as { from: (table: string) => any }
+  const { data, error } = await database
     .from("messages")
-    .select("id")
+    .select("id, created_at")
     .eq("notebook_id", notebookId)
     .eq("user_id", userId)
     .eq("role", "assistant")
     .eq("status", "streaming")
     .maybeSingle()
   if (error) throw new Error("Antwortstatus konnte nicht geprüft werden.")
+  if (data && new Date(data.created_at).getTime() < Date.now() - 5 * 60 * 1_000) {
+    const { error: abortError } = await database
+      .from("messages")
+      .update({ content: abortedAnswerMessage, status: "aborted" })
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .eq("status", "streaming")
+    if (abortError) throw new Error("Antwortstatus konnte nicht bereinigt werden.")
+    return false
+  }
   return Boolean(data)
 }
 
@@ -78,14 +90,20 @@ export async function POST(request: Request) {
     if (input.retryOfMessageId) {
       const { data: failed, error } = await database
         .from("messages")
-        .select("id, question_message_id")
+        .select("id, question_message_id, status")
         .eq("id", input.retryOfMessageId)
         .eq("notebook_id", input.notebookId)
         .eq("user_id", userId)
         .eq("role", "assistant")
-        .eq("status", "failed")
         .maybeSingle()
       if (error || !failed) throw new HttpError(404, "Eintrag nicht gefunden.", "NOT_FOUND")
+      if (failed.status !== "failed") {
+        throw new HttpError(
+          422,
+          "Nur fehlgeschlagene Antworten können erneut versucht werden.",
+          "INVALID_INPUT",
+        )
+      }
       const { data: question, error: questionError } = await database
         .from("messages")
         .select("id, content, selected_sources_snapshot")
@@ -118,6 +136,9 @@ export async function POST(request: Request) {
     if (selectedForAttempt.length === 0) {
       return NextResponse.json({ code: "no_selection", content: unsupportedMessages.no_selection })
     }
+    if (selectedForAttempt.length > MAX_SELECTED_SOURCES) {
+      throw validationError(`Es dürfen höchstens ${MAX_SELECTED_SOURCES} Quellen ausgewählt sein.`)
+    }
     const ready = selectedForAttempt.filter((source) => source.status === "ready")
     if (ready.length === 0) {
       return NextResponse.json({
@@ -125,30 +146,36 @@ export async function POST(request: Request) {
         content: unsupportedMessages.no_ready_source,
       })
     }
-    const { data: chunks, error: chunkError } = await database
-      .from("chunks")
-      .select("id, content, ordinal, page_start, page_end, source_id")
-      .in(
-        "source_id",
-        ready.map((source) => source.id),
-      )
-      .eq("user_id", userId)
-      .limit(8)
-    if (chunkError) throw new Error("Quellen konnten nicht durchsucht werden.")
-    if (!chunks?.length) {
-      return NextResponse.json({
-        code: "below_similarity_threshold",
-        content: unsupportedMessages.below_similarity_threshold,
-      })
-    }
-    const first = chunks.at(0)
-    if (!first) throw new Error("Quellen konnten nicht durchsucht werden.")
-    const source = ready.find((candidate) => candidate.id === first.source_id)
-    if (!source) throw new Error("Quelle konnte nicht zugeordnet werden.")
+    let first:
+      | { content: string; id: string; page_end: number; page_start: number; source_id: string }
+      | undefined
+    let source: SourceRow | undefined
     if (process.env.NOTEBOOK_E2E_INGESTION_MODE === "1") {
+      const { data: chunks, error: chunkError } = await database
+        .from("chunks")
+        .select("id, content, page_start, page_end, source_id")
+        .in(
+          "source_id",
+          ready.map((candidate) => candidate.id),
+        )
+        .eq("user_id", userId)
+        .limit(8)
+      if (chunkError || !chunks?.length) {
+        return NextResponse.json({
+          code: "below_similarity_threshold",
+          content: unsupportedMessages.below_similarity_threshold,
+        })
+      }
+      first = chunks.at(0)
+      source = ready.find((candidate) => candidate.id === first?.source_id)
+      if (!first || !source) throw new Error("Quelle konnte nicht zugeordnet werden.")
       await new Promise((resolve) => setTimeout(resolve, 250))
     }
-    if (!questionMessageId && questionText.includes("NOTEBOOK_E2E_ANSWER_FAIL_ONCE")) {
+    if (
+      process.env.NOTEBOOK_E2E_INGESTION_MODE === "1" &&
+      !questionMessageId &&
+      questionText.includes("NOTEBOOK_E2E_ANSWER_FAIL_ONCE")
+    ) {
       const { data: question, error: questionError } = await database
         .from("messages")
         .insert({
@@ -187,7 +214,13 @@ export async function POST(request: Request) {
       })
       let retrieved: Awaited<ReturnType<typeof retrieveForQuestion>>
       try {
-        retrieved = await retrieveForQuestion(service, input.notebookId, questionText, userId)
+        retrieved = await retrieveForQuestion(
+          service,
+          input.notebookId,
+          questionText,
+          userId,
+          selectedSourceIds ?? selectedForAttempt.map((item) => item.id),
+        )
       } catch {
         return NextResponse.json(
           await persistVerifiedAnswer(
@@ -269,7 +302,11 @@ export async function POST(request: Request) {
       }
       const verification = verifyClaims(
         generated,
-        retrieved.map((chunk, index) => ({ ...chunk, chunkNumber: index + 1, selected: true })),
+        retrieved.map((chunk, index) => ({
+          ...chunk,
+          chunkNumber: index + 1,
+          selected: chunk.sourceSelected,
+        })),
       )
       if (verification.kind === "invalid") {
         return NextResponse.json(
@@ -306,6 +343,7 @@ export async function POST(request: Request) {
         ),
       )
     }
+    if (!first || !source) throw new Error("Quelle konnte nicht zugeordnet werden.")
     const result = await persistVerifiedAnswer(
       {
         citations: [
