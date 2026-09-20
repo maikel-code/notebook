@@ -146,6 +146,22 @@ export async function POST(request: Request) {
         content: unsupportedMessages.no_ready_source,
       })
     }
+    const { data: availableChunks, error: availableChunksError } = await database
+      .from("chunks")
+      .select("id")
+      .in(
+        "source_id",
+        ready.map((source) => source.id),
+      )
+      .eq("user_id", userId)
+      .limit(1)
+    if (availableChunksError) throw new Error("Quellen konnten nicht durchsucht werden.")
+    if (!availableChunks?.length) {
+      return NextResponse.json({
+        code: "below_similarity_threshold",
+        content: unsupportedMessages.below_similarity_threshold,
+      })
+    }
     let first:
       | { content: string; id: string; page_end: number; page_start: number; source_id: string }
       | undefined
