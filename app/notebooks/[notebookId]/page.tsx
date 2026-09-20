@@ -50,7 +50,7 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
     const { data: messageRows, error: messageError } = await service
       .from("messages")
       .select(
-        "id, role, content, status, unsupported_reason, attempt_no, created_at, citations(id, source_id, source_name, quote, page_start)",
+        "id, role, content, status, unsupported_reason, attempt_no, created_at, citations(id, ordinal, source_id, source_name, quote, page_start)",
       )
       .eq("notebook_id", notebook.id)
       .eq("user_id", userId)
@@ -60,6 +60,7 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
       attempt_no: number | null
       citations: Array<{
         id: string
+        ordinal: number
         page_start: number
         quote: string
         source_id: string | null
@@ -76,18 +77,21 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
       citations: (
         (message.citations ?? []) as Array<{
           id: string
+          ordinal: number
           page_start: number
           quote: string
           source_id: string | null
           source_name: string
         }>
-      ).map((citation) => ({
-        id: citation.id,
-        pageStart: citation.page_start,
-        quote: citation.quote,
-        sourceId: citation.source_id,
-        sourceName: citation.source_name,
-      })),
+      )
+        .toSorted((left, right) => left.ordinal - right.ordinal)
+        .map((citation) => ({
+          id: citation.id,
+          pageStart: citation.page_start,
+          quote: citation.quote,
+          sourceId: citation.source_id,
+          sourceName: citation.source_name,
+        })),
       content: message.content,
       id: message.id,
       role: message.role as ChatMessage["role"],

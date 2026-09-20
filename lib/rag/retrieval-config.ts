@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises"
-
 import { z } from "zod"
+
+import calibrationArtifact from "@/eval/dataset/retrieval-calibration.json"
 
 const retrievalCalibrationSchema = z
   .object({
@@ -41,9 +41,7 @@ let cachedCalibration: RetrievalCalibration | undefined
 
 export async function loadRetrievalCalibration(): Promise<RetrievalCalibration> {
   if (cachedCalibration) return cachedCalibration
-  const parsed = parseRetrievalCalibration(
-    JSON.parse(await readFile("eval/dataset/retrieval-calibration.json", "utf8")),
-  )
+  const parsed = parseRetrievalCalibration(calibrationArtifact)
   cachedCalibration = parsed
   return parsed
 }

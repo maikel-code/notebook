@@ -15,11 +15,13 @@ export function QuestionInput({
   const router = useRouter()
   const [question, setQuestion] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [terminalMessage, setTerminalMessage] = useState<string | null>(null)
   const abortController = useRef<AbortController | null>(null)
   const [pending, startTransition] = useTransition()
   const submit = () =>
     startTransition(async () => {
       setError(null)
+      setTerminalMessage(null)
       const controller = new AbortController()
       abortController.current = controller
       try {
@@ -29,9 +31,12 @@ export function QuestionInput({
           method: "POST",
           signal: controller.signal,
         })
-        const data = (await response.json()) as { error?: string }
+        const data = (await response.json()) as { content?: string; error?: string }
         if (!response.ok) setError(data.error ?? "Die Frage konnte nicht gesendet werden.")
-        else setQuestion("")
+        else {
+          setQuestion("")
+          setTerminalMessage(data.content ?? null)
+        }
       } catch (caught) {
         if (!(caught instanceof DOMException && caught.name === "AbortError")) {
           setError("Die Frage konnte nicht gesendet werden.")
@@ -60,6 +65,7 @@ export function QuestionInput({
         />
       </label>
       {error ? <p role="alert">{error}</p> : null}
+      {terminalMessage ? <p role="status">{terminalMessage}</p> : null}
       {pending ? <p aria-live="polite">wird geprüft</p> : null}
       {pending ? (
         <Button type="button" variant="outline" onClick={() => abortController.current?.abort()}>

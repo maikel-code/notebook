@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { SOURCES_BUCKET, sourceStoragePath } from "@/lib/ingestion/storage"
@@ -21,7 +21,19 @@ export function SourceViewer({
 }) {
   const [content, setContent] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
-  const quoteIndex = content?.indexOf(quote) ?? -1
+  const closeButton = useRef<HTMLButtonElement>(null)
+  const normalizedContent = content?.replaceAll(/\s+/g, " ").trim() ?? ""
+  const normalizedQuote = quote.replaceAll(/\s+/g, " ").trim()
+  const quoteIndex = normalizedContent.indexOf(normalizedQuote)
+  useEffect(() => {
+    if (!open) return
+    closeButton.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false)
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [open])
   const openSource = async () => {
     try {
       const client = createBrowserSupabaseClient()
@@ -69,14 +81,14 @@ export function SourceViewer({
             <p>Seite {pageStart}</p>
             {content && quoteIndex >= 0 ? (
               <p>
-                {content.slice(0, quoteIndex)}
+                {normalizedContent.slice(0, quoteIndex)}
                 <mark>{quote}</mark>
-                {content.slice(quoteIndex + quote.length)}
+                {normalizedContent.slice(quoteIndex + normalizedQuote.length)}
               </p>
             ) : (
               <p>Wortlaut: {quote}</p>
             )}
-            <Button type="button" onClick={() => setOpen(false)}>
+            <Button ref={closeButton} type="button" onClick={() => setOpen(false)}>
               Schließen
             </Button>
           </div>
