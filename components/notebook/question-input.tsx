@@ -57,6 +57,7 @@ export function QuestionInput({
               if (payload.type === "error" && payload.text) setError(payload.text)
             }
           }
+          setQuestion("")
           return
         }
         const data = (await response.json()) as { content?: string; error?: string }
