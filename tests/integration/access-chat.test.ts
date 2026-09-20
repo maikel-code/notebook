@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
 import { POST } from "@/app/api/chat/route"
+import { sourceStoragePath } from "@/lib/ingestion/storage"
 import { createNotebookForContext } from "@/lib/notebooks/service"
 import {
   createIntegrationFixture,
@@ -47,13 +48,46 @@ async function postChat(
   )
 }
 
+async function seedSource(
+  fixture: IntegrationFixture,
+  notebookId: string,
+  status: "processing" | "ready",
+): Promise<void> {
+  const sourceId = crypto.randomUUID()
+  const { error } = await fixture.service.from("sources").insert({
+    byte_size: 1,
+    content_hash: "a".repeat(64),
+    file_name: `${status}.pdf`,
+    id: sourceId,
+    notebook_id: notebookId,
+    status,
+    storage_path: sourceStoragePath(fixture.owner.id, notebookId, sourceId),
+    user_id: fixture.owner.id,
+  })
+  if (error) throw error
+}
+
 describe("chat access and preconditions", () => {
   let fixture: IntegrationFixture
   let notebookId: string
+  let noReadySourceNotebookId: string
+  let belowThresholdNotebookId: string
 
   beforeAll(async () => {
     fixture = await createIntegrationFixture()
     notebookId = await createNotebookForContext(testContext(fixture.owner), "Chat", fixture.service)
+    noReadySourceNotebookId = await createNotebookForContext(
+      testContext(fixture.owner),
+      "No ready source",
+      fixture.service,
+    )
+    belowThresholdNotebookId = await createNotebookForContext(
+      testContext(fixture.owner),
+      "Below threshold",
+      fixture.service,
+    )
+    await seedSource(fixture, noReadySourceNotebookId, "processing")
+    await seedSource(fixture, belowThresholdNotebookId, "ready")
   })
   afterAll(async () => fixture.cleanup())
 
@@ -71,15 +105,22 @@ describe("chat access and preconditions", () => {
   })
 
   it.each([
-    ["no source is selected", "no_selection"],
-    ["no selected source is ready", "no_ready_source"],
-    ["every score is below the minimum", "below_similarity_threshold"],
-    ["the question exceeds 2,000 characters", "INVALID_INPUT"],
-  ])("returns a deterministic terminal result when %s", async (_label, expectedCode) => {
-    const response = await postChat(fixture.owner, {
-      notebookId,
-      question: "x".repeat(expectedCode === "INVALID_INPUT" ? 2001 : 1),
-    })
-    await expect(response.json()).resolves.toMatchObject({ code: expectedCode })
-  })
+    ["no source is selected", () => notebookId, "no_selection"],
+    ["no selected source is ready", () => noReadySourceNotebookId, "no_ready_source"],
+    [
+      "every score is below the minimum",
+      () => belowThresholdNotebookId,
+      "below_similarity_threshold",
+    ],
+    ["the question exceeds 2,000 characters", () => notebookId, "INVALID_INPUT"],
+  ])(
+    "returns a deterministic terminal result when %s",
+    async (_label, getNotebookId, expectedCode) => {
+      const response = await postChat(fixture.owner, {
+        notebookId: getNotebookId(),
+        question: "x".repeat(expectedCode === "INVALID_INPUT" ? 2001 : 1),
+      })
+      await expect(response.json()).resolves.toMatchObject({ code: expectedCode })
+    },
+  )
 })

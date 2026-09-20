@@ -29,13 +29,13 @@ function candidate(index: number, similarity: number, overrides: Partial<Retriev
 describe("retrieval", () => {
   it("uses only the owner's selected ready sources, keeps top eight, and accepts the threshold inclusively", () => {
     const candidates = [
-      ...Array.from({ length: 9 }, (_, index) => candidate(index + 1, 0.99 - index / 100)),
-      candidate(10, threshold),
-      candidate(11, threshold - 0.001),
-      candidate(12, 0.99, { sourceSelected: false }),
-      candidate(13, 0.99, { sourceStatus: "processing" }),
-      candidate(14, 0.99, { userId: "stranger" }),
-      candidate(15, 0.99, { notebookId: "notebook-b" }),
+      ...Array.from({ length: 7 }, (_, index) => candidate(index + 1, 0.99 - index / 100)),
+      candidate(8, threshold),
+      candidate(9, threshold - 0.001),
+      candidate(10, 0.99, { sourceSelected: false }),
+      candidate(11, 0.99, { sourceStatus: "processing" }),
+      candidate(12, 0.99, { userId: "stranger" }),
+      candidate(13, 0.99, { notebookId: "notebook-b" }),
     ]
 
     const matches = retrieveSelectedReadyChunks(candidates, {
