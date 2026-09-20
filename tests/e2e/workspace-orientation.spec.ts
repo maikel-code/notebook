@@ -50,14 +50,12 @@ test("the first ready source creates one cited orientation, while failures and l
   await expect(page.getByRole("list", { name: "Quellen" })).toContainText("bereit")
   await expect(page.getByText("Erste Orientierung", { exact: true })).toHaveCount(1)
   await expect(page.getByRole("button", { name: /Quelle: first.pdf, Seite 1/ })).toBeVisible()
-  await expect(
-    page.getByRole("button", { name: "Welche zentralen Punkte nennt diese Quelle?" }),
-  ).toBeVisible()
+  const starterQuestion = "Welche zentrale Regel nennt diese Quelle?"
+  await expect(page.getByRole("button", { name: starterQuestion })).toBeVisible()
 
-  await page.getByRole("button", { name: "Welche zentralen Punkte nennt diese Quelle?" }).click()
-  await expect(page.getByLabel("Frage an das Notebook")).toHaveValue(
-    "Welche zentralen Punkte nennt diese Quelle?",
-  )
+  await page.getByRole("button", { name: starterQuestion }).click()
+  await expect(page.getByRole("button", { name: starterQuestion })).toHaveCount(0)
+  await expect(page.getByText(starterQuestion, { exact: true })).toBeVisible()
 
   await sourceInput.setInputFiles({
     buffer: textPdf("Eine weitere bereite Quelle."),

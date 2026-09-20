@@ -1,11 +1,23 @@
 import "server-only"
 
 import { createAnthropic } from "@ai-sdk/anthropic"
-import { streamText } from "ai"
+import { createOpenAI } from "@ai-sdk/openai"
+import { type LanguageModel, streamText } from "ai"
 
 import { getServerEnvironment } from "@/lib/env"
+import { resolveChatModelConfig } from "@/lib/rag/chat-provider"
 import { claimSchema, type GeneratedAnswer, generatedAnswerSchema } from "@/lib/rag/claim-schema"
 import { RAG_SYSTEM_PROMPT } from "@/lib/rag/prompt"
+
+export function getChatModel(): LanguageModel {
+  const config = resolveChatModelConfig(getServerEnvironment())
+  if (config.provider === "openai") {
+    const openai = createOpenAI({ apiKey: config.apiKey })
+    return openai(config.model)
+  }
+  const anthropic = createAnthropic({ apiKey: config.apiKey })
+  return anthropic(config.model)
+}
 
 export async function generateAnswer(
   question: string,
@@ -16,10 +28,9 @@ export async function generateAnswer(
     text: string
   }) => void,
 ): Promise<GeneratedAnswer> {
-  const anthropic = createAnthropic({ apiKey: getServerEnvironment().ANTHROPIC_API_KEY })
   const result = streamText({
     abortSignal: signal,
-    model: anthropic("claude-sonnet-4-20250514"),
+    model: getChatModel(),
     prompt: `Frage:\n${question}\n\nQuellen:\n${context}`,
     system: RAG_SYSTEM_PROMPT,
   })

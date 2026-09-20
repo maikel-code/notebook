@@ -23,7 +23,11 @@ pnpm dev
 
 `supabase status -o env` liefert URL und lokale Schlüssel. In `.env.local`
 gehören zusätzlich getrennte Anthropic- und OpenAI-Schlüssel sowie ein
-mindestens 32 Zeichen langes `JOB_TRIGGER_SECRET`. `.env.local` wird nie
+mindestens 32 Zeichen langes `JOB_TRIGGER_SECRET`. Der Chat- und
+Zusammenfassungsanbieter ist per `NOTEBOOK_CHAT_PROVIDER=anthropic|openai`
+wählbar; `NOTEBOOK_CHAT_MODEL` überschreibt das jeweilige Standardmodell
+(`claude-sonnet-4-20250514` bzw. `gpt-4.1-mini`). `OPENAI_API_KEY` bleibt auch
+bei Anthropic für Einbettungen und Websuche erforderlich. `.env.local` wird nie
 versioniert.
 
 ## Lokale Datenbank und Cloud

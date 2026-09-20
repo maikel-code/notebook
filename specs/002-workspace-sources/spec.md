@@ -95,9 +95,9 @@ Ein Benutzer speichert eine fertige, belegte KI-Antwort als Notiz. Sie erscheint
 
 - **FR-001**: Das System MUSS im Notebook die drei dauerhaft beschrifteten und per Tastatur erreichbaren Arbeitsbereiche Quellen, Chat und Studio anzeigen.
 - **FR-002**: Jede bestätigte hochgeladene oder übernommene Quelle MUSS unmittelbar mit Name, Quelltyp und aktuellem Verarbeitungszustand in der Quellenliste erscheinen.
-- **FR-003**: Wird die erste Quelle eines Notebooks bereit und enthält es noch keinen Gesprächsverlauf, MUSS genau eine kurze Orientierung im Chat erscheinen. Jede inhaltliche Aussage muss belegt sein; sie enthält drei bis fünf passende erste Fragen.
+- **FR-003**: Wird die erste Quelle eines Notebooks bereit und enthält es noch keinen Gesprächsverlauf, MUSS genau eine kurze, KI-generierte Zusammenfassung im Chat erscheinen. Sie DARF keinen ungekürzten Rohtext als Zusammenfassung ausgeben; jede inhaltliche Aussage muss belegt sein und sie enthält drei bis fünf passende, KI-generierte erste Fragen.
 - **FR-004**: Die automatische Orientierung DARF erst nach erfolgreicher Verarbeitung erscheinen. Für fehlgeschlagene, nicht nutzbare, entfernte oder unzugreifbare Quellen DARF sie keinen Erfolg, Vorschlag oder aktiven Verweis zeigen.
-- **FR-005**: Jeder Vorschlag aus der Orientierung MUSS als bearbeitbare Frage in die Eingabe übernommen oder verworfen werden können.
+- **FR-005**: Ein Klick auf einen Vorschlag aus der Orientierung MUSS ihn sofort absenden und alle Vorschläge ausblenden. Eine noch nicht gesendete Eingabe bleibt frei bearbeitbar oder verwerfbar.
 
 **Quellendetailansicht**
 
@@ -136,6 +136,7 @@ Ein Benutzer speichert eine fertige, belegte KI-Antwort als Notiz. Sie erscheint
 - **FR-029**: Vor Auslieferung MUSS die bestehende Zugriffsmatrix um Quellendetail, Websuche, Vorschau, Übernahme sowie Notiz speichern, auflisten und öffnen erweitert und für Eigentümer, fremdes Konto und anonym geprüft werden.
 - **FR-030**: Alle neuen Abläufe MÜSSEN verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände, sichtbaren Fokus, Tastaturbedienung, beschriftete Bedienelemente und zugeordnete Fehlermeldungen bieten.
 - **FR-031**: Die neuen Quellen und Notizen MÜSSEN alle bestehenden Grenzen für Quellen, Auswahl, Kontext, Diagnose und Quellenlöschung einhalten.
+- **FR-032**: Chat-Antworten und Quellenorientierungen MÜSSEN über `NOTEBOOK_CHAT_PROVIDER=anthropic|openai` und optional `NOTEBOOK_CHAT_MODEL` serverseitig auf Anthropic oder OpenAI umstellbar sein. Der gewählte Anbieter und Schlüssel dürfen nicht an den Client gelangen.
 
 ### Key Entities
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useRef, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 
 import { Button } from "@/components/ui/button"
 
@@ -16,12 +16,15 @@ export function QuestionInput({
 }) {
   const router = useRouter()
   const [question, setQuestion] = useState("")
+  const [visibleStarterQuestions, setVisibleStarterQuestions] = useState(starterQuestions)
   const [error, setError] = useState<string | null>(null)
   const [terminalMessage, setTerminalMessage] = useState<string | null>(null)
   const [streamedClaims, setStreamedClaims] = useState<string[]>([])
   const abortController = useRef<AbortController | null>(null)
   const [pending, startTransition] = useTransition()
-  const submit = () =>
+  useEffect(() => setVisibleStarterQuestions(starterQuestions), [starterQuestions])
+
+  const submit = (questionToSend = question) =>
     startTransition(async () => {
       setError(null)
       setTerminalMessage(null)
@@ -30,7 +33,7 @@ export function QuestionInput({
       abortController.current = controller
       try {
         const response = await fetch("/api/chat", {
-          body: JSON.stringify({ notebookId, question }),
+          body: JSON.stringify({ notebookId, question: questionToSend }),
           headers: { "content-type": "application/json" },
           method: "POST",
           signal: controller.signal,
@@ -95,17 +98,21 @@ export function QuestionInput({
           onChange={(event) => setQuestion(event.target.value)}
         />
       </label>
-      {starterQuestions.length ? (
+      {visibleStarterQuestions.length ? (
         <fieldset className="grid gap-2">
-          <legend className="font-medium">Erste Fragen übernehmen und bearbeiten</legend>
+          <legend className="font-medium">Mögliche erste Fragen</legend>
           <div className="flex flex-wrap gap-2">
-            {starterQuestions.map((starterQuestion) => (
+            {visibleStarterQuestions.map((starterQuestion) => (
               <Button
                 key={starterQuestion}
                 disabled={pending || streaming}
                 type="button"
                 variant="outline"
-                onClick={() => setQuestion(starterQuestion)}
+                onClick={() => {
+                  setVisibleStarterQuestions([])
+                  setQuestion(starterQuestion)
+                  submit(starterQuestion)
+                }}
               >
                 {starterQuestion}
               </Button>
