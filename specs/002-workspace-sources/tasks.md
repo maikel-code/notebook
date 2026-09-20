@@ -19,10 +19,10 @@
 **Purpose**: Add one additive migration and owner-scoped domain services that all stories need.
 
 - [X] T004 Add `pdf`/`web` source shape, web uniqueness, `fetch` ingestion phase, orientation message shape and immutable `studio_notes` RLS schema in `supabase/migrations/202609200002_workspace_sources.sql`
-- [ ] T005 Add reset-safe migration and RLS boundary tests for source kinds, orientation messages and studio notes in `tests/integration/workspace-schema-access.test.ts`
-- [ ] T006 Add owner-scoped source detail, workspace snapshot and studio-note persistence/read services in `lib/notebooks/workspace-service.ts` and `lib/studio/service.ts`
-- [ ] T007 Add direct owner, foreign and anonymous service/action tests for detail reads, imports and note operations in `tests/integration/workspace-access.test.ts`
-- [ ] T008 Run `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` and the two new integration files; record failures before story work in `specs/002-workspace-sources/verification.md`
+- [X] T005 Add reset-safe migration and RLS boundary tests for source kinds, orientation messages and studio notes in `tests/integration/workspace-schema-access.test.ts`
+- [X] T006 Add owner-scoped source detail, workspace snapshot and studio-note persistence/read services in `lib/notebooks/workspace-service.ts` and `lib/studio/service.ts`
+- [X] T007 Add direct owner, foreign and anonymous service/action tests for detail reads, imports and note operations in `tests/integration/workspace-access.test.ts`
+- [X] T008 Run `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` and the two new integration files; record failures before story work in `specs/002-workspace-sources/verification.md`
 
 **Checkpoint**: The data model resets cleanly and all new owned operations deny foreign and anonymous access.
 
