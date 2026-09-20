@@ -60,6 +60,21 @@ Source-Löschpfad erfolgreich.
 | `pnpm build` | erfolgreicher Next.js-Produktions-Build |
 | Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
 
+## Phase 4 — Zweite Review-Korrektur — 2026-09-19
+
+`prepare_source_upload` erlaubt pro Altquelle nur einen Ersatz-Entwurf; der
+Bestätigungsweg kann damit keinen per FK entkoppelten zweiten Entwurf als Zusatz
+verarbeiten. `ingestion_jobs.created_at` bestimmt die sichtbare aktuelle Phase
+explizit. Neue Integrationsfälle prüfen konkurrierenden Ersatz, textlosen Scan
+(`unusable`), drei Worker-Fehler mit Retry bei Versuch 0 und die neueste
+Jobphase. T041, T046, T047 und T050 sind wieder offen markiert, weil ihre
+vollständigen ausdrücklich geforderten Fälle noch nicht vorliegen.
+
+Passwortgeschützte und 51-seitige PDFs werden jetzt mit echten PDF-Strukturen
+durch `pdfjs` abgelehnt. Storage prüft die exakte 10-MB-Grenze sowie fremde,
+anonyme, fehlende, MIME-, Übergrößen-, Update- und Löschpfade. Beide Läufe
+bestanden lokal unter Node 22.
+
 **Offen / Plattformgrenze F5:** Die Migration kann die Default-ACLs des
 Projekt-Migrations-Grantors `postgres` ändern. Supabase-interne Rollen wie
 `supabase_admin` dürfen aus einer Projektmigration nicht verändert werden
@@ -145,3 +160,164 @@ Die Default-ACLs Supabase-interner Rollen liegen weiterhin außerhalb des
 nach einem lokalen Dienst-Neustart erhielt eine transiente Registrierungs-
 ablehnung; der unveränderte Wiederholungslauf bestand. Bei parallelen lokalen
 Prüfungen sollte deshalb kein weiterer Supabase-Reset neben dem E2E-Lauf starten.
+
+## Phase 4 — Abschlusskorrekturen — 2026-09-20
+
+Der Abbruch ist nur während `uploading` sichtbar; ein abgelehnter Abbruch zeigt
+seinen Fehler. Der interne Zugangstest prüft `run` und `sweep` jeweils mit
+gültigem, fehlendem und ungültigem Geheimnis.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; dreizehn Migrationen |
+| `pnpm typecheck`, `pnpm lint`, `pnpm test` | erfolgreich; 6 Unit-Tests |
+| `pnpm test:integration` | erfolgreich; 19 Dateien, 58 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm build` und Secret-Check | erfolgreich; keine Secret-Namen in `.next/static` |
+
+## Phase 4 — Claude-Review-Korrekturen — 2026-09-20
+
+Ein unabhängiges Claude-Review prüfte den Phase-4-Diff. Der Upload-Abbruch
+sperrt und löscht seinen Entwurf nun in einer Datenbankoperation; erst danach
+wird das zugehörige Storage-Objekt entfernt. Das Seitenlimit behält seinen
+`422`-Fehler, Extraktionsressourcen werden freigegeben und die gespeicherte
+Diagnose enthält einen phasenbezogenen Fehlercode. Die Duplikatentscheidung ist
+als Dialog mit drei expliziten Aktionen umgesetzt. Der Sweep läuft einmalig;
+`--watch` aktiviert die Wiederholung.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; vierzehn Migrationen |
+| `pnpm format`, `pnpm lint`, `pnpm typecheck` | erfolgreich; 89 Dateien geprüft |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm test:integration` | erfolgreich; 19 Dateien, 59 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm build` | erfolgreicher Next-16-Produktions-Build |
+
+## Phase 4 — pdf.js-Worker im Server-Action-Pfad — 2026-09-20
+
+`pdfjs-dist` bleibt serverseitig extern. Dadurch löst pdf.js seinen
+mitgelieferten Node-Fake-Worker relativ zum Paket auf, statt auf einen von
+Turbopack nicht erzeugten Chunk zu verweisen.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `pnpm lint`, `pnpm typecheck`, `pnpm test` | erfolgreich; 6 Unit-Tests |
+| `pnpm test:integration` | erfolgreich; 19 Dateien, 59 Tests |
+| `pnpm test:e2e`, `pnpm build` | erfolgreich; 2 Chromium-Abläufe |
+| Manueller Chromium-Upload `Mitgliedantrag.pdf` | bestätigt; 3 Seiten, Status `wird verarbeitet` ohne `422` |
+
+## Phase 4 — Quellenaufnahme und Verarbeitungszustand — 2026-09-19
+
+**Umfang:** T041–T069. Die Aufnahme prüft serverseitig Signatur, Größe,
+Lesbarkeit, Passwortschutz und Seitenzahl. `confirm_source_upload`,
+`replace_source_chunks` und der Job-Claim laufen als versionierte,
+dienstrollenexklusive Datenbankfunktionen; jede Verarbeitung bleibt auf die
+`user_id` des beanspruchten Auftrags eingeschränkt. Diagnose protokolliert nur
+Korrelationskennung, Phase und stabilen Fehlercode.
+
+**Test-first:** Die zehn neuen Phase-4-Testdateien wurden vor den jeweiligen
+Modulen angelegt. Der erste Lauf scheiterte erwartungsgemäß an fehlenden
+Ingestion-Modulen; danach decken die Integrationstests die Zugriffsmatrix für
+Upload, Jobstatus, Storage und interne Auslöser, Dubletten/Quellenlimit und
+atomaren Chunk-Ersatz ab.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; zehn Migrationen frisch angewendet |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich; 86 Dateien geprüft |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm test:integration` | erfolgreich; frischer lokaler Reset, 17 Dateien, 48 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm build` | erfolgreich; Next-16-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer |
+| `pnpm dev` | erfolgreich; keine `middleware`-Deprecation |
+
+**Next 16:** `middleware.ts` wurde gemäß offiziellem Vertrag nach `proxy.ts`
+migriert und exportiert nun `proxy`. TypeScript bleibt bei 5.9.x: Der
+freigegebene Plan schreibt TypeScript 5.x vor; ein Upgrade auf TypeScript 7
+wäre eine unfreigegebene Stackänderung und benötigt in Next 16.3 zusätzlich
+den experimentellen TypeScript-CLI-Schalter.
+
+## Phase 4 — Review-Korrekturen zu 2aa7c70 — 2026-09-19
+
+**Umfang:** Ausschließlich die fünf Review-Befunde innerhalb T041–T069:
+Ersatz bei laufender Antwort, sofortiger serverseitiger Jobstart,
+eigentümergebundener Dienstrollenlauf, paralleles Quellenlimit und T049.
+Keine Radix-, Base-UI- oder TypeScript-Änderung.
+
+| Befund | Korrektur | Nachweis |
+| --- | --- | --- |
+| Ersatz während Streaming | `confirm_source_upload` sperrt den Ersatzpfad vor jeder Mutation; der Serverpfad übersetzt den Konflikt zu `409`. | `ingestion-review-regressions.test.ts` prüft Storage-bestätigten Ersatz, `409`, unveränderte Alt-/Entwurfsquelle und keinen Auftrag. |
+| Unmittelbarer Start | `confirmUpload` beansprucht den gerade bestätigten Auftrag serverseitig nach dessen atomarer Anlage. | `upload-immediate-job.test.ts` prüft den Aufruf ohne Browser-Geheimnis. |
+| Dienstrollen-Kontext | Der Worker lädt die Auftragsquelle immer mit `source_id` und beanspruchter `user_id`; der Integrationsfall führt einen echten Dienstrollenauftrag neben einer fremden Quelle aus. | `ingestion-job-access.test.ts` |
+| Quellenlimit | `prepare_source_upload` sperrt das Notebook und entscheidet Dublette, Zusatz und Ersatz innerhalb einer Datenbanktransaktion. Ein Ersatz-Entwurf zählt nicht als weitere aktive Quelle. | parallele 29→30-Zusätze sowie Zusatz plus Ersatz bei 30 Quellen in `ingestion-review-regressions.test.ts` |
+| T049 | Bestätigung prüft fehlendes Objekt, Größe und Hash; der erfolgreiche Ersatz prüft den atomaren Wechsel, `cleanup_storage_path` und genau einen Auftrag bei Wiederholung. | `upload-confirmation.test.ts` |
+
+**Test-first-Nachweis:** Nach einem lokalen Reset bis `202609190010` (ohne
+Review-Migration) schlugen die neuen T049-/Regressionstests erwartungsgemäß
+fehl: 2 Dateien, 5 fehlgeschlagene Tests, weil `prepare_source_upload` fehlte.
+Nach dem frischen Reset mit `202609190011_ingestion_review_hardening.sql`
+bestehen die gezielten Fälle: 4 Dateien, 11 Tests. Damit würden das Fehlen der
+atomaren Vorbereitungs- und Konfliktlogik sowie die T049-Sicherungen erkannt.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; elf Migrationen frisch angewendet |
+| Frischer Integrationslauf | erfolgreich; 19 Dateien, 56 Tests |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm build` | erfolgreicher Next-16-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
+
+## Phase 4 — Abschluss T046 und T050 — 2026-09-19
+
+**Umfang:** Ausschließlich T046 und T050. `GET /api/jobs/status` wird jetzt
+durch den echten Route Handler mit realen Supabase-Sitzungen geprüft: Eigentümer
+erhält nur den eigenen Status, fremdes und nicht vorhandenes Notebook erhalten
+identische `404`-Antworten, anonym erhält `401`. Der Chromium-Ablauf lädt ein
+echtes textbasiertes PDF über die Oberfläche hoch, zeigt den Übergang ohne
+Reload, einen verständlichen terminalen Fehler und dessen erfolgreichen Retry.
+
+**Lokale E2E-Grenze:** `NOTEBOOK_E2E_INGESTION_MODE=1` wird ausschließlich vom
+Playwright-Webserver gesetzt. Der serverseitige Fixture-Pfad verlangt zusätzlich
+eine Loopback-Supabase-URL und ist unter `NODE_ENV=production` deaktiviert.
+Er ersetzt nur die lokale Extraktion/Einbettung für die expliziten E2E-Fixtures;
+Browser-Geheimnisse und der Produktionspfad bleiben unverändert.
+
+**Test-first-Nachweis:** Der neue Chromium-Test schlug vor den Produktkorrekturen
+erwartungsgemäß fehl, weil der Übergang nicht sichtbar wurde. Nach serverseitiger
+lokaler Fixture-Grenze, sichtbarem Verarbeitungszustand und unmittelbarer
+Retry-Ausführung besteht derselbe Ablauf.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; dreizehn Migrationen frisch angewendet |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm lint` | erfolgreich; 89 Dateien geprüft |
+| `pnpm test:integration` | erfolgreich; frischer lokaler Reset, 19 Dateien, 58 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe einschließlich T050 |
+| `pnpm build` | erfolgreicher Next-16-Produktions-Build |
+| Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
+
+## Migration-Baseline — 2026-09-20
+
+Die Entwicklungsdatenbank enthielt ausschließlich Testdaten. Die vierzehn
+initialen, historisch gewachsenen Migrationen wurden deshalb vor weiterer
+Feature-Arbeit in `202609200001_initial_schema.sql` verdichtet. Die Baseline
+enthält den finalen Schema-, RLS-, Storage- und Funktionsstand ohne nachträgliche
+`ALTER`, `DROP` oder `CREATE OR REPLACE`-Schritte.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; eine Baseline-Migration frisch angewendet |
+| `pnpm lint` | erfolgreich; 89 Dateien geprüft |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| lokaler Schema-Dump | finale Tabellen, Ersatzentwurfsindex und alle Ingestion-Funktionen vorhanden |
+| `pnpm build` | erfolgreicher Next-16-Produktions-Build |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |

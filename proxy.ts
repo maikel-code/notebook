@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server"
 
 import { getPublicEnvironment } from "@/lib/env.client"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
   const environment = getPublicEnvironment()
   const client = createServerClient(
