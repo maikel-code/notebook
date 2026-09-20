@@ -94,32 +94,26 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
         : [],
       unsupportedReason: message.unsupported_reason,
     }))
-    const starterQuestions = messages.flatMap((message) =>
-      message.messageKind === "source_orientation" ? message.suggestedQuestions : [],
-    )
+    const starterQuestions =
+      messages.filter((message) =>  message.role === "assistant").pop()?.suggestedQuestions || []
+
     const streaming = messages.some(
       (message) => message.role === "assistant" && message.status === "streaming",
     )
 
     return (
-      <main className="mx-auto grid min-h-screen max-w-7xl content-start gap-8 px-4 py-10">
-        <Button asChild variant="link" className="w-fit px-0">
-          <Link href="/notebooks">← Alle Notebooks</Link>
-        </Button>
-        <header>
-          <p className="font-medium">Privates Notebook</p>
-          <h1 className="font-head text-4xl">{notebook.name}</h1>
-        </header>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Notebook umbenennen</CardTitle>
-            <CardDescription>Der Name ist nur für dich sichtbar.</CardDescription>
-          </CardHeader>
-          <CardContent>
+      <main className="mx-auto grid min-h-screen max-w-full content-start gap-6 px-4 py-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <Button asChild variant="outline" className="w-fit px-2  ">
+            <Link href="/notebooks" title="Alle Notebooks">←</Link>
+          </Button>
+          <header>
             <RenameNotebookForm notebookId={notebook.id} notebookName={notebook.name} />
-          </CardContent>
-        </Card>
+          </header>
+          <div className="ml-auto ">
+            <ConfirmDeleteDialog notebookId={notebook.id} notebookName={notebook.name} />
+          </div>
+        </div>
 
         <Workspace
           messages={messages}
@@ -129,16 +123,6 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
           starterQuestions={starterQuestions}
           streaming={streaming}
         />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Notebook löschen</CardTitle>
-            <CardDescription>Diese Aktion entfernt alle zugehörigen Daten.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ConfirmDeleteDialog notebookId={notebook.id} notebookName={notebook.name} />
-          </CardContent>
-        </Card>
       </main>
     )
   } catch (error) {

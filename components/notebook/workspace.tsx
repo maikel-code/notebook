@@ -10,6 +10,7 @@ import { SourceSearch } from "@/components/notebook/source-search"
 import { SourceUpload } from "@/components/notebook/source-upload"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { WorkspaceSource, WorkspaceSourceDetail } from "@/lib/notebooks/workspace-service"
+import {Separator} from "@/components/ui/separator";
 
 function toNotebookSource(source: WorkspaceSource): NotebookSource {
   return {
@@ -49,8 +50,7 @@ export function Workspace({
     >
       <Card className="lg:col-start-1">
         <CardHeader>
-          <CardTitle>Quellen</CardTitle>
-          <CardDescription>Nur du kannst diese Quellen und ihren Text lesen.</CardDescription>
+          <CardTitle className="text-3xl font-bold tracking-tight text-balance">Quellen</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-6">
           {selectedDetail ? (
@@ -62,7 +62,9 @@ export function Workspace({
           ) : (
             <>
               <SourceUpload notebookId={notebookId} />
+              <Separator />
               <SourceSearch notebookId={notebookId} onImported={refresh} />
+              <Separator />
               <SourceList
                 notebookId={notebookId}
                 selectedSourceId={null}
@@ -74,11 +76,11 @@ export function Workspace({
         </CardContent>
       </Card>
 
-      <Card className="lg:col-start-2">
+      <Card className="lg:col-start-2 ">
         <CardHeader>
-          <CardTitle>Chat</CardTitle>
+          <CardTitle className="text-3xl font-bold tracking-tight text-balance">Chat</CardTitle>
           <CardDescription>
-            Antworten erscheinen erst mit vollständig geprüften Belegen.
+            {messages.length ? "" : "Antworten erscheinen erst mit vollständig geprüften Belegen."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
@@ -93,7 +95,7 @@ export function Workspace({
 
       <Card className="lg:col-start-3">
         <CardHeader>
-          <CardTitle>Studio</CardTitle>
+          <CardTitle className="text-3xl font-bold tracking-tight text-balance">Studio</CardTitle>
           <CardDescription>Gesicherte Antworten erscheinen hier.</CardDescription>
         </CardHeader>
         <CardContent>

@@ -33,16 +33,13 @@ export function ChatThread({
 }) {
   if (!messages.length) return <p>Noch keine Fragen gestellt.</p>
   return (
-    <ol aria-label="Antwortversuche" className="grid gap-3">
+    <div  className="grid gap-4">
       {messages.map((message) => (
-        <li key={message.id} className="border-2 p-3">
-          <p className="font-medium">
-            {message.role === "user"
-              ? "Frage"
-              : message.messageKind === "source_orientation"
-                ? "Erste Orientierung"
-                : `Antwort${message.attemptNo ? ` · Versuch ${message.attemptNo}` : ""}`}
-          </p>
+        <div key={message.id}
+          className={`${message.role === "user" ? 'border-2 max-w-10/12 ml-auto bg-accent' : 'border-2 bg-background'} p-3 space-y-1.5`}
+          title={ message.messageKind === "source_orientation"
+            ? "Erste Orientierung" : `Antwort${message.attemptNo ? ` · Versuch ${message.attemptNo}` : ""}`}
+        >
           {message.unsupportedReason && message.status === "complete" ? (
             <UnsupportedAnswer>{message.content}</UnsupportedAnswer>
           ) : (
@@ -52,10 +49,10 @@ export function ChatThread({
           )}
           {message.status === "streaming" ? <p aria-live="polite">wird geprüft</p> : null}
           {message.status === "invalid" ? (
-            <>
+            <div className="text-sm text-amber-600 italic" role="alert">
               <p role="status">{invalidCitationMessage}</p>
               <p>Der Entwurf wurde nicht als belegte Antwort übernommen.</p>
-            </>
+            </div>
           ) : null}
           {message.citations.map((citation) => (
             <CitationChip
@@ -69,24 +66,14 @@ export function ChatThread({
               sourceName={citation.sourceName}
             />
           ))}
-          {message.messageKind === "source_orientation" && message.suggestedQuestions.length ? (
-            <div>
-              <p className="mt-3 font-medium">Mögliche erste Fragen</p>
-              <ul className="list-disc pl-5">
-                {message.suggestedQuestions.map((question) => (
-                  <li key={question}>{question}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
           {message.status === "failed" ? (
             <>
               <p>fehlgeschlagen</p>
               <RetryAnswerButton messageId={message.id} notebookId={notebookId} />
             </>
           ) : null}
-        </li>
+        </div>
       ))}
-    </ol>
+    </div>
   )
 }

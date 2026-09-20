@@ -33,7 +33,7 @@
 }
 
 :root {
-  --radius: 0;
+  --radius: 3px;
   --background: #fff7e8;
   --foreground: #000;
   --card: #fff;
@@ -68,6 +68,7 @@ body {
 }
 
 :focus-visible {
-  outline: 3px solid var(--ring);
-  outline-offset: 3px;
+  outline: none;
+  outline-offset: 0;
+
 }

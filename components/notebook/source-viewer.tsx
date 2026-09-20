@@ -62,6 +62,8 @@ export function SourceViewer({
   return (
     <>
       <Button
+        className="mr-2 mt-1"
+        size="xs"
         aria-label={`Quelle: ${sourceName}, Seite ${pageStart}`}
         type="button"
         variant="outline"

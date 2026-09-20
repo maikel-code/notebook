@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {Edit} from "lucide-react";
 
 const initialState: NotebookActionState = {}
 
@@ -62,11 +63,24 @@ interface RenameNotebookFormProps {
 }
 
 export function RenameNotebookForm({ notebookId, notebookName }: RenameNotebookFormProps) {
-  const [state, formAction, pending] = useActionState(renameNotebookAction, initialState)
+  const [editName, setEditName] = useState(false)
+  const [state, formAction, pending] = useActionState(
+    async (previousState: NotebookActionState, formData: FormData) => {
+      const result = await renameNotebookAction(previousState, formData)
+      if (!result.error) setEditName(false)
+      return result
+    },
+    initialState,
+  )
   const [mounted, setMounted] = useState(false)
   const errorId = "rename-notebook-name-error"
 
   useEffect(() => setMounted(true), [])
+
+  if(!editName) return ( <div className="flex items-center justify-between gap-2">
+    <h1 className="font-head text-4xl">{notebookName}</h1>
+    <Button onClick={() => setEditName(true)}><Edit /></Button>
+  </div> )
 
   return (
     <form
@@ -76,7 +90,6 @@ export function RenameNotebookForm({ notebookId, notebookName }: RenameNotebookF
     >
       <input type="hidden" name="id" value={notebookId} />
       <div className="grid flex-1 gap-2">
-        <Label htmlFor="new-notebook-name">Neuer Notebook-Name</Label>
         <Input
           aria-describedby={state.error ? errorId : undefined}
           aria-invalid={Boolean(state.error)}
@@ -92,6 +105,7 @@ export function RenameNotebookForm({ notebookId, notebookName }: RenameNotebookF
       <Button type="submit" disabled={pending}>
         {pending ? "Wird gespeichert…" : "Umbenennen"}
       </Button>
+      <Button type="button" variant="outline" onClick={() => setEditName(false)}>Abbrechen</Button>
     </form>
   )
 }

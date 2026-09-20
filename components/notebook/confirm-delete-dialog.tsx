@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {Trash} from "lucide-react";
 
 interface ConfirmDeleteDialogProps {
   notebookId: string
@@ -32,7 +33,7 @@ export function ConfirmDeleteDialog({ notebookId, notebookName }: ConfirmDeleteD
     <Dialog>
       <DialogTrigger asChild>
         <Button type="button" variant="destructive" data-hydrated={mounted}>
-          Notebook löschen
+          <Trash />
         </Button>
       </DialogTrigger>
       <DialogContent>
