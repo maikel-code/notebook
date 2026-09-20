@@ -70,4 +70,23 @@ describe("retrieval", () => {
     expect(context).not.toContain("[2]")
     expect(context.length).toBeLessThanOrEqual(MAX_CONTEXT_CHARS)
   })
+
+  it("falls back to matching German terms and cost synonyms when vector similarity misses", () => {
+    const matches = retrieveSelectedReadyChunks(
+      [
+        candidate(1, 0.1, { content: "Der Jahresbeitrag beträgt 90 Euro für Jugendliche." }),
+        candidate(2, 0.1, { content: "Die Kündigung muss schriftlich erfolgen." }),
+      ],
+      {
+        minimumSimilarity: threshold,
+        notebookId: "notebook-a",
+        question: "Kosten der Mitgliedschaft",
+        topK: 8,
+        userId: "owner-a",
+      },
+    )
+
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toMatchObject({ chunkId: "chunk-1", similarity: 0.5 })
+  })
 })
