@@ -40,7 +40,7 @@ describe("answer persistence", () => {
     })
     if (sourceError) throw sourceError
     const { error: chunkError } = await fixture.service.from("chunks").insert({
-      char_count: 23,
+      char_count: "Verifizierter Wortlaut".length,
       content: "Verifizierter Wortlaut",
       embedding: Array.from({ length: 1536 }, () => 0),
       id: chunkId,

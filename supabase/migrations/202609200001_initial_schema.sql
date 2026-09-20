@@ -142,7 +142,7 @@ create table public.messages (
   ),
   constraint messages_unsupported_reason check (
     unsupported_reason is null or unsupported_reason in (
-      'no_selection', 'no_ready_source', 'below_similarity_threshold', 'invalid_citations'
+      'no_selection', 'no_ready_source', 'below_similarity_threshold', 'invalid_citations', 'unsupported'
     )
   ),
   constraint messages_user_shape check (
@@ -407,6 +407,99 @@ begin
 end;
 $$;
 
+create function public.persist_answer(
+  p_user_id uuid,
+  p_notebook_id uuid,
+  p_question_content text,
+  p_selected_sources_snapshot jsonb,
+  p_answer_content text,
+  p_answer_status text,
+  p_unsupported_reason text,
+  p_citations jsonb,
+  p_question_message_id uuid default null,
+  p_answer_message_id uuid default null
+)
+returns table (id uuid, status text, unsupported_reason text)
+language plpgsql set search_path = '' as $$
+declare question_id uuid; answer_id uuid; answer_attempt integer;
+begin
+  if p_answer_message_id is not null then
+    select messages.id, messages.question_message_id into answer_id, question_id from public.messages
+    where messages.id = p_answer_message_id and messages.notebook_id = p_notebook_id
+      and messages.user_id = p_user_id and messages.role = 'assistant' and messages.status = 'streaming'
+    for update;
+    if not found then raise exception 'streaming answer not found'; end if;
+    update public.messages set content = p_answer_content, status = p_answer_status,
+      unsupported_reason = p_unsupported_reason where messages.id = answer_id;
+  elsif p_question_message_id is null then
+    insert into public.messages (content, notebook_id, role, selected_sources_snapshot, status, user_id)
+    values (p_question_content, p_notebook_id, 'user', p_selected_sources_snapshot, 'complete', p_user_id)
+    returning messages.id into question_id;
+  else
+    select messages.id into question_id from public.messages
+    where messages.id = p_question_message_id and messages.notebook_id = p_notebook_id
+      and messages.user_id = p_user_id and messages.role = 'user'
+    for update;
+    if not found then raise exception 'question not found'; end if;
+  end if;
+
+  if p_answer_message_id is null then
+    select coalesce(max(messages.attempt_no), 0) + 1 into answer_attempt from public.messages
+    where messages.question_message_id = question_id and messages.user_id = p_user_id;
+
+    insert into public.messages (
+      attempt_no, content, notebook_id, question_message_id, role, status, unsupported_reason, user_id
+    ) values (
+      answer_attempt, p_answer_content, p_notebook_id, question_id, 'assistant', p_answer_status,
+      p_unsupported_reason, p_user_id
+    ) returning messages.id into answer_id;
+  end if;
+
+  insert into public.citations (
+    chunk_id, message_id, ordinal, page_end, page_start, quote, source_id, source_name, user_id
+  )
+  select (entry ->> 'chunk_id')::uuid, answer_id, (entry ->> 'ordinal')::integer,
+    (entry ->> 'page_end')::integer, (entry ->> 'page_start')::integer, entry ->> 'quote',
+    (entry ->> 'source_id')::uuid, entry ->> 'source_name', p_user_id
+  from jsonb_array_elements(coalesce(p_citations, '[]'::jsonb)) as entry;
+
+  return query select answer_id, p_answer_status, p_unsupported_reason;
+end;
+$$;
+
+create function public.start_answer_attempt(
+  p_user_id uuid,
+  p_notebook_id uuid,
+  p_question_content text,
+  p_selected_sources_snapshot jsonb,
+  p_question_message_id uuid default null
+)
+returns table (answer_id uuid, question_id uuid)
+language plpgsql set search_path = '' as $$
+declare answer_attempt integer;
+begin
+  if p_question_message_id is null then
+    insert into public.messages (content, notebook_id, role, selected_sources_snapshot, status, user_id)
+    values (p_question_content, p_notebook_id, 'user', p_selected_sources_snapshot, 'complete', p_user_id)
+    returning messages.id into question_id;
+  else
+    select messages.id into question_id from public.messages
+    where messages.id = p_question_message_id and messages.notebook_id = p_notebook_id
+      and messages.user_id = p_user_id and messages.role = 'user'
+    for update;
+    if not found then raise exception 'question not found'; end if;
+  end if;
+  select coalesce(max(messages.attempt_no), 0) + 1 into answer_attempt from public.messages
+  where messages.question_message_id = question_id and messages.user_id = p_user_id;
+  insert into public.messages (
+    attempt_no, content, notebook_id, question_message_id, role, status, user_id
+  ) values (
+    answer_attempt, 'Antwort wird geprüft.', p_notebook_id, question_id, 'assistant', 'streaming', p_user_id
+  ) returning messages.id into answer_id;
+  return next;
+end;
+$$;
+
 revoke execute on function public.enforce_citation_reference_consistency() from public, anon, authenticated;
 revoke all on function public.confirm_source_upload(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.retry_source_ingestion(uuid, uuid) from public, anon, authenticated;
@@ -415,6 +508,8 @@ revoke all on function public.replace_source_chunks(uuid, uuid, jsonb) from publ
 revoke all on function public.sweep_stale_ingestion_jobs() from public, anon, authenticated;
 revoke all on function public.prepare_source_upload(uuid, uuid, uuid, text, text, bigint, text, uuid, integer) from public, anon, authenticated;
 revoke all on function public.cancel_source_upload(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.persist_answer(uuid, uuid, text, jsonb, text, text, text, jsonb, uuid, uuid) from public, anon, authenticated;
+revoke all on function public.start_answer_attempt(uuid, uuid, text, jsonb, uuid) from public, anon, authenticated;
 grant execute on function public.confirm_source_upload(uuid, uuid) to service_role;
 grant execute on function public.retry_source_ingestion(uuid, uuid) to service_role;
 grant execute on function public.claim_next_ingestion_job(uuid) to service_role;
@@ -422,3 +517,5 @@ grant execute on function public.replace_source_chunks(uuid, uuid, jsonb) to ser
 grant execute on function public.sweep_stale_ingestion_jobs() to service_role;
 grant execute on function public.prepare_source_upload(uuid, uuid, uuid, text, text, bigint, text, uuid, integer) to service_role;
 grant execute on function public.cancel_source_upload(uuid, uuid) to service_role;
+grant execute on function public.persist_answer(uuid, uuid, text, jsonb, text, text, text, jsonb, uuid, uuid) to service_role;
+grant execute on function public.start_answer_attempt(uuid, uuid, text, jsonb, uuid) to service_role;

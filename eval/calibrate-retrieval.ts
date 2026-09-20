@@ -79,7 +79,7 @@ export function selectFailClosedThreshold(observations: RetrievalObservation[]):
 }
 
 async function main(): Promise<void> {
-  const inputPath = process.argv[2]
+  const inputPath = process.argv.slice(2).find((argument) => argument !== "--")
   if (!inputPath) {
     throw new Error(
       "Usage: pnpm calibrate:retrieval -- <retrieval-scores.json>. T081 erzeugt die Scores und den freizugebenden Vorschlag.",
