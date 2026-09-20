@@ -303,3 +303,21 @@ Retry-Ausführung besteht derselbe Ablauf.
 | `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe einschließlich T050 |
 | `pnpm build` | erfolgreicher Next-16-Produktions-Build |
 | Secret-Namen in `.next/static` | keine Treffer für Service-Role-, Modell- oder Job-Trigger-Variablen |
+
+## Migration-Baseline — 2026-09-20
+
+Die Entwicklungsdatenbank enthielt ausschließlich Testdaten. Die vierzehn
+initialen, historisch gewachsenen Migrationen wurden deshalb vor weiterer
+Feature-Arbeit in `202609200001_initial_schema.sql` verdichtet. Die Baseline
+enthält den finalen Schema-, RLS-, Storage- und Funktionsstand ohne nachträgliche
+`ALTER`, `DROP` oder `CREATE OR REPLACE`-Schritte.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; eine Baseline-Migration frisch angewendet |
+| `pnpm lint` | erfolgreich; 89 Dateien geprüft |
+| `pnpm typecheck` | erfolgreich |
+| `pnpm test` | erfolgreich; 1 Datei, 6 Tests |
+| lokaler Schema-Dump | finale Tabellen, Ersatzentwurfsindex und alle Ingestion-Funktionen vorhanden |
+| `pnpm build` | erfolgreicher Next-16-Produktions-Build |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
