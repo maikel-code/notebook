@@ -12,7 +12,18 @@ export interface StudioNotePreview {
 }
 
 export interface StudioNote extends StudioNotePreview {
+  citations: StudioNoteCitation[]
   contentSnapshot: string
+}
+
+export interface StudioNoteCitation {
+  id: string
+  originUrl: string | null
+  pageStart: number
+  quote: string
+  sourceId: string | null
+  sourceKind: "pdf" | "web" | null
+  sourceName: string
 }
 
 export interface SaveStudioNoteInput {
@@ -46,6 +57,18 @@ interface NoteRow {
   title: string
 }
 
+interface CitationRow {
+  id: string
+  page_start: number
+  quote: string
+  source_id: string | null
+  source_name: string
+  sources:
+    | { origin_url: string | null; source_kind: "pdf" | "web" }
+    | Array<{ origin_url: string | null; source_kind: "pdf" | "web" }>
+    | null
+}
+
 function requireContext(context: RequestContext | null): RequestContext {
   if (!context) throw unauthorizedError()
   return context
@@ -61,13 +84,29 @@ function toPreview(row: NoteRow): StudioNotePreview {
   }
 }
 
-function toNote(row: NoteRow): StudioNote {
-  return { ...toPreview(row), contentSnapshot: row.content_snapshot }
+function toNote(row: NoteRow, citations: StudioNoteCitation[]): StudioNote {
+  return { ...toPreview(row), citations, contentSnapshot: row.content_snapshot }
 }
 
-function titleForQuestion(question: string): string {
+export function createStudioNoteTitle(question: string): string {
   const normalized = question.trim().replaceAll(/\s+/g, " ")
   return normalized.length <= 200 ? normalized : `${normalized.slice(0, 199).trimEnd()}…`
+}
+
+export function isSaveableStudioAnswer(answer: {
+  citations: Array<{ id: string }>
+  messageKind: string
+  role: string
+  status: string
+  unsupportedReason: string | null
+}): boolean {
+  return (
+    answer.role === "assistant" &&
+    answer.messageKind === "answer" &&
+    answer.status === "complete" &&
+    answer.unsupportedReason === null &&
+    answer.citations.length > 0
+  )
 }
 
 export async function saveStudioNoteForContext(
@@ -126,7 +165,7 @@ export async function saveStudioNoteForContext(
       content_snapshot: answer.content,
       message_id: answer.id,
       notebook_id: input.notebookId,
-      title: titleForQuestion(question.content),
+      title: createStudioNoteTitle(question.content),
       user_id: userId,
     },
     { ignoreDuplicates: true, onConflict: "message_id" },
@@ -169,7 +208,8 @@ export async function getStudioNoteForContext(
     .eq("user_id", userId)
     .maybeSingle()
   if (error || !data) throw notFoundError()
-  return toNote(data as NoteRow)
+  const note = data as NoteRow
+  return toNote(note, await listStudioNoteCitations(note.message_id, userId, service))
 }
 
 async function getStudioNoteByMessageForContext(
@@ -186,5 +226,31 @@ async function getStudioNoteByMessageForContext(
     .eq("user_id", context.userId)
     .maybeSingle()
   if (error || !data) throw new Error("Die gespeicherte Notiz konnte nicht geladen werden.")
-  return toNote(data as NoteRow)
+  return toNote(data as NoteRow, await listStudioNoteCitations(messageId, context.userId, service))
+}
+
+async function listStudioNoteCitations(
+  messageId: string,
+  userId: string,
+  service: SupabaseClient,
+): Promise<StudioNoteCitation[]> {
+  const { data, error } = await service
+    .from("citations")
+    .select("id, source_id, source_name, quote, page_start, sources(source_kind, origin_url)")
+    .eq("message_id", messageId)
+    .eq("user_id", userId)
+    .order("ordinal", { ascending: true })
+  if (error) throw new Error("Die Notizbelege konnten nicht geladen werden.")
+  return ((data ?? []) as unknown as CitationRow[]).map((citation) => {
+    const source = Array.isArray(citation.sources) ? citation.sources[0] : citation.sources
+    return {
+      id: citation.id,
+      originUrl: source?.origin_url ?? null,
+      pageStart: citation.page_start,
+      quote: citation.quote,
+      sourceId: citation.source_id,
+      sourceKind: source?.source_kind ?? null,
+      sourceName: citation.source_name,
+    }
+  })
 }

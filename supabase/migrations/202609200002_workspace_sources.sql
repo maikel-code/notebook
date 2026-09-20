@@ -51,7 +51,13 @@ alter table public.messages
   add constraint messages_assistant_shape check (
     role <> 'assistant' or (
       (message_kind = 'answer' and question_message_id is not null and attempt_no >= 1
-        and selected_sources_snapshot is null and orientation_source_id is null and suggested_questions is null)
+        and selected_sources_snapshot is null and orientation_source_id is null
+        and (
+          suggested_questions is null or (
+            status = 'complete' and jsonb_typeof(suggested_questions) = 'array'
+            and jsonb_array_length(suggested_questions) between 3 and 5
+          )
+        ))
       or message_kind = 'source_orientation'
     )
   );

@@ -1,5 +1,6 @@
 import { CitationChip } from "@/components/notebook/citation-chip"
 import { RetryAnswerButton } from "@/components/notebook/retry-answer-button"
+import { SaveStudioNoteButton } from "@/components/notebook/save-studio-note-button"
 import { UnsupportedAnswer } from "@/components/notebook/unsupported-answer"
 import { invalidCitationMessage } from "@/lib/rag/unsupported"
 
@@ -33,12 +34,16 @@ export function ChatThread({
 }) {
   if (!messages.length) return <p>Noch keine Fragen gestellt.</p>
   return (
-    <div  className="grid gap-4">
+    <div className="grid gap-4">
       {messages.map((message) => (
-        <div key={message.id}
-          className={`${message.role === "user" ? 'border-2 max-w-10/12 ml-auto bg-accent' : 'border-2 bg-background'} p-3 space-y-1.5`}
-          title={ message.messageKind === "source_orientation"
-            ? "Erste Orientierung" : `Antwort${message.attemptNo ? ` · Versuch ${message.attemptNo}` : ""}`}
+        <div
+          key={message.id}
+          className={`${message.role === "user" ? "border-2 max-w-10/12 ml-auto bg-accent" : "border-2 bg-background"} p-3 space-y-1.5`}
+          title={
+            message.messageKind === "source_orientation"
+              ? "Erste Orientierung"
+              : `Antwort${message.attemptNo ? ` · Versuch ${message.attemptNo}` : ""}`
+          }
         >
           {message.unsupportedReason && message.status === "complete" ? (
             <UnsupportedAnswer>{message.content}</UnsupportedAnswer>
@@ -71,6 +76,13 @@ export function ChatThread({
               <p>fehlgeschlagen</p>
               <RetryAnswerButton messageId={message.id} notebookId={notebookId} />
             </>
+          ) : null}
+          {message.role === "assistant" &&
+          message.messageKind === "answer" &&
+          message.status === "complete" &&
+          message.unsupportedReason === null &&
+          message.citations.length ? (
+            <SaveStudioNoteButton messageId={message.id} notebookId={notebookId} />
           ) : null}
         </div>
       ))}

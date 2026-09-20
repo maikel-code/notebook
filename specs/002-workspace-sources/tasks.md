@@ -102,12 +102,12 @@
 
 **Independent Test**: Save one complete answer, reload and open its note; retry the save and verify there is exactly one unchanged note.
 
-- [ ] T031 [P] [US4] Add red unit tests for title creation and idempotent note decisions in `tests/unit/studio-note.test.ts`
-- [ ] T032 [P] [US4] Add red integration tests for complete-only saves, snapshots, RLS and removed-source citations in `tests/integration/studio-note.test.ts`
-- [ ] T033 [US4] Implement atomic complete-answer note persistence and owner-scoped listing/detail reads in `lib/studio/service.ts` and `app/notebooks/actions.ts`
-- [ ] T034 [US4] Render save controls only for complete answers and add note cards/detail view in `components/notebook/chat-thread.tsx` and `components/notebook/studio-notes.tsx`
-- [ ] T035 [US4] Wire Studio previews and selected note state into `components/notebook/workspace.tsx` and `app/notebooks/[notebookId]/page.tsx`
-- [ ] T036 [US4] Add Chromium save/open/reload/idempotency and inaccessible-note coverage in `tests/e2e/studio-notes.spec.ts`
+- [X] T031 [P] [US4] Add red unit tests for title creation and idempotent note decisions in `tests/unit/studio-note.test.ts`
+- [X] T032 [P] [US4] Add red integration tests for complete-only saves, snapshots, RLS and removed-source citations in `tests/integration/studio-note.test.ts`
+- [X] T033 [US4] Implement atomic complete-answer note persistence and owner-scoped listing/detail reads in `lib/studio/service.ts` and `app/notebooks/actions.ts`
+- [X] T034 [US4] Render save controls only for complete answers and add note cards/detail view in `components/notebook/chat-thread.tsx` and `components/notebook/studio-notes.tsx`
+- [X] T035 [US4] Wire Studio previews and selected note state into `components/notebook/workspace.tsx` and `app/notebooks/[notebookId]/page.tsx`
+- [X] T036 [US4] Add Chromium save/open/reload/idempotency and inaccessible-note coverage in `tests/e2e/studio-notes.spec.ts`
 
 **Checkpoint**: Studio notes are private, stable and citation-correct.
 

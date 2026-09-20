@@ -6,7 +6,7 @@ import { useCallback, useTransition } from "react"
 import { retryIngestion } from "@/app/notebooks/actions"
 import { useJobStatus } from "@/components/notebook/use-job-status"
 import { Button } from "@/components/ui/button"
-import {Item, ItemActions, ItemContent, ItemDescription, ItemTitle} from "@/components/ui/item";
+import {Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle} from "@/components/ui/item";
 
 export interface NotebookSource {
   errorReason: string | null
@@ -48,7 +48,7 @@ export function SourceList({
   }
 
   return (
-    <div className="grid gap-3" >
+    <ItemGroup className="grid gap-3" aria-label="Quellen">
       {sources.map((source) => (
         <Item variant="outline"
           key={source.id}
@@ -66,6 +66,7 @@ export function SourceList({
               <Button
                 aria-current={selectedSourceId === source.id ? "page" : undefined}
                 type="button"
+                size="xs"
                 variant="outline"
                 onClick={() => onSelect(source.id)}
               >
@@ -75,6 +76,7 @@ export function SourceList({
             {source.status === "failed" ? (
               <Button
                 type="button"
+                size="xs"
                 disabled={pending}
                 onClick={() =>
                   startTransition(async () => {
@@ -89,6 +91,6 @@ export function SourceList({
           </ItemActions>
         </Item>
       ))}
-    </div>
+    </ItemGroup>
   )
 }

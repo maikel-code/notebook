@@ -5,6 +5,7 @@ import { conflictError, HttpError, validationError } from "@/lib/http/errors"
 import { MAX_QUESTION_CHARS, MAX_SELECTED_SOURCES } from "@/lib/limits"
 import { getNotebookForContext } from "@/lib/notebooks/service"
 import { buildUntrustedContext } from "@/lib/rag/context"
+import { generateFollowUpQuestions } from "@/lib/rag/follow-up-questions"
 import { generateAnswer } from "@/lib/rag/generate-answer"
 import { persistVerifiedAnswer } from "@/lib/rag/persist-answer"
 import { retrieveForQuestion } from "@/lib/rag/retrieve"
@@ -317,7 +318,7 @@ export async function POST(request: Request) {
                 service,
               )
             } else {
-              await persistVerifiedAnswer(
+              const persisted = await persistVerifiedAnswer(
                 {
                   answerMessageId: attempt.answerId,
                   citations: verification.citations,
@@ -330,6 +331,19 @@ export async function POST(request: Request) {
                 },
                 service,
               )
+              const suggestedQuestions = await generateFollowUpQuestions({
+                answer: verification.claims.join("\n\n"),
+                context: buildUntrustedContext(retrieved),
+                question,
+              })
+              const { error: suggestionError } = await database
+                .from("messages")
+                .update({ suggested_questions: suggestedQuestions })
+                .eq("id", persisted.id)
+                .eq("notebook_id", notebookId)
+                .eq("user_id", userId)
+              if (suggestionError)
+                console.error("Anschlussfragen konnten nicht gespeichert werden.")
             }
           } catch {
             const aborted = request.signal.aborted

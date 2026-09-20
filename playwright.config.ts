@@ -19,9 +19,12 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: `NOTEBOOK_E2E_INGESTION_MODE=1 pnpm dev --port ${port}`,
-    url: baseURL,
-    reuseExistingServer: false,
-  },
+  webServer:
+    process.env.E2E_USE_EXISTING_SERVER === "1"
+      ? undefined
+      : {
+          command: `NOTEBOOK_E2E_INGESTION_MODE=1 pnpm dev --port ${port}`,
+          url: baseURL,
+          reuseExistingServer: false,
+        },
 })
