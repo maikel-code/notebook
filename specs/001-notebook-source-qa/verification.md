@@ -13,10 +13,11 @@ authentifizierter Storage-Blob geladen.
 | --- | --- |
 | `pnpm db:reset` | erfolgreich; eine verdichtete Baseline-Migration |
 | `pnpm lint`, `pnpm typecheck`, `pnpm test` | erfolgreich; 22 Unit-Tests |
-| `pnpm test:integration` | erfolgreich; lokaler Gesamtlauf |
+| `pnpm test:integration` | erfolgreich; 23 Dateien, 75 Tests |
 | `tests/integration/answer-persistence.test.ts` | erfolgreich; 2 atomare Persistenzfälle |
-| `pnpm build` | erfolgreich, ohne pdf.js-Externalisierungswarnung |
-| `pnpm test:e2e` | Chromium-Abläufe zuvor erfolgreich; der Wiederholungslauf scheiterte ausschließlich am vollen Turbopack-Cache des Hosts (`ENOSPC`) |
+| `pnpm build` | erfolgreicher Produktions-Build; Turbopack meldet die bekannte pdf.js-Worker-Externalisierungswarnung |
+| `pnpm exec playwright test tests/e2e/core-flow.spec.ts tests/e2e/chat-retry.spec.ts --workers=1` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm exec playwright test tests/e2e/source-ingestion.spec.ts --workers=1` | erfolgreich; 1 Chromium-Ablauf |
 
 **Kalibrierung:** Der Maintainer gab den Vorschlag mit Mindestwert
 `0.39988621688088577` frei. Der Referenzlauf erzielte bei zwölf Fragen eine
