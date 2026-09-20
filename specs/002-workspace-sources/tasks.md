@@ -81,6 +81,18 @@
 
 **Checkpoint**: Web sources are explicitly imported, bounded, owner-scoped and citation-compatible.
 
+## Phase 5.1: Orientierungsqualität und Providerwahl
+
+**Goal**: Die erste Orientierung ist eine echte KI-Zusammenfassung mit passenden KI-Fragen; Vorschläge senden direkt und der Chat-Anbieter bleibt per Server-ENV wählbar.
+
+- [ ] T041 [P] Add red provider-configuration and generated-orientation shape tests in `tests/unit/chat-provider.test.ts` and `tests/unit/source-orientation.test.ts`
+- [ ] T042 [P] Extend the first-upload Chromium flow for direct suggested-question submission and suggestion removal in `tests/e2e/workspace-orientation.spec.ts`
+- [ ] T043 Implement provider-selectable structured orientation generation and quality-preserving fallback in `lib/env.ts`, `lib/rag/generate-answer.ts` and `lib/rag/source-orientation.ts`
+- [ ] T044 Implement direct starter-question submission and removal in `components/notebook/question-input.tsx`
+- [ ] T045 Document provider environment variables and run targeted unit, integration and Chromium verification in `.env.example`, `README.md` and `specs/002-workspace-sources/verification.md`
+
+**Checkpoint**: The first upload creates a cited AI summary and AI questions; selecting one immediately sends it and the provider can be switched without client exposure.
+
 ---
 
 ## Phase 6: User Story 4 - Antwort im Studio sichern (Priority: P2)

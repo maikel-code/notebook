@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest"
 
-import { createStarterQuestions, verifySourceOrientation } from "@/lib/rag/source-orientation"
+import {
+  createFallbackStarterQuestions,
+  verifySourceOrientation,
+} from "@/lib/rag/source-orientation"
 
 const orientationChunk = {
   chunkId: "chunk-1",
   chunkNumber: 1,
-  content: "Die Freigabe erfolgt am Montag im Büro.",
+  content: "Die Freigabe erfolgt am Montag im Büro. Die Anmeldung endet am Freitag.",
   pageEnd: 1,
   pageStart: 1,
   sourceId: "source-1",
@@ -14,7 +17,7 @@ const orientationChunk = {
 
 describe("source orientation", () => {
   it("keeps three to five editable starter questions and the verified existing claim citations", () => {
-    const questions = createStarterQuestions("Handbuch.pdf")
+    const questions = createFallbackStarterQuestions("Handbuch.pdf")
 
     expect(questions).toHaveLength(3)
     expect(new Set(questions).size).toBe(questions.length)
@@ -60,7 +63,7 @@ describe("source orientation", () => {
           kind: "answer",
         },
         orientationChunk.sourceName,
-        createStarterQuestions(orientationChunk.sourceName),
+        createFallbackStarterQuestions(orientationChunk.sourceName),
         [orientationChunk],
       ),
     ).toEqual({ kind: "invalid", reason: "invalid_citations" })

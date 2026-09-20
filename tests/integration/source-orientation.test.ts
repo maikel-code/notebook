@@ -50,8 +50,8 @@ describe("source orientation persistence", () => {
 
     const chunkId = randomUUID()
     const { error: chunkError } = await fixture.service.from("chunks").insert({
-      char_count: "Die Freigabe erfolgt am Montag.".length,
-      content: "Die Freigabe erfolgt am Montag.",
+      char_count: "Die Freigabe erfolgt am Montag. Die Anmeldung endet am Freitag.".length,
+      content: "Die Freigabe erfolgt am Montag. Die Anmeldung endet am Freitag.",
       embedding: Array.from({ length: 1536 }, () => 0),
       id: chunkId,
       ordinal: 0,
@@ -74,6 +74,11 @@ describe("source orientation persistence", () => {
         },
       ],
       kind: "answer" as const,
+      suggestedQuestions: [
+        "Wann erfolgt die Freigabe?",
+        "Für wen gilt die Freigabe?",
+        "Welche Vorbereitung ist vor der Freigabe nötig?",
+      ],
     }))
 
     const first = await createSourceOrientationIfEligible({
@@ -103,7 +108,11 @@ describe("source orientation persistence", () => {
       .single()
     expect(orientation).toMatchObject({
       citations: [{ quote: "Freigabe erfolgt am Montag", source_id: sourceId }],
-      suggested_questions: expect.arrayContaining([expect.any(String)]),
+      suggested_questions: [
+        "Wann erfolgt die Freigabe?",
+        "Für wen gilt die Freigabe?",
+        "Welche Vorbereitung ist vor der Freigabe nötig?",
+      ],
     })
   })
 
@@ -135,7 +144,8 @@ describe("source orientation persistence", () => {
     expect(error).toBeNull()
     expect(orientation).toMatchObject({
       citations: [{ quote: "Die Freigabe erfolgt am Montag." }],
-      content: expect.stringContaining("Der erste Abschnitt der Quelle nennt:"),
+      content:
+        "Die automatische Zusammenfassung ist derzeit nicht verfügbar. Der folgende belegte Auszug hilft beim Einstieg.",
       suggested_questions: expect.arrayContaining([expect.any(String)]),
     })
   })
