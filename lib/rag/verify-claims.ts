@@ -1,4 +1,4 @@
-import { type GeneratedAnswer, generatedAnswerSchema } from "@/lib/rag/claim-schema"
+import { generatedAnswerSchema } from "@/lib/rag/claim-schema"
 
 export interface RetrievedCitationChunk {
   chunkId: string
@@ -54,8 +54,4 @@ export function verifyClaims(value: unknown, chunks: RetrievedCitationChunk[]): 
     }
   }
   return { citations, claims: parsed.data.claims.map((claim) => claim.text), kind: "valid" }
-}
-
-export function isUnsupportedAnswer(value: GeneratedAnswer): boolean {
-  return value.kind === "unsupported"
 }

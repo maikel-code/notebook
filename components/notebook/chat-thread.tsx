@@ -37,13 +37,19 @@ export function ChatThread({
               ? "Frage"
               : `Antwort${message.attemptNo ? ` · Versuch ${message.attemptNo}` : ""}`}
           </p>
-          {message.content.split("\n\n").map((paragraph, index) => (
-            <p key={`${message.id}-${index}`}>{paragraph}</p>
-          ))}
-          {message.status === "streaming" ? <p aria-live="polite">wird geprüft</p> : null}
-          {message.status === "invalid" ? <p role="status">{invalidCitationMessage}</p> : null}
           {message.unsupportedReason && message.status === "complete" ? (
             <UnsupportedAnswer>{message.content}</UnsupportedAnswer>
+          ) : (
+            message.content
+              .split("\n\n")
+              .map((paragraph) => <p key={`${message.id}-${paragraph}`}>{paragraph}</p>)
+          )}
+          {message.status === "streaming" ? <p aria-live="polite">wird geprüft</p> : null}
+          {message.status === "invalid" ? (
+            <>
+              <p role="status">{invalidCitationMessage}</p>
+              <p>Der Entwurf wurde nicht als belegte Antwort übernommen.</p>
+            </>
           ) : null}
           {message.citations.map((citation) =>
             citation.sourceId ? (
