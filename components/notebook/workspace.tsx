@@ -6,6 +6,7 @@ import { type ChatMessage, ChatThread } from "@/components/notebook/chat-thread"
 import { QuestionInput } from "@/components/notebook/question-input"
 import { SourceDetail } from "@/components/notebook/source-detail"
 import { type NotebookSource, SourceList } from "@/components/notebook/source-list"
+import { SourceSearch } from "@/components/notebook/source-search"
 import { SourceUpload } from "@/components/notebook/source-upload"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { WorkspaceSource, WorkspaceSourceDetail } from "@/lib/notebooks/workspace-service"
@@ -15,6 +16,7 @@ function toNotebookSource(source: WorkspaceSource): NotebookSource {
     errorReason: source.errorReason,
     fileName: source.fileName,
     id: source.id,
+    sourceKind: source.sourceKind,
     status: source.status as NotebookSource["status"],
   }
 }
@@ -38,6 +40,7 @@ export function Workspace({
   const selectSource = (sourceId: string) =>
     router.replace(`/notebooks/${notebookId}?source=${sourceId}`, { scroll: false })
   const returnToWorkspace = () => router.replace(`/notebooks/${notebookId}`, { scroll: false })
+  const refresh = () => router.refresh()
 
   return (
     <section
@@ -59,6 +62,7 @@ export function Workspace({
           ) : (
             <>
               <SourceUpload notebookId={notebookId} />
+              <SourceSearch notebookId={notebookId} onImported={refresh} />
               <SourceList
                 notebookId={notebookId}
                 selectedSourceId={null}

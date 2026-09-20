@@ -5,10 +5,12 @@ import { invalidCitationMessage } from "@/lib/rag/unsupported"
 
 export interface ChatCitation {
   id: string
+  originUrl?: string | null
   pageStart: number
   quote: string
   sourceName: string
   sourceId: string | null
+  sourceKind?: "pdf" | "web" | null
 }
 export interface ChatMessage {
   attemptNo: number | null
@@ -55,18 +57,18 @@ export function ChatThread({
               <p>Der Entwurf wurde nicht als belegte Antwort übernommen.</p>
             </>
           ) : null}
-          {message.citations.map((citation) =>
-            citation.sourceId ? (
-              <CitationChip
-                key={citation.id}
-                notebookId={notebookId}
-                pageStart={citation.pageStart}
-                quote={citation.quote}
-                sourceId={citation.sourceId}
-                sourceName={citation.sourceName}
-              />
-            ) : null,
-          )}
+          {message.citations.map((citation) => (
+            <CitationChip
+              key={citation.id}
+              notebookId={notebookId}
+              originUrl={citation.originUrl}
+              pageStart={citation.pageStart}
+              quote={citation.quote}
+              sourceId={citation.sourceId}
+              sourceKind={citation.sourceKind}
+              sourceName={citation.sourceName}
+            />
+          ))}
           {message.messageKind === "source_orientation" && message.suggestedQuestions.length ? (
             <div>
               <p className="mt-3 font-medium">Mögliche erste Fragen</p>

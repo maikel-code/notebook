@@ -11,6 +11,7 @@ export interface NotebookSource {
   errorReason: string | null
   fileName: string
   id: string
+  sourceKind: "pdf" | "web"
   status: "failed" | "processing" | "ready" | "unusable" | "uploading"
 }
 
@@ -55,7 +56,7 @@ export function SourceList({
           <div>
             <p className="font-medium">{source.fileName}</p>
             <p aria-live="polite" className="text-sm text-muted-foreground">
-              {sourceStatus(source.status)}
+              {source.sourceKind === "web" ? "Webquelle" : "PDF"} · {sourceStatus(source.status)}
               {source.errorReason ? `: ${source.errorReason}` : ""}
             </p>
           </div>

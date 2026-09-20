@@ -34,7 +34,7 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
     const { data: messageRows, error: messageError } = await service
       .from("messages")
       .select(
-        "id, role, content, status, message_kind, suggested_questions, unsupported_reason, attempt_no, created_at, citations(id, ordinal, source_id, source_name, quote, page_start)",
+        "id, role, content, status, message_kind, suggested_questions, unsupported_reason, attempt_no, created_at, citations(id, ordinal, source_id, source_name, quote, page_start, sources(source_kind, origin_url))",
       )
       .eq("notebook_id", notebook.id)
       .eq("user_id", userId)
@@ -49,6 +49,7 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
         quote: string
         source_id: string | null
         source_name: string
+        sources: { origin_url: string | null; source_kind: "pdf" | "web" } | null
       }> | null
       content: string
       id: string
@@ -68,14 +69,17 @@ export default async function NotebookPage({ params, searchParams }: NotebookPag
           quote: string
           source_id: string | null
           source_name: string
+          sources: { origin_url: string | null; source_kind: "pdf" | "web" } | null
         }>
       )
         .toSorted((left, right) => left.ordinal - right.ordinal)
         .map((citation) => ({
           id: citation.id,
+          originUrl: citation.sources?.origin_url ?? null,
           pageStart: citation.page_start,
           quote: citation.quote,
           sourceId: citation.source_id,
+          sourceKind: citation.sources?.source_kind ?? null,
           sourceName: citation.source_name,
         })),
       content: message.content,

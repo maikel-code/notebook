@@ -6,12 +6,14 @@ import { cleanupStoragePath } from "@/lib/ingestion/cleanup"
 import { embedChunks } from "@/lib/ingestion/embed"
 import { extractPdfText } from "@/lib/ingestion/extract"
 import { LocalE2EIngestionFailure } from "@/lib/ingestion/local-e2e"
-import { replaceChunksForSource } from "@/lib/ingestion/persist"
+import { persistFetchedWebSource, replaceChunksForSource } from "@/lib/ingestion/persist"
 import { nextRetryState } from "@/lib/ingestion/retry"
 import { SOURCES_BUCKET } from "@/lib/ingestion/storage"
 import { validatePdf } from "@/lib/ingestion/validate-pdf"
 import { MAX_JOB_ATTEMPTS } from "@/lib/limits"
 import { createSourceOrientationIfEligible } from "@/lib/rag/source-orientation"
+import { sha256Hex } from "@/lib/upload/hash"
+import { fetchPublicWebPage } from "@/lib/web/fetch"
 
 interface ClaimedJob {
   attempt: number
@@ -25,7 +27,9 @@ interface JobSource {
   cleanup_storage_path: string | null
   id: string
   notebook_id: string
-  storage_path: string
+  origin_url: string | null
+  source_kind: "pdf" | "web"
+  storage_path: string | null
   user_id: string
 }
 
@@ -36,7 +40,7 @@ export async function loadOwnedJobSource(
 ): Promise<JobSource> {
   const { data: source, error } = await service
     .from("sources")
-    .select("id, notebook_id, user_id, storage_path, cleanup_storage_path")
+    .select("id, notebook_id, user_id, source_kind, origin_url, storage_path, cleanup_storage_path")
     .eq("id", sourceId)
     .eq("user_id", userId)
     .maybeSingle()
@@ -47,7 +51,7 @@ export async function loadOwnedJobSource(
 async function updatePhase(
   service: SupabaseClient,
   job: ClaimedJob,
-  phase: "cleanup" | "extract" | "chunk" | "embed" | "finalize",
+  phase: "cleanup" | "fetch" | "extract" | "chunk" | "embed" | "finalize",
 ): Promise<void> {
   const { error } = await service
     .from("ingestion_jobs")
@@ -65,13 +69,15 @@ async function failJob(
 ): Promise<void> {
   const failureCode = `INGESTION_${phase.toUpperCase()}_FAILED`
   const failureReason =
-    phase === "extract"
-      ? "Die PDF-Datei konnte nicht gelesen werden."
-      : phase === "chunk"
-        ? "Der PDF-Text konnte nicht aufbereitet werden."
-        : phase === "embed"
-          ? "Die Einbettungen für die PDF-Datei konnten nicht erstellt werden."
-          : "Die PDF-Verarbeitung ist fehlgeschlagen."
+    phase === "fetch"
+      ? "Die Webseite konnte nicht als öffentliche Quelle gelesen werden."
+      : phase === "extract"
+        ? "Die PDF-Datei konnte nicht gelesen werden."
+        : phase === "chunk"
+          ? "Der PDF-Text konnte nicht aufbereitet werden."
+          : phase === "embed"
+            ? "Die Einbettungen für die PDF-Datei konnten nicht erstellt werden."
+            : "Die PDF-Verarbeitung ist fehlgeschlagen."
   const retry = forceTerminalFailure
     ? { attempt: MAX_JOB_ATTEMPTS, status: "failed" as const }
     : nextRetryState(job.attempt)
@@ -120,15 +126,33 @@ export async function runNextIngestionJob(
     await updatePhase(service, job, "cleanup")
     await cleanupStoragePath(service, ownedSource.id, job.user_id, ownedSource.cleanup_storage_path)
 
-    phase = "extract"
-    await updatePhase(service, job, "extract")
-    const { data: file, error: fileError } = await service.storage
-      .from(SOURCES_BUCKET)
-      .download(ownedSource.storage_path)
-    if (fileError || !file) throw new Error("Quellendatei fehlt.")
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    await validatePdf(bytes, "source.pdf")
-    const pages = await extractPdfText(bytes)
+    const pages =
+      ownedSource.source_kind === "web"
+        ? await (async () => {
+            phase = "fetch"
+            await updatePhase(service, job, "fetch")
+            if (!ownedSource.origin_url) throw new Error("Webquellenadresse fehlt.")
+            const page = await fetchPublicWebPage(ownedSource.origin_url)
+            await persistFetchedWebSource(service, ownedSource.id, job.user_id, {
+              byteSize: page.byteSize,
+              canonicalUrl: page.canonicalUrl,
+              contentHash: await sha256Hex(new TextEncoder().encode(page.text)),
+              fileName: page.title,
+            })
+            return [{ page: 1, text: page.text }]
+          })()
+        : await (async () => {
+            phase = "extract"
+            await updatePhase(service, job, "extract")
+            if (!ownedSource.storage_path) throw new Error("Quellendatei fehlt.")
+            const { data: file, error: fileError } = await service.storage
+              .from(SOURCES_BUCKET)
+              .download(ownedSource.storage_path)
+            if (fileError || !file) throw new Error("Quellendatei fehlt.")
+            const bytes = new Uint8Array(await file.arrayBuffer())
+            await validatePdf(bytes, "source.pdf")
+            return extractPdfText(bytes)
+          })()
 
     phase = "chunk"
     await updatePhase(service, job, "chunk")
@@ -188,7 +212,12 @@ export async function runNextIngestionJob(
     }
     return true
   } catch (error) {
-    await failJob(service, job, phase, error instanceof LocalE2EIngestionFailure)
+    await failJob(
+      service,
+      job,
+      phase,
+      phase === "fetch" || error instanceof LocalE2EIngestionFailure,
+    )
     return true
   }
 }

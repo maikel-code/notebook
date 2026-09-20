@@ -1,6 +1,7 @@
 export type DiagnosticPhase =
   | "authorize"
   | "cleanup"
+  | "fetch"
   | "extract"
   | "chunk"
   | "embed"

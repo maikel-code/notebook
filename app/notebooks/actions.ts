@@ -14,6 +14,7 @@ import {
   prepareUploadForContext,
   retryIngestionForContext,
 } from "@/lib/ingestion/upload"
+import { importWebSourcesForContext, type WebImportResult } from "@/lib/ingestion/web-import"
 import {
   createNotebookForContext,
   deleteNotebookForContext,
@@ -128,4 +129,20 @@ export async function retryIngestion(sourceId: string): Promise<void> {
   await retryIngestionForContext({ userId }, sourceId, service)
   await runNextIngestionJob(service, sourceId)
   revalidatePath(`/notebooks`)
+}
+
+export async function importWebSources(
+  notebookId: string,
+  urls: string[],
+): Promise<WebImportResult> {
+  const { userId } = await requireUser()
+  const service = createServiceSupabaseClient()
+  const result = await importWebSourcesForContext({ userId }, { notebookId, urls }, service)
+  for (const outcome of result.outcomes) {
+    if (outcome.status === "started" && outcome.sourceId) {
+      await runNextIngestionJob(service, outcome.sourceId)
+    }
+  }
+  revalidatePath(`/notebooks/${notebookId}`)
+  return result
 }

@@ -6,6 +6,26 @@ export interface EmbeddedChunk extends IngestionChunk {
   embedding: number[]
 }
 
+export async function persistFetchedWebSource(
+  service: SupabaseClient,
+  sourceId: string,
+  userId: string,
+  source: { byteSize: number; canonicalUrl: string; contentHash: string; fileName: string },
+): Promise<void> {
+  const { error } = await service
+    .from("sources")
+    .update({
+      byte_size: source.byteSize,
+      canonical_url: source.canonicalUrl,
+      content_hash: source.contentHash,
+      file_name: source.fileName,
+    })
+    .eq("id", sourceId)
+    .eq("source_kind", "web")
+    .eq("user_id", userId)
+  if (error) throw new Error("Die Webquellenfassung konnte nicht gespeichert werden.")
+}
+
 export async function replaceChunksForSource(
   service: SupabaseClient,
   sourceId: string,
