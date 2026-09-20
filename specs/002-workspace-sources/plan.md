@@ -1,113 +1,91 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Quellenarbeitsbereich und Studio-Notizen
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/speckit-plan` command; its definition describes the execution workflow.
+**Branch**: `codex/002-workspace-sources` | **Date**: 2026-09-20 | **Spec**: [spec.md](spec.md)
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Das bestehende Notebook wird zu einem dreispaltigen Arbeitsbereich erweitert. Eine bereitgestellte erste Quelle erhält eine einmalige, zitierbare Orientierung; Quellen lassen sich als vollständiger extrahierter Text lesen. Eine serverseitige Suche liefert öffentliche Webtreffer, die erst nach Bestätigung abgerufen und als reguläre Quellen verarbeitet werden. Vollständige, geprüfte Antworten lassen sich als unveränderliche Studio-Notizen sichern.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: TypeScript 5.9, Node.js 22, React 19, Next.js 16
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**Primary Dependencies**: Bestehende Supabase-Clients, Zod, Vercel AI SDK, Anthropic für geprüfte Antworten, OpenAI für Einbettungen und Websuchzugriff; eine kleine HTML-Extraktionsbibliothek für bestätigte Webquellen.
 
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+**Storage**: Lokales Supabase/PostgreSQL mit privatem PDF-Storage; Webquelltexte, Metadaten, Orientierungen und Studio-Notizen in PostgreSQL.
 
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+**Testing**: Vitest Unit- und Supabase-Integrationstests, Playwright ausschließlich Chromium, Biome, TypeScript-Prüfung und frischer lokaler Datenbankreset.
 
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**Target Platform**: Angemeldete Browser-Benutzer; Desktop-Demo mit responsiv zusammenklappenden Bereichen.
 
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: Bestehende Next.js-Webanwendung mit serverseitigen Actions und Routen.
 
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+**Performance Goals**: Erste Quellenorientierung im dokumentierten Demo-Lauf nach erfolgreicher Verarbeitung; Websuche zeigt innerhalb von 8 Sekunden Treffer oder Zustand; gespeicherte Studio-Notiz erscheint ohne Seitenwechsel.
 
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+**Constraints**: Bestehende 10-MB-/50-Seiten-PDF- und 30-Quellen-Grenzen bleiben. Eine Websuche liefert höchstens zehn Treffer; bestätigte Webseiten werden mit maximal 1 MB Textantwort, höchstens drei Weiterleitungen und 10 Sekunden Laufzeit abgerufen. Es gibt keinen clientseitigen Anbieterzugriff, keine automatische Übernahme, keine privaten oder lokalen Zieladressen und keine Inhalts- oder Geheimnisprotokollierung.
 
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
-
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Scale/Scope**: Einzelbenutzer-Demo, ein bestehender privater Arbeitsbereich pro Notebook, keine Notizbearbeitung, Freigabe oder Export.
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+| Gate | Vor dem Design | Nach dem Design |
+|------|----------------|-----------------|
+| Zugriff | Neue geschützte Pfade benötigen Eigentümer-/Fremd-/Anonymtests. | Erweiterte Zugriffsmatrix und RLS für Studio-Notizen, serverseitige Such- und Importautorisation vorgesehen. |
+| Quellenbindung | Orientierung, Webtext und Notizverweise dürfen die Belegregeln nicht umgehen. | Orientierung verwendet die vorhandene Claim-Prüfung; Webtext wird in reguläre Chunks überführt; Notiz verwendet unveränderliche Antwort- und Verweis-Schnappschüsse. |
+| Vollständiger Ablauf | Neue Lade-, Leer-, Erfolgs- und Fehlerzustände sowie Tastaturbedienung erforderlich. | Drei Bereiche, Auswahl-/Vorschau-/Importzustände und Dialogfokus werden als eigene UI- und E2E-Aufgaben geplant. |
+| Einfache Architektur | Kein zusätzlicher Suchdienst oder clientseitiges Geheimnis ohne Nutzen. | Der vorhandene serverseitige OpenAI-Zugang wird für höchstens zehn Ergebnisse genutzt; HTML wird erst nach Bestätigung serverseitig abgerufen. |
+| Reproduzierbarkeit | Schema, Limits, Tests und Diagnose müssen dokumentiert sein. | Additive Migration, feste Limits, Tests mit gemockter Suche und Chromium-E2E sowie `db:reset` sind vorgesehen. |
 
-[Gates determined based on constitution file]
+**Gate result**: PASS. Keine Ausnahme erforderlich.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
-├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+specs/002-workspace-sources/
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+│   └── workspace-http.md
+└── tasks.md
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+app/notebooks/[notebookId]/page.tsx
+app/notebooks/actions.ts
+app/api/web/search/route.ts
+components/notebook/{workspace,source-list,source-detail,source-search,chat-thread,studio-notes}.tsx
+lib/{ingestion,rag,web,studio}/
+supabase/migrations/202609200002_workspace_sources.sql
+tests/{unit,integration,e2e}/
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Das vorhandene App-/Komponenten-/Lib-Muster bleibt bestehen. Domänenlogik für öffentliche Webseiten und Notizen bleibt serverseitig unter `lib/`; die Notebook-Seite lädt einen autorisierten Gesamt-Snapshot und komponiert daraus die drei Bereiche.
+
+## Verification Gates
+
+Vor Abschluss jeder Implementierungsphase laufen mindestens die für ihre Änderungen relevanten Tests. Vor Review und Übergabe laufen ohne Reduzierung:
+
+```text
+SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm test:integration
+pnpm build
+pnpm exec playwright test --project=chromium --workers=1
+```
+
+Die Erweiterung der Zugriffsmatrix prüft Quellendetail, Suche, Vorschau, Webimport, Notiz speichern, Liste und Detail jeweils als Eigentümer, fremdes Konto und anonym. Ausgelieferte Websuche wird zusätzlich mit einem kontrollierten Suchadapter, einer privaten Zieladresse, einer Weiterleitung und einem teilweisen Sammelimport geprüft.
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| Decision | Why Needed | Simpler Alternative Rejected Because |
+|----------|------------|-------------------------------------|
+| Einheitliche `sources` für PDF und Web | Retrieval, Auswahl und Verweise benötigen eine gemeinsame Quelle. | Eine parallele Webquellen-Pipeline würde Auswahl, Chunks und Belege duplizieren. |
+| Einmalige Orientierung als spezieller Assistant-Beitrag | Sie muss wie Chat und Verweise dauerhaft und prüfbar sein. | Ein ungespeicherter UI-Text wäre nach Neuladen nicht reproduzierbar und könnte die Belegprüfung umgehen. |
