@@ -34,12 +34,12 @@
 
 **Independent Test**: Upload one readable PDF into an empty notebook and obtain one persisted, cited orientation; add another source and verify no second orientation appears.
 
-- [ ] T009 [P] [US1] Add red unit tests for an orientation with three to five questions and verified claims in `tests/unit/source-orientation.test.ts`
-- [ ] T010 [P] [US1] Add red integration tests for one orientation per empty history, terminal failures and citation persistence in `tests/integration/source-orientation.test.ts`
-- [ ] T011 [US1] Implement orientation prompt, generation, claim verification and persistence in `lib/rag/source-orientation.ts`
-- [ ] T012 [US1] Trigger orientation only after the first owned source reaches `ready` in `lib/ingestion/run-job.ts`
-- [ ] T013 [US1] Load orientation messages and starter questions in `app/notebooks/[notebookId]/page.tsx`
-- [ ] T014 [US1] Render cited orientation cards and editable starter-question actions in `components/notebook/chat-thread.tsx` and `components/notebook/question-input.tsx`
+- [X] T009 [P] [US1] Add red unit tests for an orientation with three to five questions and verified claims in `tests/unit/source-orientation.test.ts`
+- [X] T010 [P] [US1] Add red integration tests for one orientation per empty history, terminal failures and citation persistence in `tests/integration/source-orientation.test.ts`
+- [X] T011 [US1] Implement orientation prompt, generation, claim verification and persistence in `lib/rag/source-orientation.ts`
+- [X] T012 [US1] Trigger orientation only after the first owned source reaches `ready` in `lib/ingestion/run-job.ts`
+- [X] T013 [US1] Load orientation messages and starter questions in `app/notebooks/[notebookId]/page.tsx`
+- [X] T014 [US1] Render cited orientation cards and editable starter-question actions in `components/notebook/chat-thread.tsx` and `components/notebook/question-input.tsx`
 - [ ] T015 [US1] Add the first-upload Chromium path and failure/no-duplicate assertions in `tests/e2e/workspace-orientation.spec.ts`
 
 **Checkpoint**: US1 works without web search or Studio notes.
