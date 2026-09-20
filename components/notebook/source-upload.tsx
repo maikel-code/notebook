@@ -142,7 +142,7 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
 
   return (
     <div className="grid gap-3">
-      <Label htmlFor="source-file">PDF-Quelle hinzufügen</Label>
+      <Label htmlFor="source-file">PDF hinzufügen</Label>
       <Input
         ref={inputRef}
         id="source-file"
@@ -152,6 +152,7 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
         disabled={stage === "uploading"}
         onChange={onChange}
         type="file"
+        className="h-fit bg-accent/80"
       />
       {stage === "uploading" ? <p role="status">Datei wird hochgeladen…</p> : null}
       {stage === "processing" ? <p role="status">Quelle wird verarbeitet…</p> : null}
@@ -166,7 +167,7 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
         </Button>
       ) : null}
       <Dialog open={stage === "duplicate"} onOpenChange={(open) => !open && dismissDuplicate()}>
-        <DialogContent showCloseButton>
+        <DialogContent showCloseButton className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Datei bereits vorhanden</DialogTitle>
             <DialogDescription>

@@ -1,11 +1,15 @@
 "use client"
 
-import { useState, useTransition } from "react"
-
+import {ExternalLink, Search} from "lucide-react"
+import { useId, useState, useTransition } from "react"
 import { importWebSources } from "@/app/notebooks/actions"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import type { WebSearchResult } from "@/lib/web/search"
+import {Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle} from "@/components/ui/item";
+import {Label} from "@/components/ui/label";
+import {InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput} from "@/components/ui/input-group";
 
 interface SearchResponse {
   error?: string
@@ -22,14 +26,13 @@ export function SourceSearch({
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<WebSearchResult[]>([])
   const [selected, setSelected] = useState<string[]>([])
-  const [preview, setPreview] = useState<WebSearchResult | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [searching, startSearch] = useTransition()
   const [importing, startImport] = useTransition()
+  const checkboxIdPrefix = useId()
 
   const runSearch = () => {
     setMessage(null)
-    setPreview(null)
     setResults([])
     setSelected([])
     startSearch(async () => {
@@ -79,69 +82,71 @@ export function SourceSearch({
   }
 
   return (
-    <section aria-label="Webquellen suchen" className="grid gap-3 border-2 p-3">
-      <h3 className="font-medium">Webquellen suchen</h3>
-      <div className="flex flex-wrap gap-2">
-        <Input
-          aria-label="Webquellen durchsuchen"
+    <section aria-label="Webquellen suchen" className="grid gap-2  ">
+        <Label className="font-medium" htmlFor="webquellen">Webquellen suchen</Label>
+      <InputGroup className="py-4">
+        <InputGroupInput id="webquellen" placeholder="Suchbegriff eingeben..."   aria-label="Webquellen durchsuchen"
           maxLength={200}
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <Button type="button" disabled={searching || !query.trim()} onClick={runSearch}>
+          onKeyDown={(event) => { if (event.key === "Enter") runSearch()}}
+          onChange={(event) => setQuery(event.target.value)} />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton variant="secondary" disabled={searching} onClick={runSearch}>
           {searching ? "Suche läuft" : "Suchen"}
-        </Button>
-      </div>
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
       {message ? <p role="status">{message}</p> : null}
       {results.length ? (
         <>
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
+              size="sm"
               variant="outline"
               onClick={() => setSelected(allSelected ? [] : results.map((result) => result.url))}
             >
-              {allSelected ? "Auswahl aufheben" : "Alle angezeigten auswählen"}
+              {allSelected ? "Auswahl aufheben" : "Alle auswählen"}
             </Button>
             <Button
               type="button"
+              size="sm"
               disabled={importing || selected.length === 0}
               onClick={importSelected}
             >
               {importing ? "Übernahme läuft" : "Auswahl bestätigen und übernehmen"}
             </Button>
           </div>
-          <ul aria-label="Websuchergebnisse" className="grid gap-2">
+          <ItemGroup aria-label="Websuchergebnisse" className="grid gap-2">
             {results.map((result) => (
-              <li key={result.url} className="grid gap-2 border p-2">
-                <label className="flex gap-2">
-                  <input
-                    checked={selected.includes(result.url)}
-                    type="checkbox"
-                    onChange={() => toggle(result.url)}
-                  />
-                  <span>
-                    <span className="font-medium">{result.title}</span> · {result.domain}
-                  </span>
-                </label>
-                <p className="text-sm text-muted-foreground">{result.description}</p>
-                <Button type="button" variant="outline" onClick={() => setPreview(result)}>
-                  Vorschau anzeigen
-                </Button>
-              </li>
+              <Item className="border-0" variant="muted" key={result.url} >
+                <ItemMedia>
+                   <Checkbox
+                     id={`${checkboxIdPrefix}-${result.url}`}
+                     checked={selected.includes(result.url)}
+                     onCheckedChange={() => toggle(result.url)}
+                   />
+                </ItemMedia>
+                <ItemContent>
+                  <label htmlFor={`${checkboxIdPrefix}-${result.url}`}>
+                  <ItemTitle>
+                    {result.title}
+                    </ItemTitle>
+                  <ItemDescription className="text-xs space-x-1">
+                    <span>{result.domain}</span> <span>·</span> <span>{result.description}</span>
+                  </ItemDescription>
+                    </label>
+                </ItemContent>
+                <ItemActions>
+                  <a className="inline" href={result.url} rel="noreferrer" target="_blank">
+                        <ExternalLink className="inline-block ml-1 -mt-1.5 h-4 w-4" />
+                      </a>
+                </ItemActions>
+
+              </Item>
             ))}
-          </ul>
+          </ItemGroup>
         </>
-      ) : null}
-      {preview ? (
-        <section aria-label="Webquellenvorschau" className="grid gap-2 border p-2">
-          <h4 className="font-medium">{preview.title}</h4>
-          <p>{preview.description}</p>
-          <p className="break-all text-sm">{preview.url}</p>
-          <a className="underline" href={preview.url} rel="noreferrer" target="_blank">
-            Originalwebseite öffnen
-          </a>
-        </section>
       ) : null}
     </section>
   )

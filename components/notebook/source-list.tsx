@@ -6,6 +6,7 @@ import { useCallback, useTransition } from "react"
 import { retryIngestion } from "@/app/notebooks/actions"
 import { useJobStatus } from "@/components/notebook/use-job-status"
 import { Button } from "@/components/ui/button"
+import {Item, ItemActions, ItemContent, ItemDescription, ItemTitle} from "@/components/ui/item";
 
 export interface NotebookSource {
   errorReason: string | null
@@ -47,20 +48,20 @@ export function SourceList({
   }
 
   return (
-    <ul className="grid gap-3" aria-label="Quellen">
+    <div className="grid gap-3" >
       {sources.map((source) => (
-        <li
+        <Item variant="outline"
           key={source.id}
-          className="flex flex-wrap items-center justify-between gap-3 border-2 p-3"
+          className=" bg-background"
         >
-          <div>
-            <p className="font-medium">{source.fileName}</p>
-            <p aria-live="polite" className="text-sm text-muted-foreground">
+          <ItemContent>
+            <ItemTitle className="font-medium">{source.fileName}</ItemTitle>
+            <ItemDescription aria-live="polite" className="text-sm text-muted-foreground">
               {source.sourceKind === "web" ? "Webquelle" : "PDF"} · {sourceStatus(source.status)}
               {source.errorReason ? `: ${source.errorReason}` : ""}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+            </ItemDescription>
+          </ItemContent>
+          <ItemActions>
             {onSelect ? (
               <Button
                 aria-current={selectedSourceId === source.id ? "page" : undefined}
@@ -85,9 +86,9 @@ export function SourceList({
                 Erneut versuchen
               </Button>
             ) : null}
-          </div>
-        </li>
+          </ItemActions>
+        </Item>
       ))}
-    </ul>
+    </div>
   )
 }

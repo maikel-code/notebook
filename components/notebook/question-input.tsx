@@ -5,6 +5,14 @@ import { useEffect, useRef, useState, useTransition } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupText,
+  InputGroupTextarea
+} from "@/components/ui/input-group";
+import {Badge} from "@/components/ui/badge";
 
 export function QuestionInput({
   notebookId,
@@ -89,19 +97,8 @@ export function QuestionInput({
         submit()
       }}
     >
-      <label className="grid gap-1" htmlFor="question">
-        <span className="font-medium">Frage an das Notebook</span>
-        <Textarea
-          id="question"
-          value={question}
-          disabled={pending || streaming}
-          maxLength={2000}
-          onChange={(event) => setQuestion(event.target.value)}
-        />
-      </label>
       {visibleStarterQuestions.length ? (
         <fieldset className="grid gap-2">
-          <legend className="font-medium">Mögliche erste Fragen</legend>
           <div className="flex flex-wrap gap-2">
             {visibleStarterQuestions.map((starterQuestion) => (
               <Button
@@ -121,22 +118,30 @@ export function QuestionInput({
           </div>
         </fieldset>
       ) : null}
+      <InputGroup>
+        <InputGroupTextarea
+          id="question"
+          placeholder="Frage an das Notebook"
+          value={question}
+          disabled={pending || streaming}
+          maxLength={2000}
+          onChange={(event) => setQuestion(event.target.value)}
+        />
+        <InputGroupAddon align="block-end">
+          <InputGroupText>{question.length || 0}/2000 {pending ? <Badge variant="ghost" aria-live="polite">wird geprüft</Badge> : null}</InputGroupText>
+          {pending ? (
+            <InputGroupButton className="ml-auto" size="sm"  type="button" variant="outline" onClick={() => abortController.current?.abort()}>
+            Abbrechen
+          </InputGroupButton>
+          ) : (
+            <InputGroupButton className="ml-auto" size="sm" variant="default" disabled={!question.trim() || pending || streaming} type="submit">
+            Frage senden
+          </InputGroupButton>
+          )}
+        </InputGroupAddon>
+      </InputGroup>
       {error ? <p role="alert">{error}</p> : null}
       {terminalMessage ? <p role="status">{terminalMessage}</p> : null}
-      {streamedClaims.map((claim) => (
-        <p key={claim} aria-live="polite">
-          {claim}
-        </p>
-      ))}
-      {pending ? <p aria-live="polite">wird geprüft</p> : null}
-      {pending ? (
-        <Button type="button" variant="outline" onClick={() => abortController.current?.abort()}>
-          Abbrechen
-        </Button>
-      ) : null}
-      <Button disabled={!question.trim() || pending || streaming} type="submit">
-        Frage senden
-      </Button>
     </form>
   )
 }
