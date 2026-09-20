@@ -161,6 +161,20 @@ nach einem lokalen Dienst-Neustart erhielt eine transiente Registrierungs-
 ablehnung; der unveränderte Wiederholungslauf bestand. Bei parallelen lokalen
 Prüfungen sollte deshalb kein weiterer Supabase-Reset neben dem E2E-Lauf starten.
 
+## Phase 4 — Abschlusskorrekturen — 2026-09-20
+
+Der Abbruch ist nur während `uploading` sichtbar; ein abgelehnter Abbruch zeigt
+seinen Fehler. Der interne Zugangstest prüft `run` und `sweep` jeweils mit
+gültigem, fehlendem und ungültigem Geheimnis.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `SUPABASE_TELEMETRY_ENABLED=false pnpm db:reset` | erfolgreich; dreizehn Migrationen |
+| `pnpm typecheck`, `pnpm lint`, `pnpm test` | erfolgreich; 6 Unit-Tests |
+| `pnpm test:integration` | erfolgreich; 19 Dateien, 58 Tests |
+| `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
+| `pnpm build` und Secret-Check | erfolgreich; keine Secret-Namen in `.next/static` |
+
 ## Phase 4 — Quellenaufnahme und Verarbeitungszustand — 2026-09-19
 
 **Umfang:** T041–T069. Die Aufnahme prüft serverseitig Signatur, Größe,

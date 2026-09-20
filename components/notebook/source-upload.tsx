@@ -75,8 +75,17 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
   }
 
   async function cancelActiveUpload() {
-    if (!activeSourceId) return
-    await cancelUpload(activeSourceId).catch(() => undefined)
+    if (!activeSourceId || stage !== "uploading") return
+    try {
+      await cancelUpload(activeSourceId)
+    } catch (cancelError) {
+      setError(
+        cancelError instanceof Error
+          ? cancelError.message
+          : "Upload konnte nicht abgebrochen werden.",
+      )
+      return
+    }
     setActiveSourceId(null)
     setStage("idle")
     if (inputRef.current) inputRef.current.value = ""
@@ -103,7 +112,7 @@ export function SourceUpload({ notebookId }: { notebookId: string }) {
           {error}
         </p>
       ) : null}
-      {stage === "uploading" || stage === "processing" ? (
+      {stage === "uploading" ? (
         <Button type="button" variant="outline" onClick={cancelActiveUpload}>
           Upload abbrechen
         </Button>

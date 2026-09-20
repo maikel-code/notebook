@@ -49,6 +49,7 @@ test("source upload changes status without reload and offers a working retry wit
   })
   const sources = page.getByRole("list", { name: "Quellen" })
   await expect(page.getByRole("status")).toContainText("Quelle wird verarbeitet")
+  await expect(page.getByRole("button", { name: "Upload abbrechen" })).toHaveCount(0)
   await expect(sources).toContainText("ready.pdf")
   await expect(sources).toContainText("bereit")
   await expect(page).toHaveURL(/\/notebooks\/[0-9a-f-]+$/i)
