@@ -194,6 +194,19 @@ als Dialog mit drei expliziten Aktionen umgesetzt. Der Sweep läuft einmalig;
 | `pnpm test:e2e` | erfolgreich; 2 Chromium-Abläufe |
 | `pnpm build` | erfolgreicher Next-16-Produktions-Build |
 
+## Phase 4 — pdf.js-Worker im Server-Action-Pfad — 2026-09-20
+
+`pdfjs-dist` bleibt serverseitig extern. Dadurch löst pdf.js seinen
+mitgelieferten Node-Fake-Worker relativ zum Paket auf, statt auf einen von
+Turbopack nicht erzeugten Chunk zu verweisen.
+
+| Prüfung unter Node 22.14.0 | Ergebnis |
+| --- | --- |
+| `pnpm lint`, `pnpm typecheck`, `pnpm test` | erfolgreich; 6 Unit-Tests |
+| `pnpm test:integration` | erfolgreich; 19 Dateien, 59 Tests |
+| `pnpm test:e2e`, `pnpm build` | erfolgreich; 2 Chromium-Abläufe |
+| Manueller Chromium-Upload `Mitgliedantrag.pdf` | bestätigt; 3 Seiten, Status `wird verarbeitet` ohne `422` |
+
 ## Phase 4 — Quellenaufnahme und Verarbeitungszustand — 2026-09-19
 
 **Umfang:** T041–T069. Die Aufnahme prüft serverseitig Signatur, Größe,
