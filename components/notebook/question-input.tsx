@@ -16,12 +16,14 @@ export function QuestionInput({
   const [question, setQuestion] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [terminalMessage, setTerminalMessage] = useState<string | null>(null)
+  const [streamedClaims, setStreamedClaims] = useState<string[]>([])
   const abortController = useRef<AbortController | null>(null)
   const [pending, startTransition] = useTransition()
   const submit = () =>
     startTransition(async () => {
       setError(null)
       setTerminalMessage(null)
+      setStreamedClaims([])
       const controller = new AbortController()
       abortController.current = controller
       try {
@@ -31,6 +33,32 @@ export function QuestionInput({
           method: "POST",
           signal: controller.signal,
         })
+        if (response.headers.get("content-type")?.includes("text/event-stream")) {
+          const reader = response.body?.getReader()
+          if (!reader) throw new Error("Antwortstream fehlt.")
+          const decoder = new TextDecoder()
+          let buffer = ""
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buffer += decoder.decode(value, { stream: true })
+            const events = buffer.split("\n\n")
+            buffer = events.pop() ?? ""
+            for (const event of events) {
+              const data = event
+                .split("\n")
+                .find((line) => line.startsWith("data: "))
+                ?.slice(6)
+              if (!data) continue
+              const payload = JSON.parse(data) as { text?: string; type?: string }
+              if (payload.type === "claim" && payload.text) {
+                setStreamedClaims((claims) => [...claims, payload.text as string])
+              }
+              if (payload.type === "error" && payload.text) setError(payload.text)
+            }
+          }
+          return
+        }
         const data = (await response.json()) as { content?: string; error?: string }
         if (!response.ok) setError(data.error ?? "Die Frage konnte nicht gesendet werden.")
         else {
@@ -66,6 +94,11 @@ export function QuestionInput({
       </label>
       {error ? <p role="alert">{error}</p> : null}
       {terminalMessage ? <p role="status">{terminalMessage}</p> : null}
+      {streamedClaims.map((claim) => (
+        <p key={claim} aria-live="polite">
+          {claim}
+        </p>
+      ))}
       {pending ? <p aria-live="polite">wird geprüft</p> : null}
       {pending ? (
         <Button type="button" variant="outline" onClick={() => abortController.current?.abort()}>
