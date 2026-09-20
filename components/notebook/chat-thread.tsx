@@ -15,8 +15,10 @@ export interface ChatMessage {
   citations: ChatCitation[]
   content: string
   id: string
+  messageKind: "answer" | "source_orientation"
   role: "assistant" | "user"
   status: string
+  suggestedQuestions: string[]
   unsupportedReason: string | null
 }
 
@@ -35,7 +37,9 @@ export function ChatThread({
           <p className="font-medium">
             {message.role === "user"
               ? "Frage"
-              : `Antwort${message.attemptNo ? ` · Versuch ${message.attemptNo}` : ""}`}
+              : message.messageKind === "source_orientation"
+                ? "Erste Orientierung"
+                : `Antwort${message.attemptNo ? ` · Versuch ${message.attemptNo}` : ""}`}
           </p>
           {message.unsupportedReason && message.status === "complete" ? (
             <UnsupportedAnswer>{message.content}</UnsupportedAnswer>
@@ -63,6 +67,16 @@ export function ChatThread({
               />
             ) : null,
           )}
+          {message.messageKind === "source_orientation" && message.suggestedQuestions.length ? (
+            <div>
+              <p className="mt-3 font-medium">Mögliche erste Fragen</p>
+              <ul className="list-disc pl-5">
+                {message.suggestedQuestions.map((question) => (
+                  <li key={question}>{question}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {message.status === "failed" ? (
             <>
               <p>fehlgeschlagen</p>

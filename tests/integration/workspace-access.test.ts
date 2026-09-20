@@ -1,20 +1,19 @@
 import { randomUUID } from "node:crypto"
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-
+import { sourceStoragePath } from "@/lib/ingestion/storage"
+import { prepareUploadForContext } from "@/lib/ingestion/upload"
+import { createNotebookForContext } from "@/lib/notebooks/service"
 import {
   getSourceDetailForContext,
   getWorkspaceSnapshotForContext,
 } from "@/lib/notebooks/workspace-service"
-import { createNotebookForContext } from "@/lib/notebooks/service"
-import { prepareUploadForContext } from "@/lib/ingestion/upload"
-import { sourceStoragePath } from "@/lib/ingestion/storage"
+import { persistVerifiedAnswer } from "@/lib/rag/persist-answer"
 import {
   getStudioNoteForContext,
   listStudioNotesForContext,
   saveStudioNoteForContext,
 } from "@/lib/studio/service"
-import { persistVerifiedAnswer } from "@/lib/rag/persist-answer"
 import {
   createIntegrationFixture,
   type IntegrationFixture,
@@ -165,7 +164,12 @@ describe("workspace owner-scoped services", () => {
       listStudioNotesForContext(testContext(fixture.owner), ownerNotebookId, fixture.service),
     ).resolves.toEqual([expect.objectContaining({ id: note.id })])
     await expect(
-      getStudioNoteForContext(testContext(fixture.owner), ownerNotebookId, note.id, fixture.service),
+      getStudioNoteForContext(
+        testContext(fixture.owner),
+        ownerNotebookId,
+        note.id,
+        fixture.service,
+      ),
     ).resolves.toMatchObject({ contentSnapshot: "Vollständig belegte Antwort.", id: note.id })
 
     for (const context of [testContext(fixture.stranger), null]) {

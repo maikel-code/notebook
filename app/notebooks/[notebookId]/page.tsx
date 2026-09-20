@@ -50,7 +50,7 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
     const { data: messageRows, error: messageError } = await service
       .from("messages")
       .select(
-        "id, role, content, status, unsupported_reason, attempt_no, created_at, citations(id, ordinal, source_id, source_name, quote, page_start)",
+        "id, role, content, status, message_kind, suggested_questions, unsupported_reason, attempt_no, created_at, citations(id, ordinal, source_id, source_name, quote, page_start)",
       )
       .eq("notebook_id", notebook.id)
       .eq("user_id", userId)
@@ -68,8 +68,10 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
       }> | null
       content: string
       id: string
+      message_kind: "answer" | "source_orientation"
       role: string
       status: string
+      suggested_questions: unknown
       unsupported_reason: string | null
     }>
     const messages: ChatMessage[] = rawMessageRows.map((message) => ({
@@ -94,10 +96,19 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
         })),
       content: message.content,
       id: message.id,
+      messageKind: message.message_kind,
       role: message.role as ChatMessage["role"],
       status: message.status,
+      suggestedQuestions: Array.isArray(message.suggested_questions)
+        ? message.suggested_questions.filter(
+            (question): question is string => typeof question === "string",
+          )
+        : [],
       unsupportedReason: message.unsupported_reason,
     }))
+    const starterQuestions = messages.flatMap((message) =>
+      message.messageKind === "source_orientation" ? message.suggestedQuestions : [],
+    )
     const streaming = messages.some(
       (message) => message.role === "assistant" && message.status === "streaming",
     )
@@ -131,7 +142,11 @@ export default async function NotebookPage({ params }: NotebookPageProps) {
           </CardHeader>
           <CardContent className="grid gap-6">
             <ChatThread messages={messages} notebookId={notebook.id} />
-            <QuestionInput notebookId={notebook.id} streaming={streaming} />
+            <QuestionInput
+              notebookId={notebook.id}
+              starterQuestions={starterQuestions}
+              streaming={streaming}
+            />
           </CardContent>
         </Card>
 
