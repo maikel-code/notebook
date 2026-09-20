@@ -40,7 +40,7 @@
 - [X] T012 [US1] Trigger orientation only after the first owned source reaches `ready` in `lib/ingestion/run-job.ts`
 - [X] T013 [US1] Load orientation messages and starter questions in `app/notebooks/[notebookId]/page.tsx`
 - [X] T014 [US1] Render cited orientation cards and editable starter-question actions in `components/notebook/chat-thread.tsx` and `components/notebook/question-input.tsx`
-- [ ] T015 [US1] Add the first-upload Chromium path and failure/no-duplicate assertions in `tests/e2e/workspace-orientation.spec.ts`
+- [X] T015 [US1] Add the first-upload Chromium path and failure/no-duplicate assertions in `tests/e2e/workspace-orientation.spec.ts`
 
 **Checkpoint**: US1 works without web search or Studio notes.
 
@@ -53,11 +53,11 @@
 **Independent Test**: Select a ready PDF, inspect its metadata and all extracted text, return to chat, and verify a foreign source cannot be read.
 
 - [X] T016 [P] [US2] Add red unit tests for complete page/section text assembly and absent-text states in `tests/unit/source-detail.test.ts`
-- [ ] T017 [P] [US2] Add red integration tests for owner-only detail data and removed-source behavior in `tests/integration/source-detail.test.ts`
+- [X] T017 [P] [US2] Add red integration tests for owner-only detail data and removed-source behavior in `tests/integration/source-detail.test.ts`
 - [X] T018 [US2] Implement source-detail query, neutralen Überblick aus Metadaten/Textvorschau und vollständige extracted-text assembly in `lib/notebooks/workspace-service.ts`
 - [X] T019 [US2] Implement list selection, metadata, overview, text navigation and return affordance in `components/notebook/source-list.tsx` and `components/notebook/source-detail.tsx`
 - [X] T020 [US2] Compose the responsive sources/chat/studio workspace and selected-detail state in `components/notebook/workspace.tsx` and `app/notebooks/[notebookId]/page.tsx`
-- [ ] T021 [US2] Add Chromium keyboard, detail-read, error-state and return-flow coverage in `tests/e2e/source-detail.spec.ts`
+- [X] T021 [US2] Add Chromium keyboard, detail-read, error-state and return-flow coverage in `tests/e2e/source-detail.spec.ts`
 
 **Checkpoint**: US1 and US2 work with local PDFs; selected source text remains private.
 

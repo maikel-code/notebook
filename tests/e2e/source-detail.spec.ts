@@ -54,7 +54,7 @@ test("a keyboard user can read a source, see a processing error, and return to t
     "Vollständiger extrahierter Text der Quelle.",
   )
   await page.getByRole("button", { name: "Zurück zum Arbeitsbereich" }).click()
-  await expect(page.getByRole("heading", { name: "Chat" })).toBeVisible()
+  await expect(page.getByText("Chat", { exact: true })).toBeVisible()
 
   await page.getByLabel("PDF-Quelle hinzufügen").setInputFiles({
     buffer: textPdf("NOTEBOOK_E2E_FAIL_ONCE"),
