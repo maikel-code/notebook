@@ -41,6 +41,19 @@ export interface WorkspaceSnapshot {
   sources: WorkspaceSource[]
 }
 
+export interface SourceTextSection {
+  content: string
+  pageEnd: number
+  pageStart: number
+}
+
+export interface WorkspaceSourceDetail extends WorkspaceSource {
+  absentTextReason: string | null
+  overview: string | null
+  source: WorkspaceSource
+  textSections: SourceTextSection[]
+}
+
 interface SourceRow {
   byte_size: number
   canonical_url: string | null
@@ -69,6 +82,50 @@ interface StudioNotePreviewRow {
   id: string
   message_id: string
   title: string
+}
+
+interface SourceChunkRow {
+  content: string
+  ordinal: number
+  page_end: number
+  page_start: number
+}
+
+export function assembleSourceText(
+  chunks: Array<{ content: string; ordinal: number; pageEnd: number; pageStart: number }>,
+): SourceTextSection[] {
+  const sections = new Map<string, SourceTextSection>()
+  for (const chunk of [...chunks].sort((left, right) => left.ordinal - right.ordinal)) {
+    const key = `${chunk.pageStart}:${chunk.pageEnd}`
+    const section = sections.get(key)
+    if (section) {
+      section.content = `${section.content}\n\n${chunk.content}`
+    } else {
+      sections.set(key, {
+        content: chunk.content,
+        pageEnd: chunk.pageEnd,
+        pageStart: chunk.pageStart,
+      })
+    }
+  }
+  return [...sections.values()].sort(
+    (left, right) => left.pageStart - right.pageStart || left.pageEnd - right.pageEnd,
+  )
+}
+
+export function createSourceOverview(
+  source: Pick<WorkspaceSource, "byteSize" | "fileName" | "pageCount" | "sourceKind">,
+  preview: string,
+): string | null {
+  const normalizedPreview = preview.replaceAll(/\s+/g, " ").trim()
+  if (!normalizedPreview) return null
+  const size = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(
+    source.byteSize / 1024,
+  )
+  const scope = source.pageCount ? `${source.pageCount} Seiten` : "ohne Seitenangabe"
+  const textPreview = normalizedPreview.slice(0, 500)
+  const ellipsis = normalizedPreview.length > textPreview.length ? "…" : ""
+  return `${source.sourceKind === "pdf" ? "PDF" : "Webquelle"} · ${scope} · ${size} KB. Textvorschau: ${textPreview}${ellipsis}`
 }
 
 function requireContext(context: RequestContext | null): RequestContext {
@@ -121,7 +178,7 @@ export async function getSourceDetailForContext(
   notebookId: string,
   sourceId: string,
   service: SupabaseClient,
-): Promise<WorkspaceSource> {
+): Promise<WorkspaceSourceDetail> {
   const { userId } = requireContext(context)
   await requireOwnedNotebook({ userId }, notebookId, service)
 
@@ -135,7 +192,35 @@ export async function getSourceDetailForContext(
     .eq("user_id", userId)
     .maybeSingle()
   if (error || !data) throw notFoundError()
-  return toSource(data as SourceRow)
+  const source = toSource(data as SourceRow)
+  const { data: chunkRows, error: chunkError } = await service
+    .from("chunks")
+    .select("ordinal, page_start, page_end, content")
+    .eq("source_id", sourceId)
+    .eq("user_id", userId)
+    .order("ordinal", { ascending: true })
+  if (chunkError) throw new Error("Quellentext konnte nicht geladen werden.")
+
+  const textSections = assembleSourceText(
+    ((chunkRows ?? []) as SourceChunkRow[]).map((chunk) => ({
+      content: chunk.content,
+      ordinal: chunk.ordinal,
+      pageEnd: chunk.page_end,
+      pageStart: chunk.page_start,
+    })),
+  )
+  const overview = createSourceOverview(
+    source,
+    textSections.map((section) => section.content).join("\n"),
+  )
+  const absentTextReason = textSections.length
+    ? null
+    : source.errorReason ||
+      (source.status === "ready"
+        ? "Für diese Quelle wurde kein lesbarer Text gespeichert."
+        : "Der Quellentext ist erst nach erfolgreicher Verarbeitung verfügbar.")
+
+  return { ...source, absentTextReason, overview, source, textSections }
 }
 
 export async function getWorkspaceSnapshotForContext(
