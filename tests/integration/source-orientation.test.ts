@@ -26,7 +26,10 @@ describe("source orientation persistence", () => {
 
   afterAll(async () => fixture.cleanup())
 
-  async function insertSource(status: "failed" | "ready" = "ready"): Promise<{
+  async function insertSource(
+    status: "failed" | "ready" = "ready",
+    targetNotebookId = notebookId,
+  ): Promise<{
     chunkId: string
     sourceId: string
   }> {
@@ -37,10 +40,10 @@ describe("source orientation persistence", () => {
       error_reason: status === "failed" ? "Die PDF-Datei konnte nicht gelesen werden." : null,
       file_name: `${sourceId}.pdf`,
       id: sourceId,
-      notebook_id: notebookId,
+      notebook_id: targetNotebookId,
       page_count: 1,
       status,
-      storage_path: sourceStoragePath(fixture.owner.id, notebookId, sourceId),
+      storage_path: sourceStoragePath(fixture.owner.id, targetNotebookId, sourceId),
       user_id: fixture.owner.id,
     })
     if (sourceError) throw sourceError
@@ -100,6 +103,39 @@ describe("source orientation persistence", () => {
       .single()
     expect(orientation).toMatchObject({
       citations: [{ quote: "Freigabe erfolgt am Montag", source_id: sourceId }],
+      suggested_questions: expect.arrayContaining([expect.any(String)]),
+    })
+  })
+
+  it("persists a cited fallback and starter questions when generation is unavailable", async () => {
+    const fallbackNotebookId = await createNotebookForContext(
+      testContext(fixture.owner),
+      "Fallback orientation",
+      fixture.service,
+    )
+    const { sourceId } = await insertSource("ready", fallbackNotebookId)
+
+    const result = await createSourceOrientationIfEligible({
+      generate: async () => {
+        throw new Error("provider unavailable")
+      },
+      notebookId: fallbackNotebookId,
+      service: fixture.service,
+      sourceId,
+      userId: fixture.owner.id,
+    })
+
+    expect(result).toMatchObject({ kind: "created", sourceId })
+    const { data: orientation, error } = await fixture.service
+      .from("messages")
+      .select("content, suggested_questions, citations(quote)")
+      .eq("notebook_id", fallbackNotebookId)
+      .eq("message_kind", "source_orientation")
+      .single()
+    expect(error).toBeNull()
+    expect(orientation).toMatchObject({
+      citations: [{ quote: "Die Freigabe erfolgt am Montag." }],
+      content: expect.stringContaining("Der erste Abschnitt der Quelle nennt:"),
       suggested_questions: expect.arrayContaining([expect.any(String)]),
     })
   })
