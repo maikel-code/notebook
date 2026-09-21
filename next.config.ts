@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   poweredByHeader: false,
   reactStrictMode: true,
-  serverExternalPackages: ["pdfjs-dist"],
+  serverExternalPackages: ["pdf-parse", "@napi-rs/canvas"],
 }
 
 export default nextConfig

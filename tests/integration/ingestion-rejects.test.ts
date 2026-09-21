@@ -37,7 +37,10 @@ trailer
 %%EOF`
     await expect(
       validatePdf(new TextEncoder().encode(encrypted), "locked.pdf"),
-    ).rejects.toMatchObject({ status: 422 })
+    ).rejects.toMatchObject({
+      message: "Passwortgeschützte PDF-Dateien werden nicht unterstützt.",
+      status: 422,
+    })
     const pages = Array.from({ length: MAX_PAGES + 1 }, (_, index) => `${index + 3} 0 R`).join(" ")
     const pageObjects = Array.from(
       { length: MAX_PAGES + 1 },

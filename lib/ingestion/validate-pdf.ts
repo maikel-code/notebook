@@ -1,6 +1,6 @@
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import { HttpError, validationError } from "@/lib/http/errors"
 import { localE2EPages } from "@/lib/ingestion/local-e2e"
+import { parsePdf } from "@/lib/ingestion/pdf-runtime"
 import { MAX_FILE_BYTES, MAX_PAGES } from "@/lib/limits"
 
 export interface ValidatedPdf {
@@ -9,6 +9,11 @@ export interface ValidatedPdf {
 
 function rejected(message: string): never {
   throw validationError(message)
+}
+
+function parserErrorName(error: unknown): string {
+  if (!(error instanceof Error)) return "UnknownPdfError"
+  return /^[A-Za-z][A-Za-z0-9_]{0,99}$/.test(error.name) ? error.name : "UnknownPdfError"
 }
 
 export async function validatePdf(bytes: Uint8Array, _fileName: string): Promise<ValidatedPdf> {
@@ -27,20 +32,17 @@ export async function validatePdf(bytes: Uint8Array, _fileName: string): Promise
 
   if (localE2EPages(bytes)) return { pageCount: 1 }
 
-  const loadingTask = getDocument({ data: bytes.slice() })
   try {
-    const document = await loadingTask.promise
-    const pageCount = document.numPages
-    document.cleanup()
+    // PDF.js may transfer the supplied ArrayBuffer to its worker. Validation must
+    // leave the original intact for the following extraction job.
+    const { pageCount } = await parsePdf(bytes.slice())
     if (pageCount > MAX_PAGES) rejected("Die PDF-Datei darf höchstens 50 Seiten haben.")
     return { pageCount }
   } catch (error) {
     if (error instanceof HttpError) throw error
-    const name = error instanceof Error ? error.name : ""
-    if (name === "PasswordException")
+    const errorName = parserErrorName(error)
+    if (errorName === "PasswordException")
       rejected("Passwortgeschützte PDF-Dateien werden nicht unterstützt.")
     rejected("Die PDF-Datei ist beschädigt oder kann nicht gelesen werden.")
-  } finally {
-    await loadingTask.destroy()
   }
 }
