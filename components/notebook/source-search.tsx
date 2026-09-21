@@ -1,15 +1,27 @@
 "use client"
 
-import {ExternalLink, Search} from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import { useId, useState, useTransition } from "react"
 import { importWebSources } from "@/app/notebooks/actions"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item"
+import { Label } from "@/components/ui/label"
 import type { WebSearchResult } from "@/lib/web/search"
-import {Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle} from "@/components/ui/item";
-import {Label} from "@/components/ui/label";
-import {InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput} from "@/components/ui/input-group";
 
 interface SearchResponse {
   error?: string
@@ -73,6 +85,7 @@ export function SourceSearch({
           )
           .join(" · ")
         setMessage(summary || "Keine Webseiten ausgewählt.")
+        setResults([])
         setSelected([])
         onImported()
       } catch {
@@ -83,16 +96,24 @@ export function SourceSearch({
 
   return (
     <section aria-label="Webquellen suchen" className="grid gap-2  ">
-        <Label className="font-medium" htmlFor="webquellen">Webquellen suchen</Label>
+      <Label className="font-medium" htmlFor="webquellen">
+        Webquellen suchen
+      </Label>
       <InputGroup className="py-5.5">
-        <InputGroupInput id="webquellen" placeholder="Suchbegriff eingeben..."   aria-label="Webquellen durchsuchen"
+        <InputGroupInput
+          id="webquellen"
+          placeholder="Suchbegriff eingeben..."
+          aria-label="Webquellen durchsuchen"
           maxLength={200}
           value={query}
-          onKeyDown={(event) => { if (event.key === "Enter") runSearch()}}
-          onChange={(event) => setQuery(event.target.value)} />
+          onKeyDown={(event) => {
+            if (event.key === "Enter") runSearch()
+          }}
+          onChange={(event) => setQuery(event.target.value)}
+        />
         <InputGroupAddon align="inline-end">
           <InputGroupButton size="sm" variant="default" disabled={searching} onClick={runSearch}>
-          {searching ? "Suche läuft" : "Suchen"}
+            {searching ? "Suche läuft" : "Suchen"}
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
@@ -119,30 +140,27 @@ export function SourceSearch({
           </div>
           <ItemGroup aria-label="Websuchergebnisse" className="grid gap-2">
             {results.map((result) => (
-              <Item className="border-0" variant="muted" key={result.url} >
+              <Item className="border-0" variant="muted" key={result.url}>
                 <ItemMedia>
-                   <Checkbox
-                     id={`${checkboxIdPrefix}-${result.url}`}
-                     checked={selected.includes(result.url)}
-                     onCheckedChange={() => toggle(result.url)}
-                   />
+                  <Checkbox
+                    id={`${checkboxIdPrefix}-${result.url}`}
+                    checked={selected.includes(result.url)}
+                    onCheckedChange={() => toggle(result.url)}
+                  />
                 </ItemMedia>
                 <ItemContent>
                   <label htmlFor={`${checkboxIdPrefix}-${result.url}`}>
-                  <ItemTitle>
-                    {result.title}
-                    </ItemTitle>
-                  <ItemDescription className="text-xs space-x-1">
-                    <span>{result.domain}</span> <span>·</span> <span>{result.description}</span>
-                  </ItemDescription>
-                    </label>
+                    <ItemTitle>{result.title}</ItemTitle>
+                    <ItemDescription className="text-xs space-x-1">
+                      <span>{result.domain}</span> <span>·</span> <span>{result.description}</span>
+                    </ItemDescription>
+                  </label>
                 </ItemContent>
                 <ItemActions>
                   <a className="inline" href={result.url} rel="noreferrer" target="_blank">
-                        <ExternalLink className="inline-block ml-1 -mt-1.5 h-4 w-4" />
-                      </a>
+                    <ExternalLink className="inline-block ml-1 -mt-1.5 h-4 w-4" />
+                  </a>
                 </ItemActions>
-
               </Item>
             ))}
           </ItemGroup>

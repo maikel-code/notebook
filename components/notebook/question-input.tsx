@@ -112,7 +112,7 @@ export function QuestionInput({
                 disabled={pending || streaming}
                 type="button"
                 variant="secondary"
-                className="rounded-full"
+                className="rounded-full whitespace-normal "
                 onClick={() => {
                   setVisibleStarterQuestions([])
                   submit(starterQuestion)

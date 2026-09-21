@@ -47,6 +47,7 @@ test("searches, previews and explicitly imports individual and all web source se
   await expect(page.getByRole("list", { name: "Quellen" })).toContainText(
     "Öffentliche Beispielquelle",
   )
+  await expect(page.getByRole("list", { name: "Websuchergebnisse" })).toHaveCount(0)
 
   await page.getByLabel("Webquellen durchsuchen").fill("Mitgliedschaft")
   await waitForSearch(page)

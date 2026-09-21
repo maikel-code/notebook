@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
 import { type RequestContext, requireOwnedNotebook } from "@/lib/auth/ownership"
-import { conflictError, unauthorizedError, validationError } from "@/lib/http/errors"
+import { conflictError, notFoundError, unauthorizedError, validationError } from "@/lib/http/errors"
+import { MAX_SELECTED_SOURCES } from "@/lib/limits"
 
 export type { RequestContext } from "@/lib/auth/ownership"
 
@@ -124,4 +125,56 @@ export async function deleteNotebookForContext(
     .eq("user_id", authorized.userId)
 
   if (error) throw new Error("Notebook konnte nicht gelöscht werden.")
+}
+
+interface OwnedSource {
+  id: string
+  is_selected: boolean
+  notebook_id: string
+  status: string
+}
+
+export async function setSourceSelectedForContext(
+  context: RequestContext | null,
+  sourceId: string,
+  selected: boolean,
+  service: SupabaseClient,
+): Promise<{ isSelected: boolean; notebookId: string }> {
+  const { userId } = requireContext(context)
+  const { data: source, error: sourceError } = await service
+    .from("sources")
+    .select("id, notebook_id, status, is_selected")
+    .eq("id", sourceId)
+    .eq("user_id", userId)
+    .maybeSingle()
+  if (sourceError || !source) {
+    throw notFoundError()
+  }
+  const ownedSource = source as OwnedSource
+
+  if (selected && ownedSource.status !== "ready") {
+    throw validationError("Nur bereite Quellen können für Fragen ausgewählt werden.")
+  }
+
+  if (selected && !ownedSource.is_selected) {
+    const { count, error: countError } = await service
+      .from("sources")
+      .select("id", { count: "exact", head: true })
+      .eq("notebook_id", ownedSource.notebook_id)
+      .eq("user_id", userId)
+      .eq("is_selected", true)
+    if (countError) throw new Error("Quellenauswahl konnte nicht geprüft werden.")
+    if ((count ?? 0) >= MAX_SELECTED_SOURCES) {
+      throw validationError(`Es dürfen höchstens ${MAX_SELECTED_SOURCES} Quellen ausgewählt sein.`)
+    }
+  }
+
+  const { error: updateError } = await service
+    .from("sources")
+    .update({ is_selected: selected })
+    .eq("id", ownedSource.id)
+    .eq("user_id", userId)
+  if (updateError) throw new Error("Quellenauswahl konnte nicht gespeichert werden.")
+
+  return { isSelected: selected, notebookId: ownedSource.notebook_id }
 }

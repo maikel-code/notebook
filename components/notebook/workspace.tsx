@@ -24,6 +24,7 @@ function toNotebookSource(source: WorkspaceSource): NotebookSource {
     errorReason: source.errorReason,
     fileName: source.fileName,
     id: source.id,
+    isSelected: source.isSelected,
     sourceKind: source.sourceKind,
     status: source.status as NotebookSource["status"],
   }

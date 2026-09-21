@@ -19,6 +19,7 @@ import {
   createNotebookForContext,
   deleteNotebookForContext,
   renameNotebookForContext,
+  setSourceSelectedForContext,
 } from "@/lib/notebooks/service"
 import { saveStudioNoteForContext } from "@/lib/studio/service"
 import { createServiceSupabaseClient } from "@/lib/supabase/service"
@@ -130,6 +131,17 @@ export async function retryIngestion(sourceId: string): Promise<void> {
   await retryIngestionForContext({ userId }, sourceId, service)
   await runNextIngestionJob(service, sourceId)
   revalidatePath(`/notebooks`)
+}
+
+export async function setSourceSelected(sourceId: string, selected: boolean): Promise<void> {
+  const { userId } = await requireUser()
+  const source = await setSourceSelectedForContext(
+    { userId },
+    sourceId,
+    selected,
+    createServiceSupabaseClient(),
+  )
+  revalidatePath(`/notebooks/${source.notebookId}`)
 }
 
 export async function importWebSources(
