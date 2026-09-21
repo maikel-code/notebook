@@ -7,6 +7,7 @@ import type { StudioNote } from "@/lib/studio/service"
 interface StudioNotePreview {
   createdAt: string
   id: string
+  messageId: string
   title: string
 }
 
@@ -25,7 +26,7 @@ export function StudioNotes({
   notebookId: string
   notes: StudioNotePreview[]
   selectedNote: StudioNote | null
-  onSelect: (noteId: string) => void
+  onSelect: (noteId: string | null) => void
 }) {
   return (
     <section aria-label="Studio-Notizen" className="grid gap-4">
@@ -50,10 +51,11 @@ export function StudioNotes({
           {notes.map((note) => (
             <Button
               key={note.id}
+              aria-pressed={selectedNote?.id === note.id}
               className="h-auto justify-start whitespace-normal text-left"
               type="button"
-              variant="outline"
-              onClick={() => onSelect(note.id)}
+              variant={selectedNote?.id === note.id ? "default" : "outline"}
+              onClick={() => onSelect(selectedNote?.id === note.id ? null : note.id)}
             >
               <span className="grid gap-1">
                 <span>{note.title}</span>
