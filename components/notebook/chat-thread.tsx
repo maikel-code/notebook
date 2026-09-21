@@ -29,9 +29,11 @@ export interface ChatMessage {
 export function ChatThread({
   messages,
   notebookId,
+  savedMessageIds,
 }: {
   messages: ChatMessage[]
   notebookId: string
+  savedMessageIds: ReadonlySet<string>
 }) {
   if (!messages.length) return <p>Noch keine Fragen gestellt.</p>
   return (
@@ -84,6 +86,7 @@ export function ChatThread({
           message.messageKind === "answer" &&
           message.status === "complete" &&
           message.unsupportedReason === null &&
+          !savedMessageIds.has(message.id) &&
           message.citations.length ? (
             <SaveStudioNoteButton messageId={message.id} notebookId={notebookId} />
           ) : null}

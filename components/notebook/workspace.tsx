@@ -126,7 +126,11 @@ export function Workspace({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
-          <ChatThread messages={[...messages, ...optimisticMessages]} notebookId={notebookId} />
+          <ChatThread
+            messages={[...messages, ...optimisticMessages]}
+            notebookId={notebookId}
+            savedMessageIds={new Set(notes.map((note) => note.messageId))}
+          />
           <QuestionInput
             notebookId={notebookId}
             onQuestionRejected={removeOptimisticQuestion}
@@ -148,7 +152,10 @@ export function Workspace({
             notes={notes}
             selectedNote={selectedNote}
             onSelect={(noteId) =>
-              router.replace(`/notebooks/${notebookId}?note=${noteId}`, { scroll: false })
+              router.replace(
+                noteId ? `/notebooks/${notebookId}?note=${noteId}` : `/notebooks/${notebookId}`,
+                { scroll: false },
+              )
             }
           />
         </CardContent>
