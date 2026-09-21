@@ -20,6 +20,7 @@ describe("studio note persistence", () => {
   let fixture: IntegrationFixture
   let notebookId: string
   let answerMessageId: string
+  let sourceId: string
 
   beforeAll(async () => {
     fixture = await createIntegrationFixture()
@@ -28,7 +29,7 @@ describe("studio note persistence", () => {
       "Studio",
       fixture.service,
     )
-    const sourceId = randomUUID()
+    sourceId = randomUUID()
     const chunkId = randomUUID()
     await fixture.service.from("sources").insert({
       byte_size: 1,
@@ -78,6 +79,29 @@ describe("studio note persistence", () => {
 
   afterAll(async () => fixture.cleanup())
 
+  it("rejects an incomplete answer", async () => {
+    const incomplete = await persistVerifiedAnswer(
+      {
+        citations: [],
+        content: "Unvollständiger Entwurf.",
+        notebookId,
+        questionContent: "Was ist offen?",
+        status: "invalid",
+        unsupportedReason: "invalid_citations",
+        userId: fixture.owner.id,
+      },
+      fixture.service,
+    )
+
+    await expect(
+      saveStudioNoteForContext(
+        testContext(fixture.owner),
+        { messageId: incomplete.id, notebookId },
+        fixture.service,
+      ),
+    ).rejects.toMatchObject({ status: 422 })
+  })
+
   it("saves one immutable note and returns its citations only to the owner", async () => {
     const first = await saveStudioNoteForContext(
       testContext(fixture.owner),
@@ -105,5 +129,17 @@ describe("studio note persistence", () => {
     await expect(
       getStudioNoteForContext(testContext(fixture.stranger), notebookId, first.id, fixture.service),
     ).rejects.toMatchObject({ status: 404 })
+
+    const { error: deleteError } = await fixture.service
+      .from("sources")
+      .delete()
+      .eq("id", sourceId)
+      .eq("user_id", fixture.owner.id)
+    if (deleteError) throw deleteError
+    await expect(
+      getStudioNoteForContext(testContext(fixture.owner), notebookId, first.id, fixture.service),
+    ).resolves.toMatchObject({
+      citations: [expect.objectContaining({ quote: "Belegter Inhalt.", sourceId: null })],
+    })
   })
 })
