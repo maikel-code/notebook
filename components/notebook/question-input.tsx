@@ -107,10 +107,12 @@ export function QuestionInput({
           <div className="flex flex-wrap gap-2">
             {visibleStarterQuestions.map((starterQuestion) => (
               <Button
+                size="xs"
                 key={starterQuestion}
                 disabled={pending || streaming}
                 type="button"
-                variant="outline"
+                variant="secondary"
+                className="rounded-full"
                 onClick={() => {
                   setVisibleStarterQuestions([])
                   submit(starterQuestion)
@@ -130,6 +132,12 @@ export function QuestionInput({
           value={question}
           disabled={pending || streaming}
           maxLength={2000}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault()
+              submit()
+            }
+          }}
           onChange={(event) => setQuestion(event.target.value)}
         />
         <InputGroupAddon align="block-end">

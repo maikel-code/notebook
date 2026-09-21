@@ -48,6 +48,8 @@ test("a complete answer can be saved and opened as a studio note", async ({ page
   await expect(page.getByRole("button", { name: "In Notiz speichern" })).toBeVisible()
   await page.getByRole("button", { name: "In Notiz speichern" }).click()
   await expect(page.getByLabel("Studio-Notizen")).toContainText(question)
+  await page.reload()
+  await expect(page.getByLabel("Studio-Notizen")).toContainText(question)
   await page.getByRole("button", { name: question }).click()
   await expect(page.getByLabel("Studio-Notiz")).toContainText(question)
 })

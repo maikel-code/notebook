@@ -3,6 +3,7 @@ import { RetryAnswerButton } from "@/components/notebook/retry-answer-button"
 import { SaveStudioNoteButton } from "@/components/notebook/save-studio-note-button"
 import { UnsupportedAnswer } from "@/components/notebook/unsupported-answer"
 import { invalidCitationMessage } from "@/lib/rag/unsupported"
+import {Fragment} from "react";
 
 export interface ChatCitation {
   id: string
@@ -36,8 +37,8 @@ export function ChatThread({
   return (
     <div className="grid gap-4">
       {messages.map((message) => (
+        <Fragment key={message.id}>
         <div
-          key={message.id}
           className={`${message.role === "user" ? "border-2 max-w-10/12 ml-auto bg-accent" : "border-2 bg-background"} p-3 space-y-1.5`}
           title={
             message.messageKind === "source_orientation"
@@ -77,6 +78,8 @@ export function ChatThread({
               <RetryAnswerButton messageId={message.id} notebookId={notebookId} />
             </>
           ) : null}
+
+        </div>
           {message.role === "assistant" &&
           message.messageKind === "answer" &&
           message.status === "complete" &&
@@ -84,7 +87,7 @@ export function ChatThread({
           message.citations.length ? (
             <SaveStudioNoteButton messageId={message.id} notebookId={notebookId} />
           ) : null}
-        </div>
+        </Fragment>
       ))}
     </div>
   )

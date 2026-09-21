@@ -18,11 +18,12 @@ export function SaveStudioNoteButton({
   const [pending, startTransition] = useTransition()
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap flex-row-reverse items-center gap-2 -mt-2">
       <Button
         disabled={pending}
         type="button"
-        variant="outline"
+        size="xs"
+        variant="default"
         onClick={() =>
           startTransition(async () => {
             setError(null)
